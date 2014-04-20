@@ -91,6 +91,7 @@ toList =
     go acc (Tip k' x')        = (k', x') : acc
     go acc (Bin k' x' _m l r) = (k', x') : go (go acc r) l
 
+
 insert :: Key -> a -> IntMap a -> IntMap a
 insert k x t = case t of
     Nil       -> Tip k x
@@ -196,26 +197,24 @@ zero i m
   = (natFromInt i) .&. (natFromInt m) == 0
 {-# INLINE zero #-}
 
-
-mask :: Key -> Mask -> Key
-mask i m
-  = maskW (natFromInt i) (natFromInt m)
-{-# INLINE mask #-}
-
-
--- TODO (SM): compute complement only once
 nomatch, match :: Key -> Key -> Mask -> Bool
 {-# INLINE nomatch #-}
 {-# INLINE match   #-}
-nomatch k1 k2 m = (mask k1 m) /= (mask k2 m)
-match   k1 k2 m = (mask k1 m) == (mask k2 m)
+nomatch k1 k2 m =
+    natFromInt k1 .&. m' /= natFromInt k2 .&. m'
+  where
+    m' = maskW (natFromInt m)
+
+match k1 k2 m =
+    natFromInt k1 .&. m' == natFromInt k2 .&. m'
+  where
+    m' = maskW (natFromInt m)
 
 {--------------------------------------------------------------------
   Big endian operations
 --------------------------------------------------------------------}
-maskW :: Nat -> Nat -> Key
-maskW i m
-  = intFromNat (i .&. (complement (m-1) `xor` m))
+maskW :: Nat -> Nat
+maskW m = complement (m-1) `xor` m
 {-# INLINE maskW #-}
 
 shorter :: Mask -> Mask -> Bool
