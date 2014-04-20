@@ -13,6 +13,7 @@ module Data.IntMap.Compact
     , lookup
     , member
     , notMember
+    , map
     ) where
 
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
@@ -181,6 +182,13 @@ fromList = foldl' (\im (k, x) -> insert k x im) empty
 singleton :: Key -> a -> IntMap a
 singleton = Tip
 
+map :: (a -> b) -> IntMap a -> IntMap b
+map f =
+    go
+  where
+    go Nil             = Nil
+    go (Tip k x)       = Tip k (f x)
+    go (Bin k x m l r) = Bin k (f x) m (go l) (go r)
 
 
 {--------------------------------------------------------------------
