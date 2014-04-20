@@ -60,6 +60,12 @@ data IntMap a
     | Nil
     deriving (Eq, Show)
 
+
+instance NFData a => NFData (IntMap a) where
+    rnf Nil               = ()
+    rnf (Tip _k x)        = rnf x
+    rnf (Bin _k x _m l r) = rnf x `seq` rnf l `seq` rnf r
+
 empty :: IntMap a
 empty = Nil
 
