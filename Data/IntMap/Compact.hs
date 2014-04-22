@@ -18,6 +18,9 @@ module Data.IntMap.Compact
     , map
 
     -- * PSQ
+    , IntPSQ
+    , pfromList
+    , plookup
     , pinsert
     , pempty
     , pminViewWithKey
@@ -343,9 +346,11 @@ binr k x m l NIL = case l of NIL -> TIP k x; _ -> BIN k x m l NIL
 binr k x m l r   = BIN k x m l r
 
 
-{-# INLINABLE pdelete #-}
-pdelete :: Ord a => Key -> IntPSQ a -> (IntPSQ a, Maybe a)
-pdelete k t0 =
+-- TODO (SM): verify that it is really worth do do deletion and lookup at the
+-- same time.
+{-# INLINABLE pdeleteView #-}
+pdeleteView :: Ord a => Key -> IntPSQ a -> (IntPSQ a, Maybe a)
+pdeleteView k t0 =
     case delFrom t0 of
       (# t, mbX #) -> (t, mbX)
   where
@@ -368,12 +373,33 @@ pdelete k t0 =
                          (# r', mbX #) -> let t' = binr k' x' m l  r'
                                           in  t' `seq` (# t', mbX #)
 
+{-# INLINABLE pdelete #-}
+pdelete :: Ord a => Key -> IntPSQ a -> IntPSQ a
+pdelete k t = case t of
+    NIL           -> NIL
+
+    TIP k' x'
+      | k == k'   -> NIL
+      | otherwise -> t
+
+    BIN k' x' m l r
+      | nomatch k k' m -> t
+      | k == k'        -> pmerge m l r
+      | zero k m       -> binl k' x' m (pdelete k l) r
+      | otherwise      -> binr k' x' m l             (pdelete k r)
+
 
 {-# INLINE pinsert #-}
 pinsert :: Ord a => Key -> a -> IntPSQ a -> IntPSQ a
 pinsert k x t0 =
-    case pdelete k t0 of
+    case pdeleteView k t0 of
       (t, _mbX) -> insertNew k x t
+    -- insertNew k x (pdelete k t)
+    {-
+    case plookup k t of
+      Nothing   -> insertNew k x t
+      Just _mbX -> insertNew k x (pdelete k t)
+    -}
 
 
 {-# INLINE pminViewWithKey #-}
@@ -387,7 +413,7 @@ pminViewWithKey t = case t of
 {-# INLINE palter #-}
 palter :: Ord a => (Maybe a -> (Maybe a, b)) -> Key -> IntPSQ a -> (IntPSQ a, b)
 palter mkNextX k t0 =
-    case pdelete k t0 of
+    case pdeleteView k t0 of
       (t, mbX) ->
         case mkNextX mbX of
           (Nothing, result) -> (t,               result)
@@ -419,6 +445,11 @@ insertNew k x t = case t of
             if zero k m
               then BIN k' x' m (insertNew k  x  l) r
               else BIN k' x' m l                 (insertNew k  x  r)
+
+{-# INLINABLE pfromList #-}
+pfromList :: Ord a => [(Key, a)] -> IntPSQ a
+pfromList = foldl' (\im (k, x) -> pinsert k x im) pempty
+
 
 
 {- A draft of a variant of insert that fuses the delete pass and the insertNew
