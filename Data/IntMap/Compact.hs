@@ -19,6 +19,7 @@ module Data.IntMap.Compact
 
     -- * PSQ
     , IntPSQ
+    , pmap
     , pfromList
     , plookup
     , pinsert
@@ -289,16 +290,14 @@ branchMask p1 p2
 
 
 data IntPSQ a
-    = BIN {-# UNPACK #-} !Key a {-# UNPACK #-} !Mask !(IntPSQ a) !(IntPSQ a)
-    | TIP {-# UNPACK #-} !Key a
+    = BIN {-# UNPACK #-} !Key !a {-# UNPACK #-} !Mask !(IntPSQ a) !(IntPSQ a)
+    | TIP {-# UNPACK #-} !Key !a
     | NIL
     deriving (Eq, Show)
 
 
 instance NFData a => NFData (IntPSQ a) where
-    rnf NIL               = ()
-    rnf (TIP _k x)        = rnf x
-    rnf (BIN _k x _m l r) = rnf x `seq` rnf l `seq` rnf r
+    rnf t = t `seq` ()
 
 pempty :: IntPSQ a
 pempty = NIL
@@ -401,6 +400,18 @@ pinsert k x t0 =
       Just _mbX -> insertNew k x (pdelete k t)
     -}
 
+
+{-# INLINABLE pmap #-}
+pmap :: Ord b => (a -> b) -> IntPSQ a -> IntPSQ b
+pmap f =
+    go
+  where
+    go t = case t of
+        NIL           -> NIL
+        TIP k x       -> TIP k (f x)
+        BIN k x m l r -> insertNew k (f x) (pmerge m (go l) (go r))
+                         -- TODO (SM): try to avoid the merge by pulling one
+                         -- level up.
 
 {-# INLINE pminViewWithKey #-}
 pminViewWithKey :: Ord a => IntPSQ a -> Maybe ((Key, a), IntPSQ a)

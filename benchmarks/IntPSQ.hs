@@ -21,6 +21,8 @@ main = do
         defaultConfig
         (liftIO $ evaluate (rnf m) >> evaluate (rnf (PSQ.keys psq)))
         [ bench "minView" $ whnf deleteMins m
+        , bench "map (id)" $ whnf (M.pmap id) m
+        , bench "map (negate)" $ whnf (M.pmap negate) m
         , bench "lookup" $ whnf (lookup keys) m
         , bench "insert (fresh)" $ whnf (ins elems) M.pempty
         , bench "insert (duplicates)" $ whnf (ins elems) m
