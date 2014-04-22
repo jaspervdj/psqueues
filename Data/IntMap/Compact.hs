@@ -18,13 +18,21 @@ module Data.IntMap.Compact
     , map
 
     -- * PSQ
-    , IntPSQ
+    , IntPSQ(..)
     , pmap
     , pfromList
     , plookup
     , pinsert
+    , pinsert2
+    , pfromList2
+    , pinsert3
+    , pfromList3
     , pempty
     , pminViewWithKey
+    , binBubbleL
+
+    -- * Utils
+    , zero
     ) where
 
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
@@ -388,6 +396,9 @@ pdelete k t = case t of
       | otherwise      -> binr k' x' m l             (pdelete k r)
 
 
+-- | This variant of insert has the most consistent performance. It does at
+-- most two root-to-leaf traversals, which are reallocating the nodes on their
+-- path.
 {-# INLINE pinsert #-}
 pinsert :: Ord a => Key -> a -> IntPSQ a -> IntPSQ a
 pinsert k x t0 =
@@ -451,71 +462,104 @@ insertNew k x t = case t of
           then
             if zero k' m
               then BIN k  x  m (insertNew k' x' l) r
-              else BIN k  x  m l                 (insertNew k' x' r)
+              else BIN k  x  m l                   (insertNew k' x' r)
           else
             if zero k m
               then BIN k' x' m (insertNew k  x  l) r
-              else BIN k' x' m l                 (insertNew k  x  r)
+              else BIN k' x' m l                   (insertNew k  x  r)
 
 {-# INLINABLE pfromList #-}
 pfromList :: Ord a => [(Key, a)] -> IntPSQ a
 pfromList = foldl' (\im (k, x) -> pinsert k x im) pempty
 
+{-# INLINABLE pfromList2 #-}
+pfromList2 :: Ord a => [(Key, a)] -> IntPSQ a
+pfromList2 = foldl' (\im (k, x) -> pinsert2 k x im) pempty
 
+{-# INLINABLE pfromList3 #-}
+pfromList3 :: Ord a => [(Key, a)] -> IntPSQ a
+pfromList3 = foldl' (\im (k, x) -> pinsert3 k x im) pempty
 
-{- A draft of a variant of insert that fuses the delete pass and the insertNew
- - pass. This is however quite complicated and looses out on the nice inlining
- - option that the two-pass combinations offer.
-
-pinsert :: Ord a => Key -> a -> IntPSQ a -> IntPSQ a
-pinsert k x t = case t of
-    NIL       -> TIP k x
-
-    TIP k' x' ->
-      case compare k k' of
-        EQ -> TIP k' x
-        LT -> if x <= x'
-                then plink k  x  k' t         NIL
-                else plink k' x' k  (TIP k x) NIL
-        GT -> if x < x'
-                then plink k  x  k' t         NIL
-                else plink k' x' k  (TIP k x) NIL
-
-    BIN k' x' m l r
-      | nomatch k k' m ->
-          case compare x x' of
-            LT             -> plink k  x  k' t         NIL
-            GT             -> plink k' x' k  (TIP k x) (pmerge m l r)
-            EQ | k < k'    -> plink k  x  k' t         NIL
-               | otherwise -> plink k' x' k  (TIP k x) (pmerge m l r)
-
-      | otherwise ->
-          case compare k k' of
-            EQ -> if x < x'
-                    then BIN k' x m l r
-                    else pinsert k x (pmerge m l r)
-
-            LT | x <= x' ->
-                  if zero k' m
-                    then BIN k  x  m (pinsert k' x' l) r
-                    else BIN k  x  m l                 (pinsert k' x' r)
-
-               | otherwise ->
-                  if zero k m
-                    then BIN k' x' m (pinsert k  x  l) r
-                    else BIN k' x' m l                 (pinsert k  x  r)
-
-            GT | x <  x' ->
-                  if zero k' m
-                    then BIN k  x  m (pinsert k' x' l) r
-                    else BIN k  x  m l                 (pinsert k' x' r)
-
-               | otherwise ->
-                  if zero k m
-                    then BIN k' x' m (pinsert k  x  l) r
-                    else BIN k' x' m l                 (pinsert k  x  r)
-
+{-
+-- | An internal datatype to track the status of inserting/updating a node.
+data InsNode a
+    = Closed !(IntPSQ a)
+      -- ^ A closed node is a valid PSQ that is guaranteed to not violate the
+      -- min-heap property of the caller.
+    | Open {-# UNPACK #-} !Key !a {-# UNPACK #-} !Mask !(IntPSQ a) !(IntPSQ a)
+      -- ^ An open node is a BIN node whose key and value might have to be
+      -- swapped with the ones of the caller.
 -}
+
+-- | A more clever variant of insert that first looks up the key and then
+-- re-establishes the min-heap property in a bottom-up fashion.
+--
+-- NOTE (SM): the performacne of this function is bad if there are many
+-- priority decrements of keys that are deep down in the map. I think it might
+-- even have a quadratic worst-case performance because of the repeated calls
+-- to 'pmerge'.
+{-# INLINABLE pinsert2 #-}
+pinsert2 :: Ord a => Key -> a -> IntPSQ a -> IntPSQ a
+pinsert2 k x =
+    go
+  where
+    go t = case t of
+      NIL -> TIP k x
+
+      TIP k' x'
+        | k == k'           -> TIP k x
+        | (x, k) < (x', k') -> plink k  x  k' t         NIL
+        | otherwise         -> plink k' x' k  (TIP k x) NIL
+
+      BIN k' x' m l r
+        | nomatch k k' m ->
+            if (x, k) < (x', k')
+              then plink k  x  k' t         NIL
+              else plink k' x' k  (TIP k x) (pmerge m l r)
+
+        | k == k' ->
+            case compare x x' of
+              LT -> BIN k x m l r
+              EQ -> t
+              GT -> insertNew k x (pmerge m l r)
+        | zero k m  -> binBubbleL k' x' m (go l) r
+        | otherwise -> binBubbleR k' x' m l      (go r)
+
+-- | A smart constructor for a 'BIN' node whose left subtree's root could have
+-- a smaller priority and therefore needs to be bubbled up.
+{-# INLINE binBubbleL #-}
+binBubbleL :: Ord a => Key -> a -> Mask -> IntPSQ a -> IntPSQ a -> IntPSQ a
+binBubbleL k x m l r = case l of
+    NIL                   -> BIN k  x  m NIL                r
+    TIP lk lx
+      | (x, k) < (lx, lk) -> BIN k  x  m l                  r
+      | zero k m          -> BIN lk lx m (TIP k x)          r
+      | otherwise         -> BIN lk lx m NIL                (insertNew k x r)
+
+    BIN lk lx lm ll lr
+      | (x, k) < (lx, lk) -> BIN k  x  m l                  r
+      | zero k m          -> BIN lk lx m (BIN k x lm ll lr) r
+      | otherwise         -> BIN lk lx m (pmerge lm ll lr)  (insertNew k x r)
+
+-- | A smart constructor for a 'BIN' node whose right subtree's root could
+-- have a smaller priority and therefore needs to be bubbled up.
+{-# INLINE binBubbleR #-}
+binBubbleR :: Ord a => Key -> a -> Mask -> IntPSQ a -> IntPSQ a -> IntPSQ a
+binBubbleR k x m l r = case r of
+    NIL                   -> BIN k  x  m l NIL
+    TIP rk rx
+      | (x, k) < (rx, rk) -> BIN k  x  m l r
+      | zero k m          -> BIN rk rx m (insertNew k x l) NIL
+      | otherwise         -> BIN rk rx m l                 (TIP k x)
+
+    BIN rk rx rm rl rr
+      | (x, k) < (rx, rk) -> BIN k  x  m l r
+      | zero k m          -> BIN rk rx m (insertNew k x l) (pmerge rm rl rr)
+                             -- NOTE that this case can be quite expensive, as
+                             -- we might end up merging the same case multiple
+                             -- times.
+      | otherwise         -> BIN rk rx m l                 (BIN k x rm rl rr)
+
 
 plink :: Key -> a -> Key -> IntPSQ a -> IntPSQ a -> IntPSQ a
 plink k x k' k't otherTree
@@ -533,7 +577,7 @@ pmerge m l r = case l of
 
     TIP lk lx ->
       case r of
-        NIL           -> l
+        NIL                     -> l
         TIP rk rx
           | (lx, lk) < (rx, rk) -> BIN lk lx m NIL r
           | otherwise           -> BIN rk rx m l   NIL
@@ -543,10 +587,57 @@ pmerge m l r = case l of
 
     BIN lk lx lm ll lr ->
       case r of
-        NIL           -> l
+        NIL                     -> l
         TIP rk rx
           | (lx, lk) < (rx, rk) -> BIN lk lx m (pmerge lm ll lr) r
           | otherwise           -> BIN rk rx m l                NIL
         BIN rk rx rm rl rr
           | (lx, lk) < (rx, rk) -> BIN lk lx m (pmerge lm ll lr) r
           | otherwise           -> BIN rk rx m l                (pmerge rm rl rr)
+
+
+-- | A variant of insert that fuses the delete pass and the insertNew pass and
+-- does not need to re-establish the min-heap property in a bottom-up fashion.
+--
+-- NOTE (SM) surprisingly, it is slower in benchmarks, which might be cause it
+-- is buggy, or because there's some bad Core being generated.
+{-# INLINABLE pinsert3 #-}
+pinsert3 :: Ord a => Key -> a -> IntPSQ a -> IntPSQ a
+pinsert3 k x t = case t of
+    NIL -> TIP k x
+
+    TIP k' x' ->
+      case compare k k' of
+        EQ -> TIP k' x
+        LT -> if x <= x'
+                then plink k  x  k' t         NIL
+                else plink k' x' k  (TIP k x) NIL
+        GT -> if x < x'
+                then plink k  x  k' t         NIL
+                else plink k' x' k  (TIP k x) NIL
+
+    BIN k' x' m l r
+      | nomatch k k' m ->
+          if (x, k) < (x', k')
+            then plink k  x  k' t         NIL
+            else plink k' x' k  (TIP k x) (pmerge m l r)
+
+      | k == k' ->
+          case compare x x' of
+            LT -> BIN k' x m l r
+            EQ -> t
+            GT -> insertNew k x (pmerge m l r)
+
+      | (x, k) < (x', k') ->
+          case (zero k m, zero k' m) of
+            (False, False) -> BIN k x m                             l   (insertNew k' x' (pdelete k r))
+            (False, True ) -> BIN k x m (insertNew k' x'            l )                  (pdelete k r)
+            (True,  False) -> BIN k x m                  (pdelete k l)  (insertNew k' x'            r )
+            (True,  True ) -> BIN k x m (insertNew k' x' (pdelete k l))                             r
+
+      | otherwise ->
+          if zero k m
+            then BIN k' x' m (pinsert k  x  l) r
+            else BIN k' x' m l                 (pinsert k  x  r)
+
+

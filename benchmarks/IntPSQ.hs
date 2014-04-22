@@ -24,14 +24,27 @@ main = do
         , bench "map (id)" $ whnf (M.pmap id) m
         , bench "map (negate)" $ whnf (M.pmap negate) m
         , bench "lookup" $ whnf (lookup keys) m
+
         , bench "insert (fresh)" $ whnf (ins elems) M.pempty
         , bench "insert (duplicates)" $ whnf (ins elems) m
+        , bench "insert (decreasing)" $ whnf (ins elemsDecreasing) m
         , bench "fromList" $ whnf M.pfromList elems
+
+        , bench "insert2 (fresh)" $ whnf (ins2 elems) M.pempty
+        , bench "insert2 (duplicates)" $ whnf (ins2 elems) m
+        , bench "insert2 (decreasing)" $ whnf (ins2 elemsDecreasing) m
+        , bench "fromList2" $ whnf M.pfromList2 elems
+
+        , bench "insert3 (fresh)" $ whnf (ins3 elems) M.pempty
+        , bench "insert3 (duplicates)" $ whnf (ins3 elems) m
+        , bench "insert3 (decreasing)" $ whnf (ins3 elemsDecreasing) m
+        , bench "fromList3" $ whnf M.pfromList3 elems
 
         , bench "PSQ.minView" $ whnf psqdeleteMins psq
         , bench "PSQ.lookup" $ whnf (psqlookup keys) psq
         , bench "PSQ.insert (fresh)" $ whnf (psqins elems) PSQ.empty
         , bench "PSQ.insert (duplicates)" $ whnf (psqins elems) psq
+        , bench "PSQ.insert (decreasing)" $ whnf (psqins elemsDecreasing) psq
         , bench "PSQ.fromList" $ whnf PSQ.fromList psqelems
         -- , bench "union (with itself)" $ whnf (M.union m) m
         -- , bench "union (with itself shifted)" $ whnf (M.union m2) m
@@ -61,7 +74,10 @@ main = do
         ]
   where
     elems = zip keys values
-    psqelems = zipWith (PSQ.:->) keys values
+
+    elemsDecreasing = zip (reverse keys) (map negate values)
+    psqelems        = map (uncurry (PSQ.:->)) elems
+
     keys = [1..2^12]
     values = [1..2^12]
     sum k v1 v2 = k + v1 + v2
@@ -76,6 +92,12 @@ lookup xs m = foldl' (\n k -> fromMaybe n (M.plookup k m)) 0 xs
 
 ins :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
 ins xs m = foldl' (\m (k, v) -> M.pinsert k v m) m xs
+
+ins2 :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
+ins2 xs m = foldl' (\m (k, v) -> M.pinsert2 k v m) m xs
+
+ins3 :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
+ins3 xs m = foldl' (\m (k, v) -> M.pinsert3 k v m) m xs
 
 deleteMins :: M.IntPSQ Int -> Int
 deleteMins = go 0
