@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE UnboxedTuples #-}
 module Data.IntMap.Compact
     ( IntMap
     , (!)
@@ -14,6 +15,11 @@ module Data.IntMap.Compact
     , member
     , notMember
     , map
+
+    -- * PSQ
+    , pinsert
+    , pempty
+    , pminViewWithKey
     ) where
 
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
@@ -191,6 +197,21 @@ map f =
     go (Bin k x m l r) = Bin k (f x) m (go l) (go r)
 
 
+{-
+union :: IntMap a -> IntMap a -> IntMap a
+union l r = case l of
+    Nil                -> r
+    Tip lk lx          -> insert lk lx r
+    Bin lk lx lm ll lr ->
+      case r of
+        Nir                -> l
+        Tip rk rx          -> insert rk rx l
+        Bin rk rx rm rl rr
+          | shorter lm rm ->
+          | shorter rm lm ->
+          | otherwise     ->
+-}
+
 {--------------------------------------------------------------------
   Endian independent bit twiddling
 --------------------------------------------------------------------}
@@ -241,3 +262,235 @@ branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
 {-# INLINE branchMask #-}
 
+
+-- ===========================================================================
+-- IntPSQ
+-- ===========================================================================
+
+
+
+
+
+data IntPSQ a
+    = BIN {-# UNPACK #-} !Key a {-# UNPACK #-} !Mask !(IntPSQ a) !(IntPSQ a)
+    | TIP {-# UNPACK #-} !Key a
+    | NIL
+    deriving (Eq, Show)
+
+
+instance NFData a => NFData (IntPSQ a) where
+    rnf NIL               = ()
+    rnf (TIP _k x)        = rnf x
+    rnf (BIN _k x _m l r) = rnf x `seq` rnf l `seq` rnf r
+
+pempty :: IntPSQ a
+pempty = NIL
+
+pnull :: IntPSQ a -> Bool
+pnull NIL = True
+pnull _   = False
+
+
+plookup :: Key -> IntPSQ a -> Maybe a
+plookup k t = case t of
+    NIL                -> Nothing
+
+    TIP k' x'
+      | k == k'        -> Just x'
+      | otherwise      -> Nothing
+
+    BIN k' x' m l r
+      | nomatch k k' m -> Nothing
+      | k == k'        -> Just x'
+      | zero k m       -> plookup k l
+      | otherwise      -> plookup k r
+
+
+ptoList :: IntPSQ a -> [(Int, a)]
+ptoList =
+    go []
+  where
+    go acc NIL                = acc
+    go acc (TIP k' x')        = (k', x') : acc
+    go acc (BIN k' x' _m l r) = (k', x') : go (go acc r) l
+
+-- | Smart constructor for a 'BIN' node whose left subtree could have become
+-- 'NIL'.
+{-# INLINE binl #-}
+binl :: Key -> a -> Mask -> IntPSQ a -> IntPSQ a -> IntPSQ a
+binl k x m NIL r = case r of NIL -> TIP k x; _ -> BIN k x m NIL r
+binl k x m l   r = BIN k x m l r
+
+-- | Smart constructor for a 'BIN' node whose right subtree could have become
+-- 'NIL'.
+{-# INLINE binr #-}
+binr :: Key -> a -> Mask -> IntPSQ a -> IntPSQ a -> IntPSQ a
+binr k x m l NIL = case l of NIL -> TIP k x; _ -> BIN k x m l NIL
+binr k x m l r   = BIN k x m l r
+
+
+{-# INLINABLE pdelete #-}
+pdelete :: Ord a => Key -> IntPSQ a -> (IntPSQ a, Maybe a)
+pdelete k t0 =
+    case delFrom t0 of
+      (# t, mbX #) -> (t, mbX)
+  where
+    delFrom t = case t of
+      NIL           -> (# NIL, Nothing #)
+      TIP k' x'
+        | k == k'   -> (# NIL, Just x' #)
+        | otherwise -> (# t,   Nothing #)
+
+      BIN k' x' m l r
+        | nomatch k k' m -> (# t, Nothing #)
+        | k == k'   -> let t' = pmerge m l r
+                       in  t' `seq` (# t', Just x' #)
+
+        | zero k m  -> case delFrom l of
+                         (# l', mbX #) -> let t' = binl k' x' m l' r
+                                          in  t' `seq` (# t', mbX #)
+
+        | otherwise -> case delFrom r of
+                         (# r', mbX #) -> let t' = binr k' x' m l  r'
+                                          in  t' `seq` (# t', mbX #)
+
+
+{-# INLINE pinsert #-}
+pinsert :: Ord a => Key -> a -> IntPSQ a -> IntPSQ a
+pinsert k x t0 =
+    case pdelete k t0 of
+      (t, _mbX) -> insertNew k x t
+
+
+{-# INLINE pminViewWithKey #-}
+pminViewWithKey :: Ord a => IntPSQ a -> Maybe ((Key, a), IntPSQ a)
+pminViewWithKey t = case t of
+    NIL           -> Nothing
+    TIP k x       -> Just ((k, x), NIL)
+    BIN k x m l r -> Just ((k, x), pmerge m l r)
+
+
+{-# INLINE palter #-}
+palter :: Ord a => (Maybe a -> (Maybe a, b)) -> Key -> IntPSQ a -> (IntPSQ a, b)
+palter mkNextX k t0 =
+    case pdelete k t0 of
+      (t, mbX) ->
+        case mkNextX mbX of
+          (Nothing, result) -> (t,               result)
+          (Just x,  result) -> (insertNew k x t, result)
+
+-- | Insert a key that is *not* present in the priority queue.
+{-# INLINABLE insertNew #-}
+insertNew :: Ord a => Key -> a -> IntPSQ a -> IntPSQ a
+insertNew k x t = case t of
+  NIL       -> TIP k x
+
+  TIP k' x'
+    | (x, k) < (x', k') -> plink k  x  k' t         NIL
+    | otherwise         -> plink k' x' k  (TIP k x) NIL
+
+  BIN k' x' m l r
+    | nomatch k k' m ->
+        if (x, k) < (x', k')
+          then plink k  x  k' t         NIL
+          else plink k' x' k  (TIP k x) (pmerge m l r)
+
+    | otherwise ->
+        if (x, k) < (x', k')
+          then
+            if zero k' m
+              then BIN k  x  m (insertNew k' x' l) r
+              else BIN k  x  m l                 (insertNew k' x' r)
+          else
+            if zero k m
+              then BIN k' x' m (insertNew k  x  l) r
+              else BIN k' x' m l                 (insertNew k  x  r)
+
+
+{- A draft of a variant of insert that fuses the delete pass and the insertNew
+ - pass. This is however quite complicated and looses out on the nice inlining
+ - option that the two-pass combinations offer.
+
+pinsert :: Ord a => Key -> a -> IntPSQ a -> IntPSQ a
+pinsert k x t = case t of
+    NIL       -> TIP k x
+
+    TIP k' x' ->
+      case compare k k' of
+        EQ -> TIP k' x
+        LT -> if x <= x'
+                then plink k  x  k' t         NIL
+                else plink k' x' k  (TIP k x) NIL
+        GT -> if x < x'
+                then plink k  x  k' t         NIL
+                else plink k' x' k  (TIP k x) NIL
+
+    BIN k' x' m l r
+      | nomatch k k' m ->
+          case compare x x' of
+            LT             -> plink k  x  k' t         NIL
+            GT             -> plink k' x' k  (TIP k x) (pmerge m l r)
+            EQ | k < k'    -> plink k  x  k' t         NIL
+               | otherwise -> plink k' x' k  (TIP k x) (pmerge m l r)
+
+      | otherwise ->
+          case compare k k' of
+            EQ -> if x < x'
+                    then BIN k' x m l r
+                    else pinsert k x (pmerge m l r)
+
+            LT | x <= x' ->
+                  if zero k' m
+                    then BIN k  x  m (pinsert k' x' l) r
+                    else BIN k  x  m l                 (pinsert k' x' r)
+
+               | otherwise ->
+                  if zero k m
+                    then BIN k' x' m (pinsert k  x  l) r
+                    else BIN k' x' m l                 (pinsert k  x  r)
+
+            GT | x <  x' ->
+                  if zero k' m
+                    then BIN k  x  m (pinsert k' x' l) r
+                    else BIN k  x  m l                 (pinsert k' x' r)
+
+               | otherwise ->
+                  if zero k m
+                    then BIN k' x' m (pinsert k  x  l) r
+                    else BIN k' x' m l                 (pinsert k  x  r)
+
+-}
+
+plink :: Key -> a -> Key -> IntPSQ a -> IntPSQ a -> IntPSQ a
+plink k x k' k't otherTree
+  | zero m k' = BIN k x m k't       otherTree
+  | otherwise = BIN k x m otherTree k't
+  where
+    m = branchMask k k'
+
+-- | Internal function that merges two *disjoint* 'IntPSQ's that share the
+-- same prefix mask.
+{-# INLINABLE pmerge #-}
+pmerge :: Ord a => Mask -> IntPSQ a -> IntPSQ a -> IntPSQ a
+pmerge m l r = case l of
+    NIL -> r
+
+    TIP lk lx ->
+      case r of
+        NIL           -> l
+        TIP rk rx
+          | (lx, lk) < (rx, rk) -> BIN lk lx m NIL r
+          | otherwise           -> BIN rk rx m l   NIL
+        BIN rk rx rm rl rr
+          | (lx, lk) < (rx, rk) -> BIN lk lx m NIL r
+          | otherwise           -> BIN rk rx m l   (pmerge rm rl rr)
+
+    BIN lk lx lm ll lr ->
+      case r of
+        NIL           -> l
+        TIP rk rx
+          | (lx, lk) < (rx, rk) -> BIN lk lx m (pmerge lm ll lr) r
+          | otherwise           -> BIN rk rx m l                NIL
+        BIN rk rx rm rl rr
+          | (lx, lk) < (rx, rk) -> BIN lk lx m (pmerge lm ll lr) r
+          | otherwise           -> BIN rk rx m l                (pmerge rm rl rr)
