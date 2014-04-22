@@ -11,6 +11,7 @@ module Data.IntMap.Compact
     , fromList
     , toList
     , insert
+    , union
     , lookup
     , member
     , notMember
@@ -72,6 +73,11 @@ instance NFData a => NFData (IntMap a) where
     rnf Nil               = ()
     rnf (Tip _k x)        = rnf x
     rnf (Bin _k x _m l r) = rnf x `seq` rnf l `seq` rnf r
+
+instance Monoid (IntMap a) where
+    mempty  = empty
+    mappend = union
+    -- mconcat = unions
 
 empty :: IntMap a
 empty = Nil
@@ -197,20 +203,28 @@ map f =
     go (Bin k x m l r) = Bin k (f x) m (go l) (go r)
 
 
-{-
+
 union :: IntMap a -> IntMap a -> IntMap a
 union l r = case l of
     Nil                -> r
     Tip lk lx          -> insert lk lx r
     Bin lk lx lm ll lr ->
       case r of
-        Nir                -> l
+        Nil                -> l
         Tip rk rx          -> insert rk rx l
-        Bin rk rx rm rl rr
-          | shorter lm rm ->
-          | shorter rm lm ->
-          | otherwise     ->
--}
+        Bin rk rx rm rl rr ->
+          case compare lm rm of
+            LT | nomatch lk rk rm -> link rk rx lk l (merge rm rl rr)
+               | zero lk rm       -> Bin rk rx rm (union l rl) rr
+               | otherwise        -> Bin rk rx rm rl           (union l rr)
+
+            GT | nomatch rk lk lm -> link lk lx rk r (merge lm ll lr)
+               | zero rk lm       -> Bin lk lx lm (union r ll) lr
+               | otherwise        -> Bin lk lx lm ll           (union r lr)
+
+            EQ -> insert rk rx (Bin lk lx lm (union ll rl) (union lr rr))
+
+
 
 {--------------------------------------------------------------------
   Endian independent bit twiddling

@@ -37,10 +37,12 @@ main = defaultMain
              , testCase "lookupGT"   test_lookupGT
              , testCase "lookupLE"   test_lookupLE
              , testCase "lookupGE"   test_lookupGE
+             -}
              , testCase "empty" test_empty
              , testCase "mempty" test_mempty
              , testCase "singleton" test_singleton
              , testCase "insert" test_insert
+             {-
              , testCase "insertWith" test_insertWith
              , testCase "insertWithKey" test_insertWithKey
              , testCase "insertLookupWithKey" test_insertLookupWithKey
@@ -51,8 +53,10 @@ main = defaultMain
              , testCase "updateWithKey" test_updateWithKey
              , testCase "updateLookupWithKey" test_updateLookupWithKey
              , testCase "alter" test_alter
+             -}
              , testCase "union" test_union
              , testCase "mappend" test_mappend
+             {-
              , testCase "unionWith" test_unionWith
              , testCase "unionWithKey" test_unionWithKey
              , testCase "unions" test_unions
@@ -281,12 +285,10 @@ test_empty = do
     (empty :: UMap)  @?= fromList []
     size empty @?= 0
 
-{-
 test_mempty :: Assertion
 test_mempty = do
     (mempty :: UMap)  @?= fromList []
     size (mempty :: UMap) @?= 0
--}
 
 test_singleton :: Assertion
 test_singleton = do
@@ -382,13 +384,14 @@ test_alter = do
 
 ----------------------------------------------------------------
 -- Combine
-
+-}
 test_union :: Assertion
 test_union = union (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "a"), (7, "C")]
 
 test_mappend :: Assertion
 test_mappend = mappend (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "a"), (7, "C")]
 
+{-
 test_unionWith :: Assertion
 test_unionWith = unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "aA"), (7, "C")]
 

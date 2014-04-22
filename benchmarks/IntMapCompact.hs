@@ -12,12 +12,16 @@ import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
 
 main = do
+
     let m = M.fromList elems :: M.IntMap Int
+        m2 = M.map (+2^11) m
     defaultMainWith
         defaultConfig
         (liftIO . evaluate $ rnf [m])
         [ bench "lookup" $ whnf (lookup keys) m
         , bench "insert" $ whnf (ins elems) M.empty
+        , bench "union (with itself)" $ whnf (M.union m) m
+        , bench "union (with itself shifted)" $ whnf (M.union m2) m
         -- , bench "insertWith empty" $ whnf (insWith elems) M.empty
         -- , bench "insertWith update" $ whnf (insWith elems) m
         -- , bench "insertWith' empty" $ whnf (insWith' elems) M.empty
