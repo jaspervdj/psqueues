@@ -7,38 +7,38 @@ import Control.Monad.Trans (liftIO)
 import Criterion.Config
 import Criterion.Main
 import Data.List (foldl')
-import qualified Data.IntMap.Compact as M
-import qualified Data.PSQueue        as PSQ
+import qualified Data.IntPSQ  as IntPSQ
+import qualified Data.PSQueue as PSQ
 import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
 
 main = do
 
-    let m   = M.pfromList elems :: M.IntPSQ Int
+    let m   = IntPSQ.fromList elems :: IntPSQ.IntPSQ Int
         psq = PSQ.fromList psqelems :: PSQ.PSQ Int Int
 
     defaultMainWith
         defaultConfig
         (liftIO $ evaluate (rnf m) >> evaluate (rnf (PSQ.keys psq)))
         [ bench "minView" $ whnf deleteMins m
-        , bench "map (id)" $ whnf (M.pmap id) m
-        , bench "map (negate)" $ whnf (M.pmap negate) m
+        , bench "map (id)" $ whnf (IntPSQ.map id) m
+        , bench "map (negate)" $ whnf (IntPSQ.map negate) m
         , bench "lookup" $ whnf (lookup keys) m
 
-        , bench "insert (fresh)" $ whnf (ins elems) M.pempty
+        , bench "insert (fresh)" $ whnf (ins elems) IntPSQ.empty
         , bench "insert (duplicates)" $ whnf (ins elems) m
         , bench "insert (decreasing)" $ whnf (ins elemsDecreasing) m
-        , bench "fromList" $ whnf M.pfromList elems
+        , bench "fromList" $ whnf IntPSQ.fromList elems
 
-        , bench "insert2 (fresh)" $ whnf (ins2 elems) M.pempty
+        , bench "insert2 (fresh)" $ whnf (ins2 elems) IntPSQ.empty
         , bench "insert2 (duplicates)" $ whnf (ins2 elems) m
         , bench "insert2 (decreasing)" $ whnf (ins2 elemsDecreasing) m
-        , bench "fromList2" $ whnf M.pfromList2 elems
+        , bench "fromList2" $ whnf IntPSQ.fromList2 elems
 
-        , bench "insert3 (fresh)" $ whnf (ins3 elems) M.pempty
+        , bench "insert3 (fresh)" $ whnf (ins3 elems) IntPSQ.empty
         , bench "insert3 (duplicates)" $ whnf (ins3 elems) m
         , bench "insert3 (decreasing)" $ whnf (ins3 elemsDecreasing) m
-        , bench "fromList3" $ whnf M.pfromList3 elems
+        , bench "fromList3" $ whnf IntPSQ.fromList3 elems
 
         , bench "PSQ.minView" $ whnf psqdeleteMins psq
         , bench "PSQ.lookup" $ whnf (psqlookup keys) psq
@@ -46,31 +46,31 @@ main = do
         , bench "PSQ.insert (duplicates)" $ whnf (psqins elems) psq
         , bench "PSQ.insert (decreasing)" $ whnf (psqins elemsDecreasing) psq
         , bench "PSQ.fromList" $ whnf PSQ.fromList psqelems
-        -- , bench "union (with itself)" $ whnf (M.union m) m
-        -- , bench "union (with itself shifted)" $ whnf (M.union m2) m
-        -- , bench "insertWith empty" $ whnf (insWith elems) M.empty
+        -- , bench "union (with itself)" $ whnf (IntPSQ.union m) m
+        -- , bench "union (with itself shifted)" $ whnf (IntPSQ.union m2) m
+        -- , bench "insertWith empty" $ whnf (insWith elems) IntPSQ.empty
         -- , bench "insertWith update" $ whnf (insWith elems) m
-        -- , bench "insertWith' empty" $ whnf (insWith' elems) M.empty
+        -- , bench "insertWith' empty" $ whnf (insWith' elems) IntPSQ.empty
         -- , bench "insertWith' update" $ whnf (insWith' elems) m
-        -- , bench "insertWithKey empty" $ whnf (insWithKey elems) M.empty
+        -- , bench "insertWithKey empty" $ whnf (insWithKey elems) IntPSQ.empty
         -- , bench "insertWithKey update" $ whnf (insWithKey elems) m
-        -- , bench "insertWithKey' empty" $ whnf (insWithKey' elems) M.empty
+        -- , bench "insertWithKey' empty" $ whnf (insWithKey' elems) IntPSQ.empty
         -- , bench "insertWithKey' update" $ whnf (insWithKey' elems) m
-        -- , bench "insertLookupWithKey empty" $ whnf (insLookupWithKey elems) M.empty
+        -- , bench "insertLookupWithKey empty" $ whnf (insLookupWithKey elems) IntPSQ.empty
         -- , bench "insertLookupWithKey update" $ whnf (insLookupWithKey elems) m
-        -- , bench "map" $ whnf (M.map (+ 1)) m
-        -- , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
+        -- , bench "map" $ whnf (IntPSQ.map (+ 1)) m
+        -- , bench "mapWithKey" $ whnf (IntPSQ.mapWithKey (+)) m
         -- , bench "foldlWithKey" $ whnf (ins elems) m
-        -- , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
-        -- , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
+        -- , bench "foldlWithKey'" $ whnf (IntPSQ.foldlWithKey' sum 0) m
+        -- , bench "foldrWithKey" $ whnf (IntPSQ.foldrWithKey consPair []) m
         -- , bench "delete" $ whnf (del keys) m
         -- , bench "update" $ whnf (upd keys) m
         -- , bench "updateLookupWithKey" $ whnf (upd' keys) m
         -- , bench "alter"  $ whnf (alt keys) m
-        -- , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
-        -- , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
-        -- , bench "fromAscList" $ whnf M.fromAscList elems
-        -- , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
+        -- , bench "mapMaybe" $ whnf (IntPSQ.mapMaybe maybeDel) m
+        -- , bench "mapMaybeWithKey" $ whnf (IntPSQ.mapMaybeWithKey (const maybeDel)) m
+        -- , bench "fromAscList" $ whnf IntPSQ.fromAscList elems
+        -- , bench "fromDistinctAscList" $ whnf IntPSQ.fromDistinctAscList elems
         ]
   where
     elems = zip keys values
@@ -87,22 +87,22 @@ add3 :: Int -> Int -> Int -> Int
 add3 x y z = x + y + z
 {-# INLINE add3 #-}
 
-lookup :: [Int] -> M.IntPSQ Int -> Int
-lookup xs m = foldl' (\n k -> fromMaybe n (M.plookup k m)) 0 xs
+lookup :: [Int] -> IntPSQ.IntPSQ Int -> Int
+lookup xs m = foldl' (\n k -> fromMaybe n (IntPSQ.lookup k m)) 0 xs
 
-ins :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
-ins xs m = foldl' (\m (k, v) -> M.pinsert k v m) m xs
+ins :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+ins xs m = foldl' (\m (k, v) -> IntPSQ.insert k v m) m xs
 
-ins2 :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
-ins2 xs m = foldl' (\m (k, v) -> M.pinsert2 k v m) m xs
+ins2 :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+ins2 xs m = foldl' (\m (k, v) -> IntPSQ.insert2 k v m) m xs
 
-ins3 :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
-ins3 xs m = foldl' (\m (k, v) -> M.pinsert3 k v m) m xs
+ins3 :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+ins3 xs m = foldl' (\m (k, v) -> IntPSQ.insert3 k v m) m xs
 
-deleteMins :: M.IntPSQ Int -> Int
+deleteMins :: IntPSQ.IntPSQ Int -> Int
 deleteMins = go 0
   where
-    go !n t = case M.pminViewWithKey t of
+    go !n t = case IntPSQ.minViewWithKey t of
       Nothing           -> n
       Just ((k, x), t') -> go (n + k + x) t'
 
@@ -120,37 +120,37 @@ psqdeleteMins = go 0
       Just ((k PSQ.:-> x), t') -> go (n + k + x) t'
 
 {-
-insWith :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
-insWith xs m = foldl' (\m (k, v) -> M.insertWith (+) k v m) m xs
+insWith :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+insWith xs m = foldl' (\m (k, v) -> IntPSQ.insertWith (+) k v m) m xs
 
-insWithKey :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
-insWithKey xs m = foldl' (\m (k, v) -> M.insertWithKey add3 k v m) m xs
+insWithKey :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+insWithKey xs m = foldl' (\m (k, v) -> IntPSQ.insertWithKey add3 k v m) m xs
 
-insWith' :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
-insWith' xs m = foldl' (\m (k, v) -> M.insertWith' (+) k v m) m xs
+insWith' :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+insWith' xs m = foldl' (\m (k, v) -> IntPSQ.insertWith' (+) k v m) m xs
 
-insWithKey' :: [(Int, Int)] -> M.IntPSQ Int -> M.IntPSQ Int
-insWithKey' xs m = foldl' (\m (k, v) -> M.insertWithKey' add3 k v m) m xs
+insWithKey' :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+insWithKey' xs m = foldl' (\m (k, v) -> IntPSQ.insertWithKey' add3 k v m) m xs
 
 data PairS a b = PS !a !b
 
-insLookupWithKey :: [(Int, Int)] -> M.IntPSQ Int -> (Int, M.IntPSQ Int)
+insLookupWithKey :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> (Int, IntPSQ.IntPSQ Int)
 insLookupWithKey xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
   where
-    f (PS n m) (k, v) = let !(n', m') = M.insertLookupWithKey add3 k v m
+    f (PS n m) (k, v) = let !(n', m') = IntPSQ.insertLookupWithKey add3 k v m
                         in PS (fromMaybe 0 n' + n) m'
 
-del :: [Int] -> M.IntPSQ Int -> M.IntPSQ Int
-del xs m = foldl' (\m k -> M.delete k m) m xs
+del :: [Int] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+del xs m = foldl' (\m k -> IntPSQ.delete k m) m xs
 
-upd :: [Int] -> M.IntPSQ Int -> M.IntPSQ Int
-upd xs m = foldl' (\m k -> M.update Just k m) m xs
+upd :: [Int] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+upd xs m = foldl' (\m k -> IntPSQ.update Just k m) m xs
 
-upd' :: [Int] -> M.IntPSQ Int -> M.IntPSQ Int
-upd' xs m = foldl' (\m k -> snd $ M.updateLookupWithKey (\_ a -> Just a) k m) m xs
+upd' :: [Int] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+upd' xs m = foldl' (\m k -> snd $ IntPSQ.updateLookupWithKey (\_ a -> Just a) k m) m xs
 
-alt :: [Int] -> M.IntPSQ Int -> M.IntPSQ Int
-alt xs m = foldl' (\m k -> M.alter id k m) m xs
+alt :: [Int] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
+alt xs m = foldl' (\m k -> IntPSQ.alter id k m) m xs
 
 maybeDel :: Int -> Maybe Int
 maybeDel n | n `mod` 3 == 0 = Nothing
