@@ -9,18 +9,32 @@ import Criterion.Main
 import Data.List (foldl')
 import qualified Data.IntPSQ  as IntPSQ
 import qualified Data.PSQueue as PSQ
+import qualified Data.GHC_Events_PSQ as GHC_PSQ
 import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
 
 main = do
 
-    let m   = IntPSQ.fromList elems :: IntPSQ.IntPSQ Int
-        psq = PSQ.fromList psqelems :: PSQ.PSQ Int Int
+    let m       = IntPSQ.fromList elems :: IntPSQ.IntPSQ Int
+        psq     = PSQ.fromList psqelems :: PSQ.PSQ Int Int
+        ghc_psq = GHC_PSQ.fromList ghc_psqelems :: GHC_PSQ.PSQ ()
 
     defaultMainWith
         defaultConfig
-        (liftIO $ evaluate (rnf m) >> evaluate (rnf (PSQ.keys psq)))
-        [ bench "minView" $ whnf deleteMins m
+        (liftIO $ do evaluate (rnf m)
+                     evaluate (rnf [ (x,y) | (x PSQ.:-> y) <- PSQ.toList psq])
+                     evaluate (ghc_psq)
+                     return ()
+         )
+
+        [ bench "GHC_Events_PSQ.minView" $ whnf ghc_psqdeleteMins ghc_psq
+        , bench "GHC_Events_PSQ.lookup" $ whnf (ghc_psqlookup keys) ghc_psq
+        , bench "GHC_Events_PSQ.insert (fresh)" $ whnf (ghc_psqins elems) GHC_PSQ.empty
+        , bench "GHC_Events_PSQ.insert (duplicates)" $ whnf (ghc_psqins elems) ghc_psq
+        , bench "GHC_Events_PSQ.insert (decreasing)" $ whnf (ghc_psqins elemsDecreasing) ghc_psq
+        , bench "GHC_Events_PSQ.fromList" $ whnf GHC_PSQ.fromList ghc_psqelems
+
+        , bench "minView" $ whnf deleteMins m
         , bench "map (id)" $ whnf (IntPSQ.map id) m
         , bench "map (negate)" $ whnf (IntPSQ.map negate) m
         , bench "lookup" $ whnf (lookup keys) m
@@ -77,6 +91,7 @@ main = do
 
     elemsDecreasing = zip (reverse keys) (map negate values)
     psqelems        = map (uncurry (PSQ.:->)) elems
+    ghc_psqelems    = map (\(k,p) -> GHC_PSQ.E k p ()) elems
 
     keys = [1..2^12]
     values = [1..2^12]
@@ -118,6 +133,20 @@ psqdeleteMins = go 0
     go !n t = case PSQ.minView t of
       Nothing           -> n
       Just ((k PSQ.:-> x), t') -> go (n + k + x) t'
+
+
+ghc_psqlookup :: [Int] -> GHC_PSQ.PSQ () -> Int
+ghc_psqlookup xs m = foldl' (\n k -> maybe n fst (GHC_PSQ.lookup k m)) 0 xs
+
+ghc_psqins :: [(Int, Int)] -> GHC_PSQ.PSQ () -> GHC_PSQ.PSQ ()
+ghc_psqins xs m = foldl' (\m (k, v) -> GHC_PSQ.insert k v () m) m xs
+
+ghc_psqdeleteMins :: GHC_PSQ.PSQ () -> Int
+ghc_psqdeleteMins = go 0
+  where
+    go !n t = case GHC_PSQ.minView t of
+      Nothing           -> n
+      Just ((GHC_PSQ.E k x _), t') -> go (n + k + x) t'
 
 {-
 insWith :: [(Int, Int)] -> IntPSQ.IntPSQ Int -> IntPSQ.IntPSQ Int
