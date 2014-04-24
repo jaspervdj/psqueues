@@ -8,6 +8,8 @@ module Data.IntPSQ
     , lookup
     , delete
     , insert
+    , alter
+    , alter_
     , insert2
     , fromList2
     , insert3
@@ -170,6 +172,10 @@ alter mkNext k t0 =
           (Nothing,      result) -> (t,                 result)
           (Just (p, x),  result) -> (insertNew k p x t, result)
 
+{-# INLINE alter_ #-}
+alter_ :: Ord p
+       => (Maybe (p, v) -> Maybe (p, v)) -> Key -> IntPSQ p v -> IntPSQ p v
+alter_ mkNext k ipqs = fst (alter (\x -> (mkNext x, ())) k ipqs)
 
 -- | Internal function to insert a key that is *not* present in the priority
 -- queue.
