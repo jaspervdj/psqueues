@@ -6,51 +6,130 @@ module Data.HashPSQ
   , insert
   , lookup
   , fromList
+  , minView
   ) where
 
 import           Data.Hashable
 import qualified Data.IntPSQ as IPSQ
 import qualified Data.List   as L
+import           Data.Ord    (comparing)
 
 import           Prelude hiding (lookup)
 
-type HashPSQ k p v = IPSQ.IntPSQ p (k, v, [(k, p, v)])
+------------------------------------------------------------------------------
+-- Types
+------------------------------------------------------------------------------
 
-lookup :: (Eq k, Hashable k, Ord p) => k -> HashPSQ k p v -> Maybe (p, v)
-lookup k ipsq = do
-    (p0, (k0, v0, es)) <- IPSQ.lookup (hash k) ipsq
-    if k0 == k
-      then do return (p0, v0)
-      else do (_k', p', v') <- L.find (\(k', _, _) -> k' == k) es
-              return (p', v')
+-- | TODO (SM): use an actual PSQ for this to make the datastructure resistant
+-- against hash-collision attacks.
+data Overflow k p v = OEmpty | OInsert !k !p !v (Overflow k p v)
+    deriving (Show)
+
+data Bucket k p v = B !k !v !(Overflow k p v)
+    deriving (Show)
+
+newtype HashPSQ k p v = HashPSQ { unHashPSQ :: IPSQ.IntPSQ p (Bucket k p v) }
+    deriving (Show)
+
+
+
+------------------------------------------------------------------------------
+-- Overflow list functions
+------------------------------------------------------------------------------
+
+{-# INLINABLE olookup #-}
+olookup :: Ord k => k -> Overflow k p v -> Maybe (p, v)
+olookup k =
+    go
+  where
+    go os = case os of
+      OEmpty               -> Nothing
+      OInsert k' p' v' os' -> case compare k k' of
+        LT -> go os'
+        EQ -> Just (p', v')
+        GT -> Nothing
+
+{-# INLINABLE odelete #-}
+odelete :: Ord k => k -> Overflow k p v -> Overflow k p v
+odelete k =
+    go
+  where
+    go os = case os of
+      OEmpty               -> OEmpty
+      OInsert k' p' v' os' -> case compare k k' of
+        LT -> OInsert k' p' v' (go os')
+        EQ -> os'
+        GT -> os
+
+
+{-# INLINABLE oinsert #-}
+oinsert :: Ord k => k -> p -> v -> Overflow k p v -> Overflow k p v
+oinsert k p v =
+    go
+  where
+    go os = case os of
+      OEmpty               -> OInsert k p v OEmpty
+      OInsert k' p' v' os' -> case compare k k' of
+        LT -> OInsert k p v os
+        EQ -> OInsert k p v os'
+        GT -> OInsert k' p' v' (go os')
+
+{-# INLINABLE ominView #-}
+ominView :: (Ord k, Ord p) => Overflow k p v -> (Maybe (k, p, v), Overflow k p v)
+ominView OEmpty                = (Nothing, OEmpty)
+ominView (OInsert k0 p0 v0 os) =
+    case go k0 p0 v0 os of
+      res@(k, _, _) -> (Just res, odelete k os)
+  where
+    go k p v OEmpty                             = (k, p, v)
+    go k p v (OInsert k' p' v' os') | p <= p'   = go k  p  v  os'
+                                    | otherwise = go k' p' v' os'
+
+
+------------------------------------------------------------------------------
+-- HashPSQ functions
+------------------------------------------------------------------------------
 
 empty :: HashPSQ k p v
-empty = IPSQ.empty
+empty = HashPSQ IPSQ.empty
 
-insert :: (Eq k, Hashable k, Ord p)
+{-# INLINABLE lookup #-}
+lookup :: (Ord k, Hashable k, Ord p) => k -> HashPSQ k p v -> Maybe (p, v)
+lookup k (HashPSQ ipsq) = do
+    (p0, B k0 v0 os) <- IPSQ.lookup (hash k) ipsq
+    if k0 == k
+      then return (p0, v0)
+      else olookup k os
+
+insert :: (Ord k, Hashable k, Ord p)
        => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
-insert k p v ipsq =
-    IPSQ.alter_ ins (hash k) ipsq
+insert k p v (HashPSQ ipsq) =
+    HashPSQ (IPSQ.alter_ ins (hash k) ipsq)
   where
-    ins Nothing                   = Just (p,  (k,  v,  []               ))
-    ins (Just (p', (k', v', es)))
-      | k == k                    = Just (p,  (k , v , []               ))
-      | p' <= p                   = Just (p', (k', v', (k , p , v ) : es))
-      | otherwise                 = Just (p , (k , v , (k', p', v') : es))
+    ins Nothing                 = Just (p,  B k  v  (OEmpty             ))
+    ins (Just (p', B k' v' os))
+      | k == k                  = Just (p,  B k  v  (                 os))
+      | p' <= p                 = Just (p', B k' v' (oinsert k  p  v  os))
+      | otherwise               = Just (p , B k  v  (oinsert k' p' v' os))
 
 {-# INLINABLE fromList #-}
-fromList :: (Eq k, Hashable k, Ord p) => [(k, p, v)] -> HashPSQ k p v
+fromList :: (Ord k, Hashable k, Ord p) => [(k, p, v)] -> HashPSQ k p v
 fromList = L.foldl' (\psq (k, p, x) -> insert k p x psq) empty
 
 
-{-
-{-# INLINE minViewWithKey #-}
-minViewWithKey :: Ord p => HashPSQ k p v -> Maybe ((k, p, v), HashPSQ k p v)
-minViewWithKey t = case t of
-    Nil             -> Nothing
-    Tip k p x       -> Just ((k, p, x), Nil)
-    Bin k p x m l r -> Just ((k, p, x), merge m l r)
--}
+{-# INLINABLE minView #-}
+minView :: (Ord k, Hashable k, Ord p)
+        => HashPSQ k p v -> (Maybe (k, p, v), HashPSQ k p v)
+minView (HashPSQ ipsq )=
+    case IPSQ.alterMin f ipsq of
+      (res, ipsq') -> (res, HashPSQ ipsq')
+  where
+    f Nothing                  = (Nothing, Nothing)
+    f (Just (_h, p, B k v os)) =
+        case ominView os of
+          (Nothing,           os') -> (Just (k, p, v), Nothing                        )
+          (Just (k', p', v'), os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
+
 
 
 -- delete
