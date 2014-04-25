@@ -101,6 +101,7 @@ lookup k (HashPSQ ipsq) = do
       then return (p0, v0)
       else olookup k os
 
+{-# INLINABLE insert #-}
 insert :: (Ord k, Hashable k, Ord p)
        => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
 insert k p v (HashPSQ ipsq) =
