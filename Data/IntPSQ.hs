@@ -10,6 +10,7 @@ module Data.IntPSQ
     , insert
     , alter
     , alter_
+    , alterMin
     , insert2
     , fromList2
     , insert3
@@ -60,11 +61,10 @@ type Key = Int
 type Mask = Int
 
 -- | A priority search queue with @Int@ keys and priorities of type @p@ and
--- values of type @v@. It is strict in both the keys and the priorities, but
--- lazy in the values.
+-- values of type @v@. It is strict in keys, priorities and values.
 data IntPSQ p v
-    = Bin {-# UNPACK #-} !Key !p v {-# UNPACK #-} !Mask !(IntPSQ p v) !(IntPSQ p v)
-    | Tip {-# UNPACK #-} !Key !p v
+    = Bin {-# UNPACK #-} !Key !p !v {-# UNPACK #-} !Mask !(IntPSQ p v) !(IntPSQ p v)
+    | Tip {-# UNPACK #-} !Key !p !v
     | Nil
     deriving (Show)
 
@@ -384,6 +384,27 @@ map f =
 ------------------------------------------------------------------------------
 -- Destruction
 ------------------------------------------------------------------------------
+
+{-# INLINE alterMin #-}
+alterMin :: Ord p
+         => (Maybe (Key, p, v) -> (b, Maybe (Key, p, v)))
+         -> IntPSQ p v
+         -> (b, IntPSQ p v)
+alterMin f t = case t of
+    Nil             -> case f Nothing of
+                         (b, Nothing)           -> (b, Nil)
+                         (b, Just (k', p', x')) -> (b, Tip k' p' x')
+
+    Tip k p x       -> case f (Just (k, p, x)) of
+                         (b, Nothing)           -> (b, Nil)
+                         (b, Just (k', p', x')) -> (b, Tip k' p' x')
+
+    Bin k p x m l r -> case f (Just (k, p, x)) of
+                         (b, Nothing)           -> (b, merge m l r)
+                         (b, Just (k', p', x'))
+                           | k  /= k'  -> (b, insert k' p' x' (merge m l r))
+                           | p' <= p   -> (b, Bin k p' x' m l r)
+                           | otherwise -> (b, insertNew k p' x' (merge m l r))
 
 
 {-# INLINE minViewWithKey #-}
