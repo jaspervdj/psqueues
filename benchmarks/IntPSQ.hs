@@ -13,6 +13,7 @@ import qualified Data.GHC_Events_PSQ as GHC_PSQ
 import qualified Data.HashPSQ as HashPSQ
 import qualified Data.HashMap.Strict as HMS
 import qualified Data.Map.Strict     as MS
+import qualified Data.IntMap.Compact  as IMS
 import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
 
@@ -21,6 +22,7 @@ main = do
     let int_psq  = IntPSQ.fromList elems_with_unit :: IntPSQ.IntPSQ Int ()
         hms      = HMS.fromList elems :: HMS.HashMap Int Int
         ms       = MS.fromList elems :: MS.Map Int Int
+        ims      = IMS.fromList elems :: IMS.IntMap Int
 
         psq      = PSQ.fromList psqelems :: PSQ.PSQ Int Int
         ghc_psq  = GHC_PSQ.fromList ghc_psqelems :: GHC_PSQ.PSQ ()
@@ -31,12 +33,18 @@ main = do
         (liftIO $ do evaluate (rnf int_psq)
                      evaluate (rnf hms)
                      evaluate (rnf ms)
+                     evaluate (rnf ims)
                      evaluate (rnf [ (x,y) | (x PSQ.:-> y) <- PSQ.toList psq])
                      evaluate (ghc_psq)
                      return ()
          )
         [ bench "HashMap.lookup" $ whnf (hashmap_lookup keys) hms
         , bench "Map.lookup" $ whnf (map_lookup keys) ms
+        , bench "IntMap.lookup" $ whnf (intmap_lookup keys) ims
+
+        , bench "HashMap.insert (fresh)" $ whnf (hashmap_ins elems) HMS.empty
+        , bench "Map.insert (fresh)" $ whnf (map_ins elems) MS.empty
+        , bench "IntMap.insert (fresh)" $ whnf (intmap_ins elems) IMS.empty
 
         , bench "HashPSQ.minView" $ whnf hash_psqdeleteMins hash_psq
         , bench "HashPSQ.lookup" $ whnf (hash_psqlookup keys) hash_psq
@@ -132,8 +140,20 @@ hashmap_lookup xs m = foldl' (\n k -> fromMaybe n (HMS.lookup k m)) 0 xs
 map_lookup :: [Int] -> MS.Map Int Int -> Int
 map_lookup xs m = foldl' (\n k -> fromMaybe n (MS.lookup k m)) 0 xs
 
+intmap_lookup :: [Int] -> IMS.IntMap Int -> Int
+intmap_lookup xs m = foldl' (\n k -> fromMaybe n (IMS.lookup k m)) 0 xs
+
 lookup :: [Int] -> IntPSQ.IntPSQ Int () -> Int
 lookup xs m = foldl' (\n k -> maybe n fst (IntPSQ.lookup k m)) 0 xs
+
+hashmap_ins :: [(Int, Int)] -> HMS.HashMap Int Int -> HMS.HashMap Int Int
+hashmap_ins xs m = foldl' (\m (k, v) -> HMS.insert k v m) m xs
+
+map_ins :: [(Int, Int)] -> MS.Map Int Int -> MS.Map Int Int
+map_ins xs m = foldl' (\m (k, v) -> MS.insert k v m) m xs
+
+intmap_ins :: [(Int, Int)] -> IMS.IntMap Int -> IMS.IntMap Int
+intmap_ins xs m = foldl' (\m (k, v) -> IMS.insert k v m) m xs
 
 ins :: [(Int, Int)] -> IntPSQ.IntPSQ Int () -> IntPSQ.IntPSQ Int ()
 ins xs m = foldl' (\m (k, v) -> IntPSQ.insert k v () m) m xs
