@@ -61,6 +61,23 @@ odelete k =
         EQ -> os'
         GT -> os
 
+{-
+{-# INLINABLE odelete #-}
+odeleteView :: Ord k => k -> Overflow k p v -> (Maybe (p, v), Overflow k p v)
+odeleteView k os0 =
+    case go os0 of
+      (# mbX, os0' #) -> (mbX, os0')
+  where
+    go os = case os of
+      OEmpty               -> (# Nothing, OEmpty #)
+      OInsert k' p' v' os' -> case compare k k' of
+        LT -> case go os' of
+                (# mbX, os'') -> let os''' = OInsert k' p' v' (go os')
+                                 in os''' `seq` (# mbX, os''' #)
+        EQ -> (# Just (p', v'), os'#)
+        GT -> (# Nothing,       os #)
+-}
+
 
 {-# INLINABLE oinsert #-}
 oinsert :: Ord k => k -> p -> v -> Overflow k p v -> Overflow k p v
@@ -85,6 +102,20 @@ ominView (OInsert k0 p0 v0 os) =
     go k p v (OInsert k' p' v' os') | p <= p'   = go k  p  v  os'
                                     | otherwise = go k' p' v' os'
 
+{-
+{-# INLINABLE ominView #-}
+oalter :: (Ord k, Ord p)
+        => (Maybe (p, v) -> Maybe (k, p, v))
+        -> k -> Overflow k p v -> Overflow k p v
+oalter f os0 =
+    case odeleteView k os0 of
+      (os, mbX) ->
+        case f mbX of
+          (b, mbX') -> (b, maybe t (\(p, v) -> oinsert k p v t))
+
+-- | Smart constructor for a bucket that
+bucket ::
+-}
 
 ------------------------------------------------------------------------------
 -- HashPSQ functions
@@ -130,8 +161,38 @@ minView (HashPSQ ipsq )=
         case ominView os of
           (Nothing,           os') -> (Just (k, p, v), Nothing                        )
           (Just (k', p', v'), os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
+{-
+{-# INLINABLE deleteView #-}
+deleteView :: Ord k => k -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
+deleteView =
+    alter del
+  where
+    del mbPV = (mbPV, Nothing )
 
 
+{-# INLINE alter #-}
+alter :: (Ord k, Hashable k, Ord p)
+      => (Maybe (p, v) -> (b, Maybe (k, p, v)))
+      -> k -> HashPSQ k p v -> (b, HashPSQ k p v)
+alter f =
+    \k (HashPSQ ipsq) -> HashPSQ (IPSQ.alter f' (hash k) ipsq)
+  where
+    f' mbX = case f mbX of
+               (b, mbX') -> (b, insertIfNecessary mbX')
+
+    unhash Nothing                 = f Nothing
+    unhash (Just (p, B k' v' os'))
+      | k' == k   =
+      | otherwise = oalter g k
+
+    insertIfNecessary Nothing ->
+
+    Nothing                 = Just (p,  B k  v  (OEmpty             ))
+    f' (Just (p', B k' v' os))
+      | k == k                  = Just (p,  B k  v  (                 os))
+      | p' <= p                 = Just (p', B k' v' (oinsert k  p  v  os))
+      | otherwise               = Just (p , B k  v  (oinsert k' p' v' os))
+-}
 
 -- delete
 
