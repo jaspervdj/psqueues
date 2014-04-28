@@ -9,7 +9,7 @@ module Main where
 import           Control.Applicative
 import           Control.DeepSeq (rnf)
 import           Control.Monad
-import           Control.Concurrent.Async (mapConcurrently)
+import           Control.Concurrent.Async (mapConcurrently, Concurrently(..), runConcurrently)
 import           Control.Concurrent.MVar
 import           Control.Concurrent.STM
 import           Control.Concurrent.STM.TVar
@@ -18,6 +18,7 @@ import           Control.Exception (evaluate)
 import           Data.Atomics       (atomicModifyIORefCAS_)
 import qualified Data.IntMap.Strict as IMS
 import           Data.IORef
+import           Data.Traversable   (traverse)
 import qualified Data.Vector        as V
 
 import           Data.Time
@@ -183,10 +184,18 @@ main = do
                 ]
 
               initialElems <- genInitialElems numThreads numInitialElems
-              opss         <- forM [0..numThreads - 1] $ \threadIdx ->
-                  genThreadOperations numThreads numLookups numUpdates threadIdx
+              evaluate (rnf initialElems)
 
-              evaluate (rnf (initialElems, opss))
+              opss         <- runConcurrently $
+                  (`traverse` [0..numThreads - 1]) $ \threadIdx ->
+                      Concurrently $ do
+                          ops <- genThreadOperations numThreads
+                                                     numLookups
+                                                     numUpdates
+                                                     threadIdx
+                          evaluate (rnf ops)
+                          return ops
+
 
               forM_ [ioRefCas, tVar, ioRef, tVarLazy, mVar] $
                   \(Ref refName newRef readRef modifyRef) ->
