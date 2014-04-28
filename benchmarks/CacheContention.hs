@@ -75,6 +75,7 @@ atomicModifyIORef'_ ref f = atomicModifyIORef' ref (\x -> (f x, ()))
 atomicModifyTVar'_ :: TVar a -> (a -> a) -> IO ()
 atomicModifyTVar'_ ref f = atomically $ do
     x <- readTVar ref
+    -- see documentation of 'evaluate'
     x' <- return =<< (return $! f x)
     writeTVar ref x'
 
