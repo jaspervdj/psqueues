@@ -12,7 +12,6 @@ module Data.HashPSQ
 import           Data.Hashable
 import qualified Data.IntPSQ as IPSQ
 import qualified Data.List   as L
-import           Data.Ord    (comparing)
 
 import           Prelude hiding (lookup)
 
@@ -28,7 +27,7 @@ data Overflow k p v = OEmpty | OInsert !k !p !v (Overflow k p v)
 data Bucket k p v = B !k !v !(Overflow k p v)
     deriving (Show)
 
-newtype HashPSQ k p v = HashPSQ { unHashPSQ :: IPSQ.IntPSQ p (Bucket k p v) }
+newtype HashPSQ k p v = HashPSQ (IPSQ.IntPSQ p (Bucket k p v))
     deriving (Show)
 
 
@@ -159,8 +158,8 @@ minView (HashPSQ ipsq )=
     f Nothing                  = (Nothing, Nothing)
     f (Just (_h, p, B k v os)) =
         case ominView os of
-          (Nothing,           os') -> (Just (k, p, v), Nothing                        )
-          (Just (k', p', v'), os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
+          (Nothing,           _os') -> (Just (k, p, v), Nothing                        )
+          (Just (k', p', v'),  os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
 {-
 {-# INLINABLE deleteView #-}
 deleteView :: Ord k => k -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)

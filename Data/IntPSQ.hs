@@ -3,6 +3,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 module Data.IntPSQ
     ( IntPSQ(..)
+    , null
     , map
     , fromList
     , lookup
@@ -17,20 +18,14 @@ module Data.IntPSQ
     , fromList3
     , empty
     , minViewWithKey
+    , toList
     ) where
 
-import           Control.Applicative (Applicative(pure, (<*>)), (<$>))
 import           Control.DeepSeq (NFData(rnf))
-import           Control.Monad (liftM)
 
 import           Data.BitUtil
 import           Data.Bits
--- import qualified Data.Foldable as Foldable
 import           Data.List (foldl')
-import           Data.Maybe (fromMaybe, isJust)
--- import           Data.Monoid (Monoid(..))
-import           Data.Traversable (Traversable(traverse))
-import           Data.Typeable
 import           Data.Word (Word)
 
 import           Prelude hiding (lookup, map, filter, foldr, foldl, null)
@@ -73,9 +68,9 @@ data IntPSQ p v
 ------------
 
 instance (NFData p, NFData v) => NFData (IntPSQ p v) where
-    rnf (Bin k p v _m l r) = rnf p `seq` rnf v `seq` rnf l `seq` rnf r
-    rnf (Tip k p v)        = rnf p `seq` rnf v
-    rnf Nil                = ()
+    rnf (Bin _k p v _m l r) = rnf p `seq` rnf v `seq` rnf l `seq` rnf r
+    rnf (Tip _k p v)        = rnf p `seq` rnf v
+    rnf Nil                 = ()
 
 
 
