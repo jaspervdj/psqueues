@@ -159,12 +159,16 @@ insert k p x t0 = insertNew k p x (delete k t0)
 {-# INLINE alter #-}
 alter
     :: Ord p
-    => (Maybe (p, v) -> (b, Maybe (p, v))) -> Key -> IntPSQ p v -> (b, IntPSQ p v)
-alter f k t0 =
-    case deleteView k t0 of
-      (t, mbX) ->
-        case f mbX of
-          (b, mbX') -> (b, maybe t (\(p, v) -> insertNew k p v t) mbX')
+    => (Maybe (p, v) -> (b, Maybe (p, v)))
+    -> Key
+    -> IntPSQ p v
+    -> (b, IntPSQ p v)
+alter f =
+    \k t0 -> case deleteView k t0 of
+              (t, mbX) ->
+                case f mbX of
+                  (b, mbX') ->
+                    (b, maybe t (\(p, v) -> insertNew k p v t) mbX')
 
 {-# INLINE alter_ #-}
 alter_ :: Ord p
