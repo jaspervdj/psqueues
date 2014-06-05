@@ -212,6 +212,32 @@ insertNew k p x t = case t of
               else Bin k' p' x' m l                      (insertNew k  p  x  r)
 
 
+-- TODO (SM): Make benchmarks run again, integrate this function with insert
+-- and test how benchmarks times change.
+
+-- | Internal function to insert a key with priority larger than the
+-- maximal priority in the heap. This is always the case when using the PSQ
+-- as the basis to implement a LRU cache, which associates a
+-- access-tick-number with every element.
+{-# INLINABLE insertLargetThanMaxPrio #-}
+insertLargetThanMaxPrio :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
+insertLargetThanMaxPrio =
+    go
+  where
+    go k p x t = case t of
+      Nil -> Tip k p x
+
+      Tip k' p' x'
+        | k == k'   -> Tip k p x
+        | otherwise -> link k' p' x' k  (Tip k p x) Nil
+
+      Bin k' p' x' m l r
+        | nomatch k k' m -> link k' p' x' k (Tip k p x) (merge m l r)
+        | k == k'        -> go k p x (merge m l r)
+        | zero k m       -> Bin k' p' x' m (go k p x l) r
+        | otherwise      -> Bin k' p' x' m l            (go k p x r)
+
+
 -- | A supposedly more clever variant of insert that first looks up the key
 -- and then re-establishes the min-heap property in a bottom-up fashion.
 --
