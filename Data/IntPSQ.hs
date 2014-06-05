@@ -3,11 +3,13 @@
 {-# LANGUAGE UnboxedTuples #-}
 module Data.IntPSQ
     ( IntPSQ(..)
+    , size
     , null
     , map
     , fromList
     , lookup
     , delete
+    , deleteView
     , insert
     , alter
     , alter_
@@ -129,6 +131,12 @@ lookup k t = case t of
       | zero k m       -> lookup k l
       | otherwise      -> lookup k r
 
+-- | /O(n)/. The number of elements stored in the PSQ.
+size :: IntPSQ p v -> Int
+size Nil               = 0
+size (Tip _ _ _)       = 1
+size (Bin _ _ _ _ l r) = 1 + size l + size r
+-- TODO (SM): benchmark this against a tail-recursive variant
 
 ------------------------------------------------------------------------------
 --- Construction
