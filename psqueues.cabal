@@ -82,67 +82,20 @@ benchmark bench
                , mtl >= 2.1
                , fingertree-psqueue >= 0.3
 
-
--------------------
--- T E S T I N G --
--------------------
-
--- Every test-suite contains the build-depends and options of the library,
--- plus the testing stuff.
-
--- Because the test-suites cannot contain conditionals in GHC 7.0, the extensions
--- are switched on for every compiler to allow GHC < 7.0 to compile the tests
--- (because GHC < 7.0 cannot handle conditional LANGUAGE pragmas).
--- When testing with GHC < 7.0 is not needed, the extensions should be removed.
-
-Test-suite map-lazy-properties
-    hs-source-dirs: tests, .
-    main-is: map-properties.hs
-    type: exitcode-stdio-1.0
-    cpp-options: -DTESTING
-
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.4, ghc-prim
-    ghc-options: -O2
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
+Test-suite psqueues-tests
+    cpp-options:    -DTESTING -DSTRICT
+    ghc-options:    -Wall
+    hs-source-dirs: tests
+    main-is:        Main.hs
+    type:           exitcode-stdio-1.0
 
     build-depends:
-        HUnit,
-        QuickCheck,
-        test-framework,
-        test-framework-hunit,
-        test-framework-quickcheck2
-
-Test-suite map-strict-properties
-    hs-source-dirs: tests, .
-    main-is: map-properties.hs
-    type: exitcode-stdio-1.0
-    cpp-options: -DTESTING -DSTRICT
-
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.4, ghc-prim
-    ghc-options: -O2
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
-
-    build-depends:
-        HUnit,
-        QuickCheck,
-        test-framework,
-        test-framework-hunit,
-        test-framework-quickcheck2
-
-Test-suite intmap-strict-properties
-    hs-source-dirs: tests, .
-    main-is: intmap-properties.hs
-    type: exitcode-stdio-1.0
-    cpp-options: -DTESTING -DSTRICT
-
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.4, ghc-prim
-    ghc-options: -O2
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
-
-    build-depends:
-        HUnit,
-        QuickCheck,
-        test-framework,
-        test-framework-hunit,
-        test-framework-quickcheck2
-
+        HUnit                      >= 1.2 && < 1.3,
+        QuickCheck                 >= 2.7 && < 2.8,
+        test-framework             >= 0.8 && < 0.9,
+        test-framework-hunit       >= 0.3 && < 0.4,
+        test-framework-quickcheck2 >= 0.3 && < 0.4,
+        base,
+        array,
+        deepseq,
+        psqueues
