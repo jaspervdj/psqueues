@@ -18,6 +18,7 @@ module Data.IntPSQ
     , fromList2
     , insert3
     , fromList3
+    , singleton
     , empty
     , minViewWithKey
     , toList
@@ -396,6 +397,9 @@ fromList2 = foldl' (\im (k, p, x) -> insert2 k p x im) empty
 fromList3 :: Ord p => [(Key, p, v)] -> IntPSQ p v
 fromList3 = foldl' (\im (k, p, x) -> insert3 k p x im) empty
 
+{-# INLINABLE singleton #-}
+singleton :: Ord p => Key -> p -> v -> IntPSQ p v
+singleton k p v = fromList [(k, p, v)]
 
 ------------------------------------------------------------------------------
 -- Modification
