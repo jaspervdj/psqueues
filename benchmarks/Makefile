@@ -1,7 +1,7 @@
 all:
 
 bench-%: %.hs force
-	ghc -O2 -threaded -DTESTING $< -i../$(TOP) -o $@ -outputdir tmp -rtsopts
+	ghc -O2 -Wall -threaded -DTESTING $< -i../$(TOP) -o $@ -outputdir tmp -rtsopts
 
 bench-%.csv: bench-%
 	./bench-$* $(BENCHMARK) -v -u bench-$*.csv
