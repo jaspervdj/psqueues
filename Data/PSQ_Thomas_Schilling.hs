@@ -1,7 +1,7 @@
 {-# LANGUAGE BangPatterns, UnboxedTuples #-}
 {-# OPTIONS_GHC -fobject-code #-}
 -- | Originally written by Thomas Schilling based on R. Hinze's paper.
-module Data.PSQ
+module Data.PSQ_Thomas_Shilling
   ( PSQ
   , Key, Prio, ValueSize
   , empty

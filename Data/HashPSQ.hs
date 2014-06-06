@@ -12,6 +12,8 @@ module Data.HashPSQ
 import           Data.Hashable
 import qualified Data.IntPSQ as IPSQ
 import qualified Data.List   as L
+import qualified Data.PSQ    as OrdPSQ
+import Data.PSQ.Internal.Types (Elem(..))
 
 import           Prelude hiding (lookup)
 
@@ -19,12 +21,8 @@ import           Prelude hiding (lookup)
 -- Types
 ------------------------------------------------------------------------------
 
--- | TODO (SM): use an actual PSQ for this to make the datastructure resistant
--- against hash-collision attacks.
-data Overflow k p v = OEmpty | OInsert !k !p !v (Overflow k p v)
-    deriving (Show)
 
-data Bucket k p v = B !k !v !(Overflow k p v)
+data Bucket k p v = B !k !v !(OrdPSQ.PSQ k p v)
     deriving (Show)
 
 newtype HashPSQ k p v = HashPSQ (IPSQ.IntPSQ p (Bucket k p v))
@@ -37,38 +35,22 @@ newtype HashPSQ k p v = HashPSQ (IPSQ.IntPSQ p (Bucket k p v))
 ------------------------------------------------------------------------------
 
 {-# INLINABLE olookup #-}
-olookup :: Ord k => k -> Overflow k p v -> Maybe (p, v)
-olookup k =
-    go
-  where
-    go os = case os of
-      OEmpty               -> Nothing
-      OInsert k' p' v' os' -> case compare k k' of
-        LT -> go os'
-        EQ -> Just (p', v')
-        GT -> Nothing
+olookup :: Ord k => k -> OrdPSQ.PSQ k p v -> Maybe (p, v)
+olookup = OrdPSQ.lookup
 
 {-# INLINABLE odelete #-}
-odelete :: Ord k => k -> Overflow k p v -> Overflow k p v
-odelete k =
-    go
-  where
-    go os = case os of
-      OEmpty               -> OEmpty
-      OInsert k' p' v' os' -> case compare k k' of
-        LT -> OInsert k' p' v' (go os')
-        EQ -> os'
-        GT -> os
+odelete :: (Ord k, Ord p) => k -> OrdPSQ.PSQ  k p v -> OrdPSQ.PSQ  k p v
+odelete = OrdPSQ.delete
 
 {-
 {-# INLINABLE odelete #-}
-odeleteView :: Ord k => k -> Overflow k p v -> (Maybe (p, v), Overflow k p v)
+odeleteView :: (Ord k, Ord p) => k -> OrdPSQ.PSQ k p v -> (Maybe (p, v), OrdPSQ.PSQ  k p v)
 odeleteView k os0 =
     case go os0 of
       (# mbX, os0' #) -> (mbX, os0')
   where
     go os = case os of
-      OEmpty               -> (# Nothing, OEmpty #)
+      OrdPSQ.empty                -> (# Nothing, OrdPSQ.empty  #)
       OInsert k' p' v' os' -> case compare k k' of
         LT -> case go os' of
                 (# mbX, os'') -> let os''' = OInsert k' p' v' (go os')
@@ -79,33 +61,18 @@ odeleteView k os0 =
 
 
 {-# INLINABLE oinsert #-}
-oinsert :: Ord k => k -> p -> v -> Overflow k p v -> Overflow k p v
-oinsert k p v =
-    go
-  where
-    go os = case os of
-      OEmpty               -> OInsert k p v OEmpty
-      OInsert k' p' v' os' -> case compare k k' of
-        LT -> OInsert k p v os
-        EQ -> OInsert k p v os'
-        GT -> OInsert k' p' v' (go os')
+oinsert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ.PSQ k p v -> OrdPSQ.PSQ k p v
+oinsert = OrdPSQ.insert
 
 {-# INLINABLE ominView #-}
-ominView :: (Ord k, Ord p) => Overflow k p v -> (Maybe (k, p, v), Overflow k p v)
-ominView OEmpty                = (Nothing, OEmpty)
-ominView (OInsert k0 p0 v0 os) =
-    case go k0 p0 v0 os of
-      res@(k, _, _) -> (Just res, odelete k os)
-  where
-    go k p v OEmpty                             = (k, p, v)
-    go k p v (OInsert k' p' v' os') | p <= p'   = go k  p  v  os'
-                                    | otherwise = go k' p' v' os'
+ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe (Elem k p v, OrdPSQ.PSQ k p v)
+ominView = OrdPSQ.minView
 
 {-
 {-# INLINABLE ominView #-}
 oalter :: (Ord k, Ord p)
         => (Maybe (p, v) -> Maybe (k, p, v))
-        -> k -> Overflow k p v -> Overflow k p v
+        -> k -> OrdPSQ.PSQ  k p v -> OrdPSQ.PSQ  k p v
 oalter f os0 =
     case odeleteView k os0 of
       (os, mbX) ->
@@ -119,6 +86,10 @@ bucket ::
 ------------------------------------------------------------------------------
 -- HashPSQ functions
 ------------------------------------------------------------------------------
+
+-- | /O(1)/ Build a queue with one element.
+singleton :: (Ord k, Hashable k, Ord p) => k -> p -> v -> HashPSQ k p v
+singleton k p v = insert k p v empty
 
 empty :: HashPSQ k p v
 empty = HashPSQ IPSQ.empty
@@ -137,9 +108,9 @@ insert :: (Ord k, Hashable k, Ord p)
 insert k p v (HashPSQ ipsq) =
     HashPSQ (IPSQ.alter_ ins (hash k) ipsq)
   where
-    ins Nothing                 = Just (p,  B k  v  (OEmpty             ))
+    ins Nothing                 = Just (p,  B k  v  (OrdPSQ.empty             ))
     ins (Just (p', B k' v' os))
-      | k == k                  = Just (p,  B k  v  (                 os))
+      | k' == k                 = Just (p,  B k  v  (                 os))
       | p' <= p                 = Just (p', B k' v' (oinsert k  p  v  os))
       | otherwise               = Just (p , B k  v  (oinsert k' p' v' os))
 
@@ -150,16 +121,17 @@ fromList = L.foldl' (\psq (k, p, x) -> insert k p x psq) empty
 
 {-# INLINABLE minView #-}
 minView :: (Ord k, Hashable k, Ord p)
-        => HashPSQ k p v -> (Maybe (k, p, v), HashPSQ k p v)
-minView (HashPSQ ipsq )=
+        => HashPSQ k p v -> Maybe (Elem k p v, HashPSQ k p v)
+minView (HashPSQ ipsq ) = 
     case IPSQ.alterMin f ipsq of
-      (res, ipsq') -> (res, HashPSQ ipsq')
+      (Nothing, _)      -> Nothing
+      (Just el , ipsq') -> Just (el, HashPSQ ipsq') 
   where
     f Nothing                  = (Nothing, Nothing)
     f (Just (_h, p, B k v os)) =
         case ominView os of
-          (Nothing,           _os') -> (Just (k, p, v), Nothing                        )
-          (Just (k', p', v'),  os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
+          Nothing                 -> (Just (E k p v) , Nothing)                        
+          Just (E k' p' v',  os') -> (Just (E k p v), Just (hash k', p', B k' v' os'))
 {-
 {-# INLINABLE deleteView #-}
 deleteView :: Ord k => k -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
@@ -186,7 +158,7 @@ alter f =
 
     insertIfNecessary Nothing ->
 
-    Nothing                 = Just (p,  B k  v  (OEmpty             ))
+    Nothing                 = Just (p,  B k  v  (OrdPSQ.empty           ))
     f' (Just (p', B k' v' os))
       | k == k                  = Just (p,  B k  v  (                 os))
       | p' <= p                 = Just (p', B k' v' (oinsert k  p  v  os))

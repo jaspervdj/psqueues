@@ -52,11 +52,9 @@
 -- <http://citeseer.ist.psu.edu/hinze01simple.html>
 module Data.PSQ
     (
-    -- * Binding Type
-    Elem(..)
 
     -- * Priority Search Queue Type
-    , PSQ
+      PSQ
 
     -- * Query
     , size
@@ -92,13 +90,9 @@ import Data.Maybe (Maybe(..))
 import GHC.Base
 import GHC.Num (Num(..))
 import GHC.Show (Show(showsPrec))
+import Data.PSQ.Internal.Types (Elem(..))
 
--- | @E k p@ binds the key @k@ with the priority @p@.
-data Elem k p v = E
-    { key   :: !k
-    , prio  :: !p
-    , value :: !v
-    } deriving (Eq, Show)
+
 
 ------------------------------------------------------------------------
 -- | A mapping from keys @k@ to priorites @p@.
