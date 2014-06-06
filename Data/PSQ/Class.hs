@@ -1,6 +1,8 @@
 -- | Generic class with properties and methods that are available for all
 -- different implementations ('IntPSQ', 'PSQ' and 'HashPSQ').
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE Rank2Types        #-}
 module Data.PSQ.Class
     ( PSQ (..)
     ) where
@@ -17,6 +19,7 @@ class PSQ (psq :: * -> * -> *) where
     null   :: Ord p => psq p v -> Bool
     size   :: Ord p => psq p v -> Int
     toList :: Ord p => psq p v -> [(Key, p, v)]
+    lookup :: Ord p => Key -> psq p v -> Maybe (p, v)
 
     insert :: Ord p => Key -> p -> v -> psq p v -> psq p v
     delete :: Ord p => Key -> psq p v -> psq p v
@@ -33,6 +36,7 @@ instance PSQ IntPSQ.IntPSQ where
     null   = IntPSQ.null
     size   = IntPSQ.size
     toList = IntPSQ.toList
+    lookup = IntPSQ.lookup
 
     insert = IntPSQ.insert
     delete = IntPSQ.delete
