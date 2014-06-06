@@ -75,7 +75,12 @@ instance (NFData p, NFData v) => NFData (IntPSQ p v) where
     rnf (Tip _k p v)        = rnf p `seq` rnf v
     rnf Nil                 = ()
 
-
+instance (Ord p, Eq v) => Eq (IntPSQ p v) where
+    x == y = case (minViewWithKey x, minViewWithKey y) of
+        (Nothing        , Nothing          ) -> True
+        (Just (xMin, x'), (Just (yMin, y'))) -> xMin == yMin && x' == y'
+        (Just _         , Nothing          ) -> False
+        (Nothing        , Just _           ) -> False
 
 -- bit twiddling
 ----------------

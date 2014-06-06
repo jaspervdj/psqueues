@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.IntPSQ.Tests
     ( tests
     ) where
@@ -5,11 +6,18 @@ module Data.IntPSQ.Tests
 import           Prelude             hiding (null, lookup)
 import           Control.Applicative ((<$>))
 
+import           Test.QuickCheck                      (Arbitrary (..), Property,
+                                                       (==>))
 import           Test.HUnit                           (Assertion, (@?=))
 import           Test.Framework                       (Test)
 import           Test.Framework.Providers.HUnit       (testCase)
+import           Test.Framework.Providers.QuickCheck2 (testProperty)
 
 import           Data.IntPSQ
+
+--------------------------------------------------------------------------------
+-- Index of tests
+--------------------------------------------------------------------------------
 
 tests :: [Test]
 tests =
@@ -17,11 +25,31 @@ tests =
     , testCase "size2"  test_size2
     , testCase "empty"  test_empty
     , testCase "lookup" test_lookup
+
+    , testProperty "prop_singleton"       prop_singleton
+    , testProperty "prop_insertLookup"    prop_insertLookup
+    , testProperty "prop_insertDelete"    prop_insertDelete
+    , testProperty "prop_deleteNonMember" prop_deleteNonMember
     ]
+
+--------------------------------------------------------------------------------
+-- Arbitrary instance
+--------------------------------------------------------------------------------
+
+instance (Arbitrary p, Arbitrary v, Ord p) => Arbitrary (IntPSQ p v) where
+    arbitrary = fromList <$> arbitrary
+
+--------------------------------------------------------------------------------
+-- Convenient type shorthands
+--------------------------------------------------------------------------------
 
 type UIntPSQ = IntPSQ Int ()
 type CIntPSQ = IntPSQ Int Char
 type IIntPSQ = IntPSQ Int Int
+
+--------------------------------------------------------------------------------
+-- HUnit tests
+--------------------------------------------------------------------------------
 
 test_size :: Assertion
 test_size = do
@@ -54,3 +82,20 @@ test_lookup = do
         dept    <- snd <$> lookup name employeeDept
         country <- snd <$> lookup dept deptCountry
         snd <$> lookup country countryCurrency
+
+--------------------------------------------------------------------------------
+-- QuickCheck properties
+--------------------------------------------------------------------------------
+
+prop_singleton :: Int -> Int -> String -> Bool
+prop_singleton k p x = insert k p x empty == singleton k p x
+
+prop_insertLookup :: Int -> Int -> UIntPSQ -> Bool
+prop_insertLookup k p t = lookup k (insert k p () t) /= Nothing
+
+prop_insertDelete :: Int -> Int -> UIntPSQ -> Property
+prop_insertDelete k p t =
+    (lookup k t == Nothing) ==> (delete k (insert k p () t) == t)
+
+prop_deleteNonMember :: Int -> UIntPSQ -> Property
+prop_deleteNonMember k t = (lookup k t == Nothing) ==> (delete k t == t)
