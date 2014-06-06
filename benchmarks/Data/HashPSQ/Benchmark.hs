@@ -10,7 +10,7 @@ import           Criterion.Main
 import           Prelude hiding (lookup)
 import           BenchmarkTypes
 
-benchmark :: (Int -> Elem) -> Int -> Benchmark
+benchmark :: (Int -> BElem) -> Int -> Benchmark
 benchmark getElem benchmarkSize = bgroup "HashPSQ"
       [ bench "minView" $ whnf hash_psqdeleteMins hash_psq
       , bench "lookup" $ whnf (hash_psqlookup keys) hash_psq
@@ -32,7 +32,7 @@ benchmark getElem benchmarkSize = bgroup "HashPSQ"
 hash_psqlookup :: [Int] -> HashPSQ Int Int () -> Int
 hash_psqlookup xs m = foldl' (\n k -> maybe n fst (lookup k m)) 0 xs
 
-hash_psqins :: [Elem] -> HashPSQ Int Int () -> HashPSQ Int Int ()
+hash_psqins :: [BElem] -> HashPSQ Int Int () -> HashPSQ Int Int ()
 hash_psqins xs m0 = foldl' (\m (k, p, v) -> insert k p v m) m0 xs
 
 hash_psqdeleteMins :: HashPSQ Int Int () -> Int

@@ -10,7 +10,7 @@ import           Criterion.Main
 import           Prelude hiding (lookup)
 import           BenchmarkTypes
 
-benchmark :: (Int -> Elem) -> Int -> Benchmark
+benchmark :: (Int -> BElem) -> Int -> Benchmark
 benchmark getElem benchmarkSize = bgroup "IntPSQ"
       [ bench "minView" $ whnf deleteMins initialPSQ
       -- , bench "map (id)" $ whnf (IntPSQ.map id) int_psq

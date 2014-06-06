@@ -1,4 +1,4 @@
 
 module BenchmarkTypes where
 
-type Elem = (Int, Int, ())
+type BElem = (Int, Int, ())
