@@ -11,7 +11,7 @@ import           Criterion.Main
 import           Data.List (foldl')
 import           Data.Maybe (fromMaybe)
 import qualified Data.IntPSQ             as IntPSQ
-import qualified Data.GHC_Events_PSQ     as GHC_PSQ
+import qualified Data.PSQ                as OrdPSQ
 import qualified Data.HashPSQ            as HashPSQ
 import qualified Data.HashMap.Strict     as HashMap
 import qualified Data.IntMap.Strict      as IntMap
@@ -40,17 +40,17 @@ main = do
     elemsDecreasing = zip (reverse keys) values
     psqelems        = map (uncurry (PSQueue.:->)) elems
     fingerElems     = map (uncurry (FingerPSQ.:->)) elems
-    ghc_psqelems    = map (\(k,p) -> GHC_PSQ.E k p ()) elems
+    ord_psqelems    = map (\(k,p) -> OrdPSQ.E k p ()) elems
 
     int_psq  = IntPSQ.fromList  elems_with_unit :: IntPSQ.IntPSQ Int ()
     hms      = HashMap.fromList elems           :: HashMap.HashMap Int Int
-    ms       = Map.fromList     elems               :: Map.Map Int Int
-    ims      = IntMap.fromList  elems            :: IntMap.IntMap Int
+    ms       = Map.fromList     elems           :: Map.Map Int Int
+    ims      = IntMap.fromList  elems           :: IntMap.IntMap Int
 
     psq      = PSQueue.fromList psqelems        :: PSQueue.PSQ Int Int
-    ghc_psq  = GHC_PSQ.fromList ghc_psqelems    :: GHC_PSQ.PSQ ()
+    ord_psq  = OrdPSQ.fromList ord_psqelems    :: OrdPSQ.PSQ Int Int ()
     hash_psq = HashPSQ.fromList elems_with_unit :: HashPSQ.HashPSQ Int Int ()
-    finger   = FingerPSQ.fromList fingerElems        :: FingerPSQ.PSQ Int Int
+    finger   = FingerPSQ.fromList fingerElems   :: FingerPSQ.PSQ Int Int
 
     -- forcing the data
     forceData = do
@@ -59,7 +59,7 @@ main = do
         evaluate (rnf ms)
         evaluate (rnf ims)
         evaluate (rnf [ (x,y) | (x PSQueue.:-> y) <- PSQueue.toList psq])
-        evaluate (rnf [ (x,y,z) | (GHC_PSQ.E x y z) <- GHC_PSQ.toList ghc_psq])
+        evaluate (rnf [ (x,y,z) | (OrdPSQ.E x y z) <- OrdPSQ.toList ord_psq])
         return ()
 
     -- benchmarks
@@ -100,12 +100,12 @@ main = do
       ]
 
     bench_ghc_events_psq = bgroup "GHC_Events_PSQ"
-      [ bench "minView" $ whnf ghc_psqdeleteMins ghc_psq
-      , bench "lookup" $ whnf (ghc_psqlookup keys) ghc_psq
-      , bench "insert (fresh)" $ whnf (ghc_psqins elems) GHC_PSQ.empty
-      , bench "insert (next fresh)" $ whnf (ghc_psqins nextElems) ghc_psq
-      , bench "insert (duplicates)" $ whnf (ghc_psqins elems) ghc_psq
-      , bench "insert (decreasing)" $ whnf (ghc_psqins elemsDecreasing) ghc_psq
+      [ bench "minView" $ whnf ord_psqdeleteMins ord_psq
+      , bench "lookup" $ whnf (ord_psqlookup keys) ord_psq
+      , bench "insert (fresh)" $ whnf (ord_psqins elems) OrdPSQ.empty
+      , bench "insert (next fresh)" $ whnf (ord_psqins nextElems) ord_psq
+      , bench "insert (duplicates)" $ whnf (ord_psqins elems) ord_psq
+      , bench "insert (decreasing)" $ whnf (ord_psqins elemsDecreasing) ord_psq
       ]
 
     bench_intpsq = bgroup "IntPSQ"
@@ -207,21 +207,21 @@ psqdeleteMins = go 0
       Just ((k PSQueue.:-> x), t') -> go (n + k + x) t'
 
 
--- Benchmarking the psqueue from the GHC event manager
+-- Benchmarking out PSQ type
 -------------------------------------------------------------------------------
 
-ghc_psqlookup :: [Int] -> GHC_PSQ.PSQ () -> Int
-ghc_psqlookup xs m = foldl' (\n k -> maybe n fst (GHC_PSQ.lookup k m)) 0 xs
+ord_psqlookup :: [Int] -> OrdPSQ.PSQ Int Int () -> Int
+ord_psqlookup xs m = foldl' (\n k -> maybe n fst (OrdPSQ.lookup k m)) 0 xs
 
-ghc_psqins :: [(Int, Int)] -> GHC_PSQ.PSQ () -> GHC_PSQ.PSQ ()
-ghc_psqins xs m0 = foldl' (\m (k, v) -> GHC_PSQ.insert k v () m) m0 xs
+ord_psqins :: [(Int, Int)] -> OrdPSQ.PSQ Int Int () -> OrdPSQ.PSQ Int Int ()
+ord_psqins xs m0 = foldl' (\m (k, v) -> OrdPSQ.insert k v () m) m0 xs
 
-ghc_psqdeleteMins :: GHC_PSQ.PSQ () -> Int
-ghc_psqdeleteMins = go 0
+ord_psqdeleteMins :: OrdPSQ.PSQ Int Int () -> Int
+ord_psqdeleteMins = go 0
   where
-    go !n t = case GHC_PSQ.minView t of
+    go !n t = case OrdPSQ.minView t of
       Nothing           -> n
-      Just ((GHC_PSQ.E k x _), t') -> go (n + k + x) t'
+      Just ((OrdPSQ.E k x _), t') -> go (n + k + x) t'
 
 
 -- Benchmarking the psqueue from the fingertree-psqueue package
