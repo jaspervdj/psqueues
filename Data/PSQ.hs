@@ -199,32 +199,32 @@ adjust f k q0 =  go q0
 -- | /O(n*log n)/ Build a queue from a list of key/priority/value
 -- tuples.  If the list contains more than one priority and value for
 -- the same key, the last priority and value for the key is retained.
-fromList :: (Ord k, Ord p) => [Elem k p v] -> PSQ k p v
-fromList = foldr (\(E k p v) q -> insert k p v q) empty
+fromList :: (Ord k, Ord p) => [(k, p, v)] -> PSQ k p v
+fromList = foldr (\(k, p, v) q -> insert k p v q) empty
 
 -- | /O(n)/ Convert to a list of key/priority/value tuples.
-toList :: PSQ k p v -> [Elem k p v]
+toList :: PSQ k p v -> [(k, p, v)]
 toList = toAscList
 
 -- | /O(n)/ Convert to an ascending list.
-toAscList :: PSQ k p v -> [Elem k p v]
+toAscList :: PSQ k p v -> [(k, p, v)]
 toAscList q  = seqToList (toAscLists q)
 
-toAscLists :: PSQ k p v -> Sequ (Elem k p v)
+toAscLists :: PSQ k p v -> Sequ (k, p, v)
 toAscLists q = case tourView q of
-    Null         -> emptySequ
-    Single e     -> singleSequ e
-    tl `Play` tr -> toAscLists tl <> toAscLists tr
+    Null             -> emptySequ
+    Single (E k p v) -> singleSequ (k, p, v)
+    tl `Play` tr     -> toAscLists tl <> toAscLists tr
 
 -- | /O(n)/ Convert to a descending list.
-toDescList :: PSQ k p v -> [ Elem k p v ]
+toDescList :: PSQ k p v -> [(k, p, v)]
 toDescList q = seqToList (toDescLists q)
 
-toDescLists :: PSQ k p v -> Sequ (Elem k p v)
+toDescLists :: PSQ k p v -> Sequ (k, p, v)
 toDescLists q = case tourView q of
-    Null         -> emptySequ
-    Single e     -> singleSequ e
-    tl `Play` tr -> toDescLists tr <> toDescLists tl
+    Null             -> emptySequ
+    Single (E k p v) -> singleSequ (k, p, v)
+    tl `Play` tr     -> toDescLists tr <> toDescLists tl
 
 ------------------------------------------------------------------------
 -- Min

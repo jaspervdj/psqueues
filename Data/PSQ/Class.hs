@@ -1,33 +1,35 @@
 -- | Generic class with properties and methods that are available for all
 -- different implementations ('IntPSQ', 'PSQ' and 'HashPSQ').
-{-# LANGUAGE TypeFamilies      #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE Rank2Types        #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE Rank2Types          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Data.PSQ.Class
     ( PSQ (..)
     ) where
 
 import qualified Data.IntPSQ as IntPSQ
+import qualified Data.PSQ    as PSQ
 
 class PSQ (psq :: * -> * -> *) where
-    type Key :: *
+    type Key psq :: *
 
     empty     :: Ord p => psq p v
-    singleton :: Ord p => Key -> p -> v -> psq p v
-    fromList  :: Ord p => [(Key, p, v)] -> psq p v
+    singleton :: Ord p => Key psq -> p -> v -> psq p v
+    fromList  :: Ord p => [(Key psq, p, v)] -> psq p v
 
     null   :: Ord p => psq p v -> Bool
     size   :: Ord p => psq p v -> Int
-    toList :: Ord p => psq p v -> [(Key, p, v)]
-    lookup :: Ord p => Key -> psq p v -> Maybe (p, v)
+    toList :: Ord p => psq p v -> [(Key psq, p, v)]
+    lookup :: Ord p => Key psq -> psq p v -> Maybe (p, v)
 
-    insert :: Ord p => Key -> p -> v -> psq p v -> psq p v
-    delete :: Ord p => Key -> psq p v -> psq p v
+    insert :: Ord p => Key psq -> p -> v -> psq p v -> psq p v
+    delete :: Ord p => Key psq -> psq p v -> psq p v
 
-    minViewWithKey :: Ord p => psq p v -> Maybe ((Key, p, v), psq p v)
+    minViewWithKey :: Ord p => psq p v -> Maybe ((Key psq, p, v), psq p v)
 
 instance PSQ IntPSQ.IntPSQ where
-    type Key = Int
+    type Key IntPSQ.IntPSQ = Int
 
     empty     = IntPSQ.empty
     singleton = IntPSQ.singleton
@@ -42,3 +44,15 @@ instance PSQ IntPSQ.IntPSQ where
     delete = IntPSQ.delete
 
     minViewWithKey = IntPSQ.minViewWithKey
+
+instance forall k. Ord k => PSQ (PSQ.PSQ k) where
+    type Key (PSQ.PSQ k) = k
+
+    empty     = PSQ.empty
+    singleton = PSQ.singleton
+    fromList  = PSQ.fromList
+
+    null   = PSQ.null
+    size   = PSQ.size
+    toList = PSQ.toList
+    lookup = PSQ.lookup
