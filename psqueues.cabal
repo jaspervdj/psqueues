@@ -62,6 +62,7 @@ Library
         Data.PSQueue
     other-modules:
         Data.BitUtil
+        Data.PSQ.Internal.Types
     include-dirs: include
 
     if impl(ghc<7.0)

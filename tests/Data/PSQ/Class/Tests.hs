@@ -1,5 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE TypeFamilies        #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.PSQ.Class.Tests
     ( tests
@@ -23,7 +25,8 @@ import           Data.PSQ.Class
 --------------------------------------------------------------------------------
 
 tests
-    :: forall psq. (PSQ psq, Eq (psq Int Char), Show (psq Int Char))
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq [Test]
 tests = Tagged
     [ testCase "size"   (untag' test_size)
@@ -48,7 +51,9 @@ tests = Tagged
 arbitraryInt :: Gen Int
 arbitraryInt = arbitrary
 
-arbitraryPSQ :: (Arbitrary p, Arbitrary v, Ord p, PSQ psq) => Gen (psq p v)
+arbitraryPSQ
+    :: (Arbitrary p, Arbitrary v, Arbitrary (Key psq), Ord p, PSQ psq)
+    => Gen (psq p v)
 arbitraryPSQ = fromList <$> arbitrary
 
 
@@ -56,24 +61,32 @@ arbitraryPSQ = fromList <$> arbitrary
 -- HUnit tests
 --------------------------------------------------------------------------------
 
-test_size :: forall psq. PSQ psq => Tagged psq Assertion
+test_size
+    :: forall psq. (PSQ psq, Key psq ~ Int)
+    => Tagged psq Assertion
 test_size = Tagged $ do
     null (empty               :: psq Int Char) @?= True
     null (singleton 1 100 'a' :: psq Int Char) @?= False
 
-test_size2 :: forall psq. PSQ psq => Tagged psq Assertion
+test_size2
+    :: forall psq. (PSQ psq, Key psq ~ Int)
+    => Tagged psq Assertion
 test_size2 = Tagged $ do
     size (empty               :: psq Int ())   @?= 0
     size (singleton 1 100 'a' :: psq Int Char) @?= 1
     size (fromList [(1, 100, 'a'), (2, 101, 'c'), (3, 102, 'b')]
                               :: psq Int Char) @?= 3
 
-test_empty :: forall psq. PSQ psq => Tagged psq Assertion
+test_empty
+    :: forall psq. (PSQ psq, Key psq ~ Int)
+    => Tagged psq Assertion
 test_empty = Tagged $ do
     toList (empty :: psq Int ())   @?= []
     size   (empty :: psq Char Int) @?= 0
 
-test_lookup :: forall psq. PSQ psq => Tagged psq Assertion
+test_lookup
+    :: forall psq. (PSQ psq, Key psq ~ Int)
+    => Tagged psq Assertion
 test_lookup = Tagged $ do
     employeeCurrency 1 @?= Just 1
     employeeCurrency 2 @?= Nothing
@@ -94,13 +107,15 @@ test_lookup = Tagged $ do
 --------------------------------------------------------------------------------
 
 prop_singleton
-    :: forall psq. (Eq (psq Int Char), PSQ psq)
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Eq (psq Int Char))
     => Tagged psq (Int -> Int -> Char -> Bool)
 prop_singleton = Tagged $ \k p x ->
     insert k p x empty == (singleton k p x :: psq Int Char)
 
 prop_insertLookup
-    :: forall psq. (PSQ psq, Show (psq Int Char))
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Show (psq Int Char))
     => Tagged psq Property
 prop_insertLookup = Tagged $
     forAll arbitraryInt $ \k ->
@@ -110,7 +125,8 @@ prop_insertLookup = Tagged $
         lookup k (insert k p c (t :: psq Int Char)) /= Nothing
 
 prop_insertDelete
-    :: forall psq. (PSQ psq, Eq (psq Int Char), Show (psq Int Char))
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq Property
 prop_insertDelete = Tagged $
     forAll arbitraryInt $ \k ->
@@ -121,7 +137,8 @@ prop_insertDelete = Tagged $
             (delete k (insert k p c t) == (t :: psq Int Char))
 
 prop_deleteNonMember
-    :: forall psq. (PSQ psq, Eq (psq Int Char), Show (psq Int Char))
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq Property
 prop_deleteNonMember = Tagged $
     forAll arbitraryInt $ \k ->
