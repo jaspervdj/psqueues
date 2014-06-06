@@ -19,6 +19,9 @@ import qualified Data.Map.Strict         as Map
 import qualified Data.PSQueue            as PSQueue
 import qualified Data.FingerTree.PSQueue as FingerPSQ
 
+import qualified Data.IntPSQ.Benchmark   as IntPSQ
+import qualified Data.HashPSQ.Benchmark   as HashPSQ
+
 import           Prelude hiding (lookup)
 
 
@@ -33,28 +36,30 @@ main = do
     keys   = [1..2^(12 :: Int)] :: [Int]
     values = [1..2^(12 :: Int)] :: [Int]
 
-    elems           = zip keys values
-    elems_with_unit = [ (k,p,()) | (k,p) <- elems ]
-    nextElems       = [ (k + 2^(12 + 1 :: Int), p) | (k, p) <- elems ]
+    getElems x = (x, x, ())
+
+    elems               = zip keys values
+    elems_with_unit     = [ (k,p,()) | (k,p) <- elems ]
+    nextElems           = [ (k + 2^(12 + 1 :: Int), p) | (k, p) <- elems ]
+    nextElems_with_unit = [ (k,p,()) | (k,p) <- nextElems ]
+
+    allElems = [ (k,p,()) | (k,p) <- elems ++ nextElems ]
 
     elemsDecreasing = zip (reverse keys) values
     psqelems        = map (uncurry (PSQueue.:->)) elems
     fingerElems     = map (uncurry (FingerPSQ.:->)) elems
     ord_psqelems    = map (\(k,p) -> OrdPSQ.E k p ()) elems
 
-    int_psq  = IntPSQ.fromList  elems_with_unit :: IntPSQ.IntPSQ Int ()
     hms      = HashMap.fromList elems           :: HashMap.HashMap Int Int
     ms       = Map.fromList     elems           :: Map.Map Int Int
     ims      = IntMap.fromList  elems           :: IntMap.IntMap Int
 
     psq      = PSQueue.fromList psqelems        :: PSQueue.PSQ Int Int
     ord_psq  = OrdPSQ.fromList ord_psqelems    :: OrdPSQ.PSQ Int Int ()
-    hash_psq = HashPSQ.fromList elems_with_unit :: HashPSQ.HashPSQ Int Int ()
     finger   = FingerPSQ.fromList fingerElems   :: FingerPSQ.PSQ Int Int
 
     -- forcing the data
     forceData = do
-        evaluate (rnf int_psq)
         evaluate (rnf hms)
         evaluate (rnf ms)
         evaluate (rnf ims)
@@ -65,8 +70,8 @@ main = do
     -- benchmarks
     benchmarks =
       [ bench_ghc_events_psq
-      , bench_intpsq
-      , bench_hashpsq
+      , IntPSQ.benchmark getElems (2^12)
+      , HashPSQ.benchmark getElems (2^12)
       , bench_psqueue
       , bench_finger
 
@@ -90,15 +95,6 @@ main = do
       , bench "insert (fresh)" $ whnf (intmap_ins elems) IntMap.empty
       ]
 
-    bench_hashpsq = bgroup "HashPSQ"
-      [ bench "minView" $ whnf hash_psqdeleteMins hash_psq
-      , bench "lookup" $ whnf (hash_psqlookup keys) hash_psq
-      , bench "insert (fresh)" $ whnf (hash_psqins elems) HashPSQ.empty
-      , bench "insert (next fresh)" $ whnf (hash_psqins nextElems) hash_psq
-      , bench "insert (duplicates)" $ whnf (hash_psqins elems) hash_psq
-      , bench "insert (decreasing)" $ whnf (hash_psqins elemsDecreasing) hash_psq
-      ]
-
     bench_ghc_events_psq = bgroup "GHC_Events_PSQ"
       [ bench "minView" $ whnf ord_psqdeleteMins ord_psq
       , bench "lookup" $ whnf (ord_psqlookup keys) ord_psq
@@ -108,28 +104,6 @@ main = do
       , bench "insert (decreasing)" $ whnf (ord_psqins elemsDecreasing) ord_psq
       ]
 
-    bench_intpsq = bgroup "IntPSQ"
-      [ bench "minView" $ whnf deleteMins int_psq
-      -- , bench "map (id)" $ whnf (IntPSQ.map id) int_psq
-      -- , bench "map (negate)" $ whnf (IntPSQ.map negate) int_psq
-      , bench "lookup" $ whnf (lookup keys) int_psq
-
-      , bench "insert (fresh)" $ whnf (ins elems) IntPSQ.empty
-      , bench "insert (next fresh)" $ whnf (ins nextElems) int_psq
-      , bench "insert (duplicates)" $ whnf (ins elems) int_psq
-      , bench "insert (decreasing)" $ whnf (ins elemsDecreasing) int_psq
-      -- , bench "fromList" $ whnf IntPSQ.fromList elems_with_unit
-
-      , bench "insert2 (fresh)" $ whnf (ins2 elems) IntPSQ.empty
-      , bench "insert2 (duplicates)" $ whnf (ins2 elems) int_psq
-      , bench "insert2 (decreasing)" $ whnf (ins2 elemsDecreasing) int_psq
-      , bench "fromList2" $ whnf IntPSQ.fromList2 elems_with_unit
-
-      , bench "insert3 (fresh)" $ whnf (ins3 elems) IntPSQ.empty
-      , bench "insert3 (duplicates)" $ whnf (ins3 elems) int_psq
-      , bench "insert3 (decreasing)" $ whnf (ins3 elemsDecreasing) int_psq
-      , bench "fromList3" $ whnf IntPSQ.fromList3 elems_with_unit
-      ]
 
     bench_psqueue = bgroup "PSQueue"
       [ bench "minView" $ whnf psqdeleteMins psq
@@ -158,9 +132,6 @@ map_lookup xs m = foldl' (\n k -> fromMaybe n (Map.lookup k m)) 0 xs
 intmap_lookup :: [Int] -> IntMap.IntMap Int -> Int
 intmap_lookup xs m = foldl' (\n k -> fromMaybe n (IntMap.lookup k m)) 0 xs
 
-lookup :: [Int] -> IntPSQ.IntPSQ Int () -> Int
-lookup xs m = foldl' (\n k -> maybe n fst (IntPSQ.lookup k m)) 0 xs
-
 hashmap_ins :: [(Int, Int)] -> HashMap.HashMap Int Int -> HashMap.HashMap Int Int
 hashmap_ins xs m0 = foldl' (\m (k, v) -> HashMap.insert k v m) m0 xs
 
@@ -171,24 +142,6 @@ intmap_ins :: [(Int, Int)] -> IntMap.IntMap Int -> IntMap.IntMap Int
 intmap_ins xs m0 = foldl' (\m (k, v) -> IntMap.insert k v m) m0 xs
 
 
--- Benchmarking our IntPSQ type
--------------------------------------------------------------------------------
-
-ins :: [(Int, Int)] -> IntPSQ.IntPSQ Int () -> IntPSQ.IntPSQ Int ()
-ins xs m0 = foldl' (\m (k, v) -> IntPSQ.insert k v () m) m0 xs
-
-ins2 :: [(Int, Int)] -> IntPSQ.IntPSQ Int () -> IntPSQ.IntPSQ Int ()
-ins2 xs m0 = foldl' (\m (k, v) -> IntPSQ.insert2 k v () m) m0 xs
-
-ins3 :: [(Int, Int)] -> IntPSQ.IntPSQ Int () -> IntPSQ.IntPSQ Int ()
-ins3 xs m0 = foldl' (\m (k, v) -> IntPSQ.insert3 k v () m) m0 xs
-
-deleteMins :: IntPSQ.IntPSQ Int () -> Int
-deleteMins = go 0
-  where
-    go !n t = case IntPSQ.minViewWithKey t of
-      Nothing           -> n
-      Just ((k, p, _), t') -> go (n + k + p) t'
 
 -- Benchmarking the PSQueues package
 -------------------------------------------------------------------------------
@@ -207,7 +160,7 @@ psqdeleteMins = go 0
       Just ((k PSQueue.:-> x), t') -> go (n + k + x) t'
 
 
--- Benchmarking out PSQ type
+-- Benchmarking our PSQ type
 -------------------------------------------------------------------------------
 
 ord_psqlookup :: [Int] -> OrdPSQ.PSQ Int Int () -> Int
@@ -242,21 +195,4 @@ fingerDeleteMins = go 0
     go !n t = case FingerPSQ.minView t of
       Nothing           -> n
       Just ((k FingerPSQ.:-> x), t') -> go (n + k + x) t'
-
-
--- Benchmarking our HashPSQ type
--------------------------------------------------------------------------------
-
-hash_psqlookup :: [Int] -> HashPSQ.HashPSQ Int Int () -> Int
-hash_psqlookup xs m = foldl' (\n k -> maybe n fst (HashPSQ.lookup k m)) 0 xs
-
-hash_psqins :: [(Int, Int)] -> HashPSQ.HashPSQ Int Int () -> HashPSQ.HashPSQ Int Int ()
-hash_psqins xs m0 = foldl' (\m (k, v) -> HashPSQ.insert k v () m) m0 xs
-
-hash_psqdeleteMins :: HashPSQ.HashPSQ Int Int () -> Int
-hash_psqdeleteMins = go 0
-  where
-    go !n t = case HashPSQ.minView t of
-      (Nothing       , _t') -> n
-      (Just (k, x, _),  t') -> go (n + k + x) t'
 
