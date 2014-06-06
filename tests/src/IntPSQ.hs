@@ -10,13 +10,14 @@ import           Criterion.Main
 
 import           Data.List (foldl')
 import           Data.Maybe (fromMaybe)
-import qualified Data.IntPSQ         as IntPSQ
-import qualified Data.GHC_Events_PSQ as GHC_PSQ
-import qualified Data.HashPSQ        as HashPSQ
-import qualified Data.HashMap.Strict as HashMap
-import qualified Data.IntMap.Strict  as IntMap
-import qualified Data.Map.Strict     as Map
-import qualified Data.PSQueue        as PSQueue
+import qualified Data.IntPSQ             as IntPSQ
+import qualified Data.GHC_Events_PSQ     as GHC_PSQ
+import qualified Data.HashPSQ            as HashPSQ
+import qualified Data.HashMap.Strict     as HashMap
+import qualified Data.IntMap.Strict      as IntMap
+import qualified Data.Map.Strict         as Map
+import qualified Data.PSQueue            as PSQueue
+import qualified Data.FingerTree.PSQueue as FingerPSQ
 
 import           Prelude hiding (lookup)
 
@@ -38,6 +39,7 @@ main = do
 
     elemsDecreasing = zip (reverse keys) values
     psqelems        = map (uncurry (PSQueue.:->)) elems
+    fingerElems     = map (uncurry (FingerPSQ.:->)) elems
     ghc_psqelems    = map (\(k,p) -> GHC_PSQ.E k p ()) elems
 
     int_psq  = IntPSQ.fromList  elems_with_unit :: IntPSQ.IntPSQ Int ()
@@ -48,6 +50,7 @@ main = do
     psq      = PSQueue.fromList psqelems        :: PSQueue.PSQ Int Int
     ghc_psq  = GHC_PSQ.fromList ghc_psqelems    :: GHC_PSQ.PSQ ()
     hash_psq = HashPSQ.fromList elems_with_unit :: HashPSQ.HashPSQ Int Int ()
+    finger   = FingerPSQ.fromList fingerElems        :: FingerPSQ.PSQ Int Int
 
     -- forcing the data
     forceData = do
@@ -65,6 +68,7 @@ main = do
       , bench_intpsq
       , bench_hashpsq
       , bench_psqueue
+      , bench_finger
 
       , bench_intmap
       , bench_hashmap
@@ -136,6 +140,15 @@ main = do
       , bench "fromList" $ whnf PSQueue.fromList psqelems
       ]
 
+    bench_finger = bgroup "FingerTree PSQueue"
+      [ bench "minView" $ whnf fingerDeleteMins finger
+      , bench "lookup" $ whnf (fingerLookup keys) finger
+      , bench "insert (fresh)" $ whnf (fingerIns elems) FingerPSQ.empty
+      , bench "insert (duplicates)" $ whnf (fingerIns elems) finger
+      , bench "insert (decreasing)" $ whnf (fingerIns elemsDecreasing) finger
+      , bench "fromList" $ whnf FingerPSQ.fromList fingerElems
+      ]
+
 hashmap_lookup :: [Int] -> HashMap.HashMap Int Int -> Int
 hashmap_lookup xs m = foldl' (\n k -> fromMaybe n (HashMap.lookup k m)) 0 xs
 
@@ -157,6 +170,10 @@ map_ins xs m0 = foldl' (\m (k, v) -> Map.insert k v m) m0 xs
 intmap_ins :: [(Int, Int)] -> IntMap.IntMap Int -> IntMap.IntMap Int
 intmap_ins xs m0 = foldl' (\m (k, v) -> IntMap.insert k v m) m0 xs
 
+
+-- Benchmarking our IntPSQ type
+-------------------------------------------------------------------------------
+
 ins :: [(Int, Int)] -> IntPSQ.IntPSQ Int () -> IntPSQ.IntPSQ Int ()
 ins xs m0 = foldl' (\m (k, v) -> IntPSQ.insert k v () m) m0 xs
 
@@ -173,6 +190,9 @@ deleteMins = go 0
       Nothing           -> n
       Just ((k, p, _), t') -> go (n + k + p) t'
 
+-- Benchmarking the PSQueues package
+-------------------------------------------------------------------------------
+
 psqlookup :: [Int] -> PSQueue.PSQ Int Int -> Int
 psqlookup xs m = foldl' (\n k -> fromMaybe n (PSQueue.lookup k m)) 0 xs
 
@@ -187,6 +207,9 @@ psqdeleteMins = go 0
       Just ((k PSQueue.:-> x), t') -> go (n + k + x) t'
 
 
+-- Benchmarking the psqueue from the GHC event manager
+-------------------------------------------------------------------------------
+
 ghc_psqlookup :: [Int] -> GHC_PSQ.PSQ () -> Int
 ghc_psqlookup xs m = foldl' (\n k -> maybe n fst (GHC_PSQ.lookup k m)) 0 xs
 
@@ -199,6 +222,30 @@ ghc_psqdeleteMins = go 0
     go !n t = case GHC_PSQ.minView t of
       Nothing           -> n
       Just ((GHC_PSQ.E k x _), t') -> go (n + k + x) t'
+
+
+-- Benchmarking the psqueue from the fingertree-psqueue package
+-------------------------------------------------------------------------------
+
+fingerLookup :: [Int] -> FingerPSQ.PSQ Int Int -> Int
+fingerLookup xs m = foldl' (\n k -> fromMaybe n (FingerPSQ.lookup k m)) 0 xs
+
+fingerIns :: [(Int, Int)] -> FingerPSQ.PSQ Int Int -> FingerPSQ.PSQ Int Int
+fingerIns xs m0 = foldl' (\m (k, v) -> fingerInsert k v m) m0 xs
+  where
+    fingerInsert :: (Ord k, Ord v) => k -> v -> FingerPSQ.PSQ k v -> FingerPSQ.PSQ k v
+    fingerInsert k v m = FingerPSQ.alter (const $ Just v) k m
+
+fingerDeleteMins :: FingerPSQ.PSQ Int Int -> Int
+fingerDeleteMins = go 0
+  where
+    go !n t = case FingerPSQ.minView t of
+      Nothing           -> n
+      Just ((k FingerPSQ.:-> x), t') -> go (n + k + x) t'
+
+
+-- Benchmarking our HashPSQ type
+-------------------------------------------------------------------------------
 
 hash_psqlookup :: [Int] -> HashPSQ.HashPSQ Int Int () -> Int
 hash_psqlookup xs m = foldl' (\n k -> maybe n fst (HashPSQ.lookup k m)) 0 xs
