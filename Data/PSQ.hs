@@ -1,6 +1,6 @@
-
-{-# LANGUAGE Trustworthy #-}
-{-# LANGUAGE BangPatterns, NoImplicitPrelude #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE Trustworthy         #-}
+{-# LANGUAGE BangPatterns        #-}
 
 -- Copyright (c) 2008, Ralf Hinze
 -- All rights reserved.
@@ -51,12 +51,13 @@
 --
 -- <http://citeseer.ist.psu.edu/hinze01simple.html>
 module Data.PSQ
-    ( PSQ
+    ( -- * Type
+      PSQ
 
       -- * Query
     , null
     , size
-    -- , member
+    , member
     , lookup
     , findMin
 
@@ -75,28 +76,20 @@ module Data.PSQ
       -- * Conversion
     , fromList
     , toList
-    -- , keys
-
-    -- * Min
-    , findMin
-    , deleteMin
+    , keys
 
       -- * Views
     , deleteView
     , minView
 
       -- * Traversals
-    -- , map
-    , fold
+    , map
+    , fold'
     ) where
 
-import Prelude ()
-import Control.DeepSeq (NFData(rnf))
-import Data.Maybe (Maybe(..))
-import GHC.Base
-import GHC.Num (Num(..))
-import GHC.Show (Show(showsPrec))
-
+import           Prelude         hiding (map, lookup, null)
+import           Control.DeepSeq (NFData(rnf))
+import           Data.Maybe      (Maybe(..), isJust)
 
 -- | @E k p v@ binds the key @k@ to the value @v@ with priority @p@.
 data Elem k p v = E
@@ -108,6 +101,8 @@ data Elem k p v = E
 instance (NFData k, NFData p, NFData v) => NFData (Elem k p v) where
     rnf (E k p v) = rnf k `seq` rnf p `seq` rnf v
 
+instance Functor (Elem k p) where
+    fmap f (E k p v) = E k p (f v)
 
 unElem :: Elem k p v -> (k, p, v)
 unElem (E k p v) = (k, p, v)
@@ -127,15 +122,19 @@ instance (NFData k, NFData p, NFData v) => NFData (PSQ k p v) where
     rnf Void           = ()
     rnf (Winner e t m) = rnf e `seq` rnf m `seq` rnf t
 
+-- | /O(1)/ True if the queue is empty.
+null :: PSQ k p v -> Bool
+null Void           = True
+null (Winner _ _ _) = False
+
 -- | /O(1)/ The number of elements in a queue.
 size :: (Ord p) => PSQ k p v -> Int
 size Void            = 0
 size (Winner _ lt _) = 1 + size' lt
 
--- | /O(1)/ True if the queue is empty.
-null :: PSQ k p v -> Bool
-null Void           = True
-null (Winner _ _ _) = False
+-- | /O(log n)/ Check if a key is present in the the queue.
+member :: Ord k => k -> PSQ k p v -> Bool
+member k = isJust . lookup k
 
 -- | /O(log n)/ The priority and value of a given key, or Nothing if
 -- the key is not bound.
@@ -245,6 +244,11 @@ fromList = foldr (\(k, p, v) q -> insert k p v q) empty
 toList :: PSQ k p v -> [(k, p, v)]
 toList = toAscList
 
+-- | /O(n)/ Obtain the list of present keys in the queue.
+keys :: PSQ k p v -> [k]
+keys t = [k | (k, _, _) <- toList t]
+-- TODO (jaspervdj): There must be faster implementations.
+
 -- | /O(n)/ Convert to an ascending list.
 toAscList :: PSQ k p v -> [(k, p, v)]
 toAscList q  = seqToList (toAscLists q)
@@ -268,8 +272,24 @@ toDescLists q = case tourView q of
 ------------------------------------------------------------------------
 -- Traversals
 
-fold :: (Ord p) => (k -> p -> v -> a -> a) -> a -> PSQ k p v -> a
-fold f acc =
+{-# INLINABLE map #-}
+map :: forall k p v w. Ord p => (k -> p -> v -> w) -> PSQ k p v -> PSQ k p w
+map f = goPSQ
+  where
+    goElem :: Elem k p v -> Elem k p w
+    goElem (E k p x) = E k p (f k p x)
+
+    goPSQ :: PSQ k p v -> PSQ k p w
+    goPSQ Void           = Void
+    goPSQ (Winner e l k) = Winner (goElem e) (goLTree l) k
+
+    goLTree :: LTree k p v -> LTree k p w
+    goLTree Start              = Start
+    goLTree (LLoser s e l k r) = LLoser s (goElem e) (goLTree l) k (goLTree r)
+    goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
+
+fold' :: (Ord p) => (k -> p -> v -> a -> a) -> a -> PSQ k p v -> a
+fold' f acc0 =
     let
         fold_tree acc Start = acc
         fold_tree acc (LLoser _ e lt _ rt) = fold_tree' acc (e, lt, rt)
@@ -282,8 +302,8 @@ fold f acc =
             in
                 f k p v rta
 
-        go Void = acc
-        go (Winner _ t _) = fold_tree acc t
+        go Void = acc0
+        go (Winner _ t _) = fold_tree acc0 t
     in
         go
 

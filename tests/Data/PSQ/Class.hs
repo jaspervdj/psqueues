@@ -95,20 +95,25 @@ instance PSQ IntPSQ.IntPSQ where
 instance forall k. Ord k => PSQ (PSQ.PSQ k) where
     type Key (PSQ.PSQ k) = k
 
-    empty     = PSQ.empty
-    singleton = PSQ.singleton
-    fromList  = PSQ.fromList
+    null       = PSQ.null
+    size       = PSQ.size
+    member     = PSQ.member
+    lookup     = PSQ.lookup
+    findMin    = PSQ.findMin
+    empty      = PSQ.empty
+    singleton  = PSQ.singleton
+    insert     = PSQ.insert
+    delete     = PSQ.delete
+    alter      = error "PSQ.alter"
+    alterMin   = error "PSQ.alterMin"
+    fromList   = PSQ.fromList
+    toList     = PSQ.toList
+    keys       = PSQ.keys
+    deleteView = PSQ.deleteView
+    minView    = PSQ.minView
+    map        = PSQ.map
+    fold'      = PSQ.fold'
 
-    null   = PSQ.null
-    size   = PSQ.size
-    toList = PSQ.toList
-    lookup = PSQ.lookup
-
-    -- TODO: Add these functions once they have the proper API
-    -- insert  = PSQ.insert
-    -- delete  = PSQ.delete
-
-    -- minViewWithKey = PSQ.minViewWithKey
 
 instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where
     type Key (HashPSQ.HashPSQ k) = k
