@@ -73,7 +73,7 @@ oinsert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ.PSQ k p v -> OrdPSQ.PSQ k p v
 oinsert = OrdPSQ.insert
 
 {-# INLINABLE ominView #-}
-ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe ((k, p, v), OrdPSQ.PSQ k p v)
+ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe (k, p, v, OrdPSQ.PSQ k p v)
 ominView = OrdPSQ.minView
 
 {-
@@ -138,8 +138,8 @@ minView (HashPSQ ipsq ) =
     f Nothing                  = (Nothing, Nothing)
     f (Just (_h, p, B k v os)) =
         case ominView os of
-          Nothing                   -> (Just (k, p, v), Nothing)
-          Just ((k', p', v'),  os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
+          Nothing                -> (Just (k, p, v), Nothing)
+          Just (k', p', v', os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
 {-
 {-# INLINABLE deleteView #-}
 deleteView :: Ord k => k -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)

@@ -51,38 +51,39 @@
 --
 -- <http://citeseer.ist.psu.edu/hinze01simple.html>
 module Data.PSQ
-    (
+    ( PSQ
 
-    -- * Priority Search Queue Type
-      PSQ
-
-    -- * Query
-    , size
+      -- * Query
     , null
+    , size
+    -- , member
     , lookup
+    , findMin
 
-    -- * Construction
+      -- * Construction
     , empty
     , singleton
 
-    -- * Insertion
+      -- * Insertion
     , insert
 
-    -- * Delete/Update
+      -- * Delete/Update
     , delete
-    , adjust
+    -- , alter
+    -- , alterMin
 
-    -- * Conversion
-    , toList
-    , toAscList
-    , toDescList
+      -- * Conversion
     , fromList
+    , toList
+    -- , keys
 
-    -- * Min
-    , findMin
-    , deleteMin
+      -- * Views
+    -- , deleteView
     , minView
-    , atMost
+
+      -- * Traversals
+    -- , map
+    -- , fold
     ) where
 
 import Prelude ()
@@ -93,7 +94,7 @@ import GHC.Num (Num(..))
 import GHC.Show (Show(showsPrec))
 
 
--- | @E k p@ binds the key @k@ with the priority @p@.
+-- | @E k p v@ binds the key @k@ to the value @v@ with priority @p@.
 data Elem k p v = E
     { _key   :: !k
     , prio   :: !p
@@ -261,9 +262,10 @@ deleteMin (Winner _ t m) = secondBest t m
 
 -- | /O(log n)/ Retrieve the binding with the least priority, and the
 -- rest of the queue stripped of that binding.
-minView :: (Ord p) => PSQ k p v -> Maybe ((k, p, v), PSQ k p v)
+minView :: (Ord p) => PSQ k p v -> Maybe (k, p, v, PSQ k p v)
 minView Void           = Nothing
-minView (Winner e t m) = Just (unElem e, secondBest t m)
+minView (Winner e t m) = let (k,p,v) = unElem e in
+                           Just (k, p, v, secondBest t m)
 
 secondBest :: (Ord p) => LTree k p v -> k -> PSQ k p v
 secondBest Start _                 = Void
