@@ -8,3 +8,6 @@
 GNUmakefile
 dist-install
 ghc.mk
+tags
+*.swp
+.cabal-sandbox
