@@ -261,12 +261,13 @@ alter
     -> Key
     -> IntPSQ p v
     -> (b, IntPSQ p v)
-alter f =
-    \k t0 -> case deleteView k t0 of
-              (t, mbX) ->
-                case f mbX of
-                  (b, mbX') ->
-                    (b, maybe t (\(p, v) -> insertNew k p v t) mbX')
+alter f = \k t0 ->
+    let (t, mbX) = case deleteView k t0 of
+                            Nothing          -> (t0, Nothing)
+                            Just (p, v, t0') -> (t0', Just (p, v))
+    in case f mbX of
+          (b, mbX') ->
+            (b, maybe t (\(p, v) -> insertNew k p v t) mbX')
 
 {-# INLINE alterMin #-}
 alterMin :: Ord p
@@ -332,10 +333,11 @@ keys t = [k | (k, _, _) <- toList t]
 -- TODO (SM): verify that it is really worth do do deletion and lookup at the
 -- same time.
 {-# INLINABLE deleteView #-}
-deleteView :: Ord p => Key -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
+deleteView :: Ord p => Key -> IntPSQ p v -> Maybe (p, v, IntPSQ p v)
 deleteView k t0 =
     case delFrom t0 of
-      (# t, mbPX #) -> (t, mbPX)
+      (# _, Nothing     #) -> Nothing
+      (# t, Just (p, x) #) -> Just (p, x, t)
   where
     delFrom t = case t of
       Nil -> (# Nil, Nothing #)
@@ -370,14 +372,14 @@ minView t = case t of
 ------------------------------------------------------------------------------
 
 {-# INLINABLE map #-}
-map :: (v -> v') -> IntPSQ p v -> IntPSQ p v'
+map :: (Int -> p -> v -> w) -> IntPSQ p v -> IntPSQ p w
 map f =
     go
   where
     go t = case t of
         Nil             -> Nil
-        Tip k p x       -> Tip k p (f x)
-        Bin k p x m l r -> Bin k p (f x) m (go l) (go r)
+        Tip k p x       -> Tip k p (f k p x)
+        Bin k p x m l r -> Bin k p (f k p x) m (go l) (go r)
 
 {-# INLINABLE fold' #-}
 fold' :: (Int -> p -> v -> a -> a) -> a -> IntPSQ p v -> a
@@ -545,14 +547,8 @@ fromList3 :: Ord p => [(Key, p, v)] -> IntPSQ p v
 fromList3 = foldl' (\im (k, p, x) -> insert3 k p x im) empty
 
 
-
 -- Unused
 ------------------------------------------------------------------------------
-
-{-# INLINE alter_ #-}
-alter_ :: Ord p
-       => (Maybe (p, v) -> Maybe (p, v)) -> Key -> IntPSQ p v -> IntPSQ p v
-alter_ mkNext k t = snd (alter (\x -> ((), mkNext x)) k t)
 
 -- TODO (SM): Make benchmarks run again, integrate this function with insert
 -- and test how benchmarks times change.

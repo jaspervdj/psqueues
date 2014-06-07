@@ -73,17 +73,24 @@ class PSQ (psq :: * -> * -> *) where
 instance PSQ IntPSQ.IntPSQ where
     type Key IntPSQ.IntPSQ = Int
 
-    empty     = IntPSQ.empty
-    singleton = IntPSQ.singleton
-    fromList  = IntPSQ.fromList
-
-    null   = IntPSQ.null
-    size   = IntPSQ.size
-    toList = IntPSQ.toList
-    lookup = IntPSQ.lookup
-
-    insert = IntPSQ.insert
-    delete = IntPSQ.delete
+    null       = IntPSQ.null
+    size       = IntPSQ.size
+    member     = IntPSQ.member
+    lookup     = IntPSQ.lookup
+    findMin    = IntPSQ.findMin
+    empty      = IntPSQ.empty
+    singleton  = IntPSQ.singleton
+    insert     = IntPSQ.insert
+    delete     = IntPSQ.delete
+    alter      = IntPSQ.alter
+    alterMin   = IntPSQ.alterMin
+    fromList   = IntPSQ.fromList
+    toList     = IntPSQ.toList
+    keys       = IntPSQ.keys
+    deleteView = IntPSQ.deleteView
+    minView    = IntPSQ.minView
+    map        = IntPSQ.map
+    fold'      = IntPSQ.fold'
 
 instance forall k. Ord k => PSQ (PSQ.PSQ k) where
     type Key (PSQ.PSQ k) = k
