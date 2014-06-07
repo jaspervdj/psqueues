@@ -13,7 +13,7 @@ import           Data.Hashable
 import qualified Data.IntPSQ as IPSQ
 import qualified Data.List   as L
 import qualified Data.PSQ    as OrdPSQ
-import Data.PSQ.Internal.Types (Elem(..))
+import           Data.PSQ.Internal.Types (Elem(..))
 
 import           Prelude hiding (lookup)
 
@@ -122,15 +122,15 @@ fromList = L.foldl' (\psq (k, p, x) -> insert k p x psq) empty
 {-# INLINABLE minView #-}
 minView :: (Ord k, Hashable k, Ord p)
         => HashPSQ k p v -> Maybe (Elem k p v, HashPSQ k p v)
-minView (HashPSQ ipsq ) = 
+minView (HashPSQ ipsq ) =
     case IPSQ.alterMin f ipsq of
       (Nothing, _)      -> Nothing
-      (Just el , ipsq') -> Just (el, HashPSQ ipsq') 
+      (Just el , ipsq') -> Just (el, HashPSQ ipsq')
   where
     f Nothing                  = (Nothing, Nothing)
     f (Just (_h, p, B k v os)) =
         case ominView os of
-          Nothing                 -> (Just (E k p v) , Nothing)                        
+          Nothing                 -> (Just (E k p v) , Nothing)
           Just (E k' p' v',  os') -> (Just (E k p v), Just (hash k', p', B k' v' os'))
 {-
 {-# INLINABLE deleteView #-}

@@ -56,3 +56,11 @@ instance forall k. Ord k => PSQ (PSQ.PSQ k) where
     size   = PSQ.size
     toList = PSQ.toList
     lookup = PSQ.lookup
+
+    -- TODO: Add these functions once they have the proper API
+    -- insert  = PSQ.insert
+    -- delete  = PSQ.delete
+
+    -- minViewWithKey = PSQ.minViewWithKey
+
+
