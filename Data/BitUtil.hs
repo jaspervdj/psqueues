@@ -18,8 +18,6 @@
 
 module Data.BitUtil
     ( highestBitMask
-    , shiftLL
-    , shiftRL
     ) where
 
 -- On GHC, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
@@ -31,7 +29,7 @@ import Data.Bits ((.|.), xor)
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts (Word(..), Int(..))
-import GHC.Prim (uncheckedShiftL#, uncheckedShiftRL#)
+import GHC.Prim (uncheckedShiftRL#)
 #else
 import Data.Word (shiftL, shiftR)
 #endif
@@ -56,16 +54,13 @@ highestBitMask x1 = let x2 = x1 .|. x1 `shiftRL` 1
 {-# INLINE highestBitMask #-}
 
 -- Right and left logical shifts.
-shiftRL, shiftLL :: Word -> Int -> Word
+shiftRL :: Word -> Int -> Word
 #if __GLASGOW_HASKELL__
 {--------------------------------------------------------------------
   GHC: use unboxing to get @shiftRL@ inlined.
 --------------------------------------------------------------------}
 shiftRL (W# x) (I# i) = W# (uncheckedShiftRL# x i)
-shiftLL (W# x) (I# i) = W# (uncheckedShiftL#  x i)
 #else
 shiftRL x i   = shiftR x i
-shiftLL x i   = shiftL x i
 #endif
 {-# INLINE shiftRL #-}
-{-# INLINE shiftLL #-}
