@@ -170,10 +170,10 @@ lookup k t = case t of
       | zero k m       -> lookup k l
       | otherwise      -> lookup k r
 
-findMin :: Ord p => IntPSQ p v -> Maybe (p, v)
+findMin :: Ord p => IntPSQ p v -> Maybe (Int, p, v)
 findMin t = case minView t of
     Nothing           -> Nothing
-    Just (_, p, v, _) -> Just (p, v)
+    Just (k, p, v, _) -> Just (k, p, v)
     -- TODO (jaspervdj): More efficient implementations are possible.
 
 ------------------------------------------------------------------------------
@@ -360,7 +360,7 @@ deleteView k t0 =
                                            in  t' `seq` (# t', mbPX #)
 
 {-# INLINE minView #-}
-minView :: Ord p => IntPSQ p v -> Maybe (Key, p, v, IntPSQ p v)
+minView :: Ord p => IntPSQ p v -> Maybe (Int, p, v, IntPSQ p v)
 minView t = case t of
     Nil             -> Nothing
     Tip k p x       -> Just (k, p, x, Nil)

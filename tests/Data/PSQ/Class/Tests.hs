@@ -29,15 +29,18 @@ tests
                     Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq [Test]
 tests = Tagged
-    [ testCase "size"   (untag' test_size)
-    , testCase "size2"  (untag' test_size2)
-    , testCase "empty"  (untag' test_empty)
-    , testCase "lookup" (untag' test_lookup)
+    [ testCase "size"    (untag' test_size)
+    , testCase "size2"   (untag' test_size2)
+    , testCase "empty"   (untag' test_empty)
+    , testCase "lookup"  (untag' test_lookup)
+    , testCase "findMin" (untag' test_findMin)
+    , testCase "alter"   (untag' test_alter)
 
-    , testProperty "prop_singleton"       (untag' prop_singleton)
-    , testProperty "prop_insertLookup"    (untag' prop_insertLookup)
-    , testProperty "prop_insertDelete"    (untag' prop_insertDelete)
-    , testProperty "prop_deleteNonMember" (untag' prop_deleteNonMember)
+    , testProperty "singleton"       (untag' prop_singleton)
+    , testProperty "insertLookup"    (untag' prop_insertLookup)
+    , testProperty "insertDelete"    (untag' prop_insertDelete)
+    , testProperty "deleteNonMember" (untag' prop_deleteNonMember)
+    , testProperty "alter"           (untag' prop_alter)
     ]
   where
     untag' :: Tagged psq test -> test
@@ -101,6 +104,23 @@ test_lookup = Tagged $ do
         country <- snd <$> lookup dept deptCountry
         snd <$> lookup country countryCurrency
 
+test_findMin
+    :: forall psq. (PSQ psq, Key psq ~ Int)
+    => Tagged psq Assertion
+test_findMin = Tagged $ do
+    findMin (empty :: psq Int Char) @?= Nothing
+    findMin (fromList [(5, 101, 'a'), (3, 100, 'b')] :: psq Int Char) @?=
+        Just (3, 100, 'b')
+
+test_alter
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Eq (psq Int Char), Show (psq Int Char))
+    => Tagged psq Assertion
+test_alter = Tagged $
+    alter f 3 (empty :: psq Int Char) @?= ("Hello", singleton 3 100 'a')
+  where
+    f _ = ("Hello", Just (100, 'a'))
+
 
 --------------------------------------------------------------------------------
 -- QuickCheck properties
@@ -144,3 +164,17 @@ prop_deleteNonMember = Tagged $
     forAll arbitraryInt $ \k ->
     forAll arbitraryPSQ $ \t ->
         (lookup k t == Nothing) ==> (delete k t == (t :: psq Int Char))
+
+prop_alter
+    :: forall psq. (PSQ psq, Key psq ~ Int, Show (psq Int Char))
+    => Tagged psq Property
+prop_alter = Tagged $
+    forAll arbitraryInt $ \k ->
+    forAll arbitraryPSQ $ \t ->
+        let ((), t') = alter f k t :: ((), psq Int Char)
+        in case lookup k t of
+            Just _  -> (size t - 1) == size t' && lookup k t' == Nothing
+            Nothing -> (size t + 1) == size t' && lookup k t' /= Nothing
+  where
+    f Nothing   = ((), Just (100, 'a'))
+    f (Just _)  = ((), Nothing)
