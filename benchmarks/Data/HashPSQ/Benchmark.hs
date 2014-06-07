@@ -39,6 +39,6 @@ hash_psqdeleteMins :: HashPSQ Int Int () -> Int
 hash_psqdeleteMins = go 0
   where
     go !n t = case minView t of
-      (Nothing       , _t') -> n
-      (Just (k, x, _),  t') -> go (n + k + x) t'
+      Nothing               -> n
+      Just ((k, x, _),  t') -> go (n + k + x) t'
 

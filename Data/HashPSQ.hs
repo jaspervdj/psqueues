@@ -10,10 +10,9 @@ module Data.HashPSQ
   ) where
 
 import           Data.Hashable
-import qualified Data.IntPSQ as IPSQ
+import qualified Data.IntPSQ as IPSQ -- TODO: I would consider renaming the import to IntPSQ
 import qualified Data.List   as L
 import qualified Data.PSQ    as OrdPSQ
-import           Data.PSQ.Internal.Types (Elem(..))
 
 import           Prelude hiding (lookup)
 
@@ -33,6 +32,9 @@ newtype HashPSQ k p v = HashPSQ (IPSQ.IntPSQ p (Bucket k p v))
 ------------------------------------------------------------------------------
 -- Overflow list functions
 ------------------------------------------------------------------------------
+
+
+-- TODO: Rename OrdPSQ to PSQ and inline all these functions
 
 {-# INLINABLE olookup #-}
 olookup :: Ord k => k -> OrdPSQ.PSQ k p v -> Maybe (p, v)
@@ -65,7 +67,7 @@ oinsert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ.PSQ k p v -> OrdPSQ.PSQ k p v
 oinsert = OrdPSQ.insert
 
 {-# INLINABLE ominView #-}
-ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe (Elem k p v, OrdPSQ.PSQ k p v)
+ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe ((k, p, v), OrdPSQ.PSQ k p v)
 ominView = OrdPSQ.minView
 
 {-
@@ -121,7 +123,7 @@ fromList = L.foldl' (\psq (k, p, x) -> insert k p x psq) empty
 
 {-# INLINABLE minView #-}
 minView :: (Ord k, Hashable k, Ord p)
-        => HashPSQ k p v -> Maybe (Elem k p v, HashPSQ k p v)
+        => HashPSQ k p v -> Maybe ((k, p, v), HashPSQ k p v)
 minView (HashPSQ ipsq ) =
     case IPSQ.alterMin f ipsq of
       (Nothing, _)      -> Nothing
@@ -130,8 +132,8 @@ minView (HashPSQ ipsq ) =
     f Nothing                  = (Nothing, Nothing)
     f (Just (_h, p, B k v os)) =
         case ominView os of
-          Nothing                 -> (Just (E k p v) , Nothing)
-          Just (E k' p' v',  os') -> (Just (E k p v), Just (hash k', p', B k' v' os'))
+          Nothing                   -> (Just (k, p, v), Nothing)
+          Just ((k', p', v'),  os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
 {-
 {-# INLINABLE deleteView #-}
 deleteView :: Ord k => k -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)

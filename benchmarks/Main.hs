@@ -48,14 +48,14 @@ main = do
     elemsDecreasing = zip (reverse keys) values
     psqelems        = map (uncurry (PSQueue.:->)) elems
     fingerElems     = map (uncurry (FingerPSQ.:->)) elems
-    ord_psqelems    = map (\(k,p) -> OrdPSQ.E k p ()) elems
+    ord_psqelems    = elems_with_unit
 
     hms      = HashMap.fromList elems           :: HashMap.HashMap Int Int
     ms       = Map.fromList     elems           :: Map.Map Int Int
     ims      = IntMap.fromList  elems           :: IntMap.IntMap Int
 
     psq      = PSQueue.fromList psqelems        :: PSQueue.PSQ Int Int
-    ord_psq  = OrdPSQ.fromList ord_psqelems    :: OrdPSQ.PSQ Int Int ()
+    ord_psq  = OrdPSQ.fromList ord_psqelems     :: OrdPSQ.PSQ Int Int ()
     finger   = FingerPSQ.fromList fingerElems   :: FingerPSQ.PSQ Int Int
 
     -- forcing the data
@@ -64,7 +64,7 @@ main = do
         evaluate (rnf ms)
         evaluate (rnf ims)
         evaluate (rnf [ (x,y) | (x PSQueue.:-> y) <- PSQueue.toList psq])
-        evaluate (rnf [ (x,y,z) | (OrdPSQ.E x y z) <- OrdPSQ.toList ord_psq])
+        evaluate (rnf ord_psq)
         return ()
 
     -- benchmarks
@@ -173,8 +173,8 @@ ord_psqdeleteMins :: OrdPSQ.PSQ Int Int () -> Int
 ord_psqdeleteMins = go 0
   where
     go !n t = case OrdPSQ.minView t of
-      Nothing           -> n
-      Just ((OrdPSQ.E k x _), t') -> go (n + k + x) t'
+      Nothing              -> n
+      Just ((k, x, _), t') -> go (n + k + x) t'
 
 
 -- Benchmarking the psqueue from the fingertree-psqueue package

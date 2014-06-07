@@ -86,22 +86,41 @@ module Data.PSQ
     ) where
 
 import Prelude ()
+import Control.DeepSeq (NFData(rnf))
 import Data.Maybe (Maybe(..))
 import GHC.Base
 import GHC.Num (Num(..))
 import GHC.Show (Show(showsPrec))
-import Data.PSQ.Internal.Types (Elem(..))
 
+
+-- | @E k p@ binds the key @k@ with the priority @p@.
+data Elem k p v = E
+    { _key   :: !k
+    , prio   :: !p
+    , _value :: !v
+    } deriving (Eq, Show)
+
+instance (NFData k, NFData p, NFData v) => NFData (Elem k p v) where
+    rnf (E k p v) = rnf k `seq` rnf p `seq` rnf v
+
+
+unElem :: Elem k p v -> (k, p, v)
+unElem (E k p v) = (k, p, v)
 
 
 ------------------------------------------------------------------------
 -- | A mapping from keys @k@ to priorites @p@.
 
-data PSQ k p v = Void
-           | Winner !(Elem k p v)
-                    !(LTree k p v)
-                    !k
-           deriving (Eq, Show)
+data PSQ k p v
+    = Void
+    | Winner !(Elem k p v)
+             !(LTree k p v)
+             !k
+    deriving (Eq, Show)
+
+instance (NFData k, NFData p, NFData v) => NFData (PSQ k p v) where
+    rnf Void           = ()
+    rnf (Winner e t m) = rnf e `seq` rnf m `seq` rnf t
 
 -- | /O(1)/ The number of elements in a queue.
 size :: (Ord p) => PSQ k p v -> Int
@@ -230,9 +249,9 @@ toDescLists q = case tourView q of
 -- Min
 
 -- | /O(1)/ The element with the lowest priority.
-findMin :: PSQ k p v -> Maybe (Elem k p v)
+findMin :: PSQ k p v -> Maybe (k, p, v)
 findMin Void           = Nothing
-findMin (Winner e _ _) = Just e
+findMin (Winner e _ _) = Just (unElem e)
 
 -- | /O(log n)/ Delete the element with the lowest priority.  Returns
 -- an empty queue if the queue is empty.
@@ -242,9 +261,9 @@ deleteMin (Winner _ t m) = secondBest t m
 
 -- | /O(log n)/ Retrieve the binding with the least priority, and the
 -- rest of the queue stripped of that binding.
-minView :: (Ord p) => PSQ k p v -> Maybe (Elem k p v, PSQ k p v)
+minView :: (Ord p) => PSQ k p v -> Maybe ((k, p, v), PSQ k p v)
 minView Void           = Nothing
-minView (Winner e t m) = Just (e, secondBest t m)
+minView (Winner e t m) = Just (unElem e, secondBest t m)
 
 secondBest :: (Ord p) => LTree k p v -> k -> PSQ k p v
 secondBest Start _                 = Void
@@ -277,18 +296,26 @@ atMosts !pt q = case q of
 
 type Size = Int
 
-data LTree k p v = Start
-             | LLoser {-# UNPACK #-} !Size
-                      {-# UNPACK #-} !(Elem k p v)
-                      !(LTree k p v)
-                      !k  -- split key
-                      !(LTree k p v)
-             | RLoser {-# UNPACK #-} !Size
-                      {-# UNPACK #-} !(Elem k p v)
-                      !(LTree k p v)
-                      !k  -- split key
-                      !(LTree k p v)
-             deriving (Eq, Show)
+data LTree k p v
+    = Start
+    | LLoser {-# UNPACK #-} !Size
+             {-# UNPACK #-} !(Elem k p v)
+                            !(LTree k p v)
+                            !k              -- split key
+                            !(LTree k p v)
+    | RLoser {-# UNPACK #-} !Size
+             {-# UNPACK #-} !(Elem k p v)
+                            !(LTree k p v)
+                            !k              -- split key
+                            !(LTree k p v)
+    deriving (Eq, Show)
+
+instance (NFData k, NFData p, NFData v) => NFData (LTree k p v) where
+    rnf Start              = ()
+    rnf (LLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
+    rnf (RLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
+
+
 
 size' :: LTree k p v -> Size
 size' Start              = 0

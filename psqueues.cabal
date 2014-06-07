@@ -61,7 +61,6 @@ Library
         Data.HashPSQ
     other-modules:
         Data.BitUtil
-        Data.PSQ.Internal.Types
     include-dirs: include
 
     if impl(ghc<7.0)
@@ -83,6 +82,7 @@ benchmark bench
                , deepseq
                , hashable
                , psqueues
+               , PSQueue >= 1.1
 
 Test-suite psqueues-tests
     cpp-options:    -DTESTING -DSTRICT
