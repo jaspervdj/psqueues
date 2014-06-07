@@ -8,8 +8,11 @@ module Data.PSQ.Class
     ( PSQ (..)
     ) where
 
-import qualified Data.IntPSQ as IntPSQ
-import qualified Data.PSQ    as PSQ
+import           Data.Hashable (Hashable)
+
+import qualified Data.IntPSQ   as IntPSQ
+import qualified Data.HashPSQ  as HashPSQ
+import qualified Data.PSQ      as PSQ
 
 class PSQ (psq :: * -> * -> *) where
     type Key psq :: *
@@ -63,4 +66,11 @@ instance forall k. Ord k => PSQ (PSQ.PSQ k) where
 
     -- minViewWithKey = PSQ.minViewWithKey
 
+instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where
+    type Key (HashPSQ.HashPSQ k) = k
 
+    empty       = HashPSQ.empty
+    singleton   = HashPSQ.singleton
+    fromList    = HashPSQ.fromList
+
+    lookup = HashPSQ.lookup

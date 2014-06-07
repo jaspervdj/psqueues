@@ -2,7 +2,7 @@
 module Data.HashPSQ
   ( HashPSQ
   , empty
-  , null
+  , singleton
   , insert
   , lookup
   , fromList
@@ -27,7 +27,13 @@ data Bucket k p v = B !k !v !(OrdPSQ.PSQ k p v)
 newtype HashPSQ k p v = HashPSQ (IPSQ.IntPSQ p (Bucket k p v))
     deriving (Show)
 
-
+instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
+            Eq (HashPSQ k p v) where
+    x == y = case (minView x, minView y) of
+        (Nothing        , Nothing          ) -> True
+        (Just (xMin, x'), (Just (yMin, y'))) -> xMin == yMin && x' == y'
+        (Just _         , Nothing          ) -> False
+        (Nothing        , Just _           ) -> False
 
 ------------------------------------------------------------------------------
 -- Overflow list functions
