@@ -10,6 +10,7 @@ module Data.PSQ.Class.Tests
 import           Prelude             hiding (null, lookup)
 import           Control.Applicative ((<$>))
 import           Data.Tagged         (Tagged (..), untag)
+import qualified Data.List           as List
 
 import           Test.QuickCheck                      (Arbitrary (..), Property,
                                                        Gen, (==>), forAll)
@@ -41,6 +42,8 @@ tests = Tagged
     , testProperty "insertDelete"    (untag' prop_insertDelete)
     , testProperty "deleteNonMember" (untag' prop_deleteNonMember)
     , testProperty "alter"           (untag' prop_alter)
+    , testProperty "toList"          (untag' prop_toList)
+    , testProperty "fold'"           (untag' prop_fold')
     ]
   where
     untag' :: Tagged psq test -> test
@@ -178,3 +181,23 @@ prop_alter = Tagged $
   where
     f Nothing   = ((), Just (100, 'a'))
     f (Just _)  = ((), Nothing)
+
+prop_toList
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Eq (psq Int Char), Show (psq Int Char))
+    => Tagged psq Property
+prop_toList = Tagged $
+    forAll arbitraryPSQ $ \t ->
+        (t :: psq Int Char) == fromList (toList t)
+
+prop_fold'
+    :: forall psq. (PSQ psq, Key psq ~ Int, Show (psq Int Char))
+    => Tagged psq Property
+prop_fold' = Tagged $
+    forAll arbitraryPSQ $ \t ->
+        fold' f acc0 (t :: psq Int Char) ==
+            List.foldl' (\acc (k, p, x) -> f k p x acc) acc0 (toList t)
+  where
+    -- Needs to be commutative
+    f k p x (kpSum, xs) = (kpSum + k + p, List.sort (x : xs))
+    acc0                = (0, [])
