@@ -12,12 +12,12 @@ import           BenchmarkTypes
 
 benchmark :: (Int -> BElem) -> Int -> Benchmark
 benchmark getElem benchmarkSize = bgroup "HashPSQ"
-      [ bench "minView" $ whnf hash_psqdeleteMins hash_psq
-      , bench "lookup" $ whnf (hash_psqlookup keys) hash_psq
-      , bench "insert (fresh)" $ whnf (hash_psqins elems) empty
-      , bench "insert (next fresh)" $ whnf (hash_psqins secondElems) hash_psq
-      , bench "insert (duplicates)" $ whnf (hash_psqins elems) hash_psq
-      -- , bench "insert (decreasing)" $ whnf (hash_psqins elemsDecreasing) hash_psq
+      [ bench "minView" $ whnf prioritySum hash_psq
+      , bench "lookup" $ whnf (lookup' keys) hash_psq
+      , bench "insert (fresh)" $ whnf (insert' elems) empty
+      , bench "insert (next fresh)" $ whnf (insert' secondElems) hash_psq
+      , bench "insert (duplicates)" $ whnf (insert' elems) hash_psq
+      -- , bench "insert (decreasing)" $ whnf (insert' elemsDecreasing) hash_psq
       ]
   where
     (firstElems, secondElems) = splitAt (benchmarkSize `div` 2) elems
@@ -26,17 +26,15 @@ benchmark getElem benchmarkSize = bgroup "HashPSQ"
 
     hash_psq = fromList firstElems :: HashPSQ Int Int ()
 
--- Benchmarking our HashPSQ type
--------------------------------------------------------------------------------
 
-hash_psqlookup :: [Int] -> HashPSQ Int Int () -> Int
-hash_psqlookup xs m = foldl' (\n k -> maybe n fst (lookup k m)) 0 xs
+lookup' :: [Int] -> HashPSQ Int Int () -> Int
+lookup' xs m = foldl' (\n k -> maybe n fst (lookup k m)) 0 xs
 
-hash_psqins :: [BElem] -> HashPSQ Int Int () -> HashPSQ Int Int ()
-hash_psqins xs m0 = foldl' (\m (k, p, v) -> insert k p v m) m0 xs
+insert' :: [BElem] -> HashPSQ Int Int () -> HashPSQ Int Int ()
+insert' xs m0 = foldl' (\m (k, p, v) -> insert k p v m) m0 xs
 
-hash_psqdeleteMins :: HashPSQ Int Int () -> Int
-hash_psqdeleteMins = go 0
+prioritySum :: HashPSQ Int Int () -> Int
+prioritySum = go 0
   where
     go !n t = case minView t of
       Nothing               -> n

@@ -13,10 +13,7 @@ import           BenchmarkTypes
 benchmark :: (Int -> BElem) -> Int -> Benchmark
 benchmark getElem benchmarkSize = bgroup "IntPSQ"
       [ bench "minView" $ whnf deleteMins initialPSQ
-      -- , bench "map (id)" $ whnf (IntPSQ.map id) int_psq
-      -- , bench "map (negate)" $ whnf (IntPSQ.map negate) int_psq
       , bench "lookup" $ whnf (lookup' keys) initialPSQ
-
       , bench "insert (fresh)" $ whnf (ins firstElems) empty
       , bench "insert (next fresh)" $ whnf (ins secondElems) initialPSQ
       , bench "insert (duplicates)" $ whnf (ins firstElems) initialPSQ

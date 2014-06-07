@@ -15,11 +15,11 @@ import           Data.Maybe (fromMaybe)
 
 benchmark :: (Int -> BElem) -> Int -> Benchmark
 benchmark getElem benchmarkSize = bgroup "PSQueue"
-    [ bench "minView" $ whnf psqdeleteMins initialPSQ
-    , bench "lookup" $ whnf (psqlookup keys) initialPSQ
-    , bench "insert (fresh)" $ whnf (psqins elems) empty
-    , bench "insert (duplicates)" $ whnf (psqins elems) initialPSQ
-    -- , bench "insert (decreasing)" $ whnf (psqins elemsDecreasing) initialPSQ
+    [ bench "minView" $ whnf prioritySum initialPSQ
+    , bench "lookup" $ whnf (lookup' keys) initialPSQ
+    , bench "insert (fresh)" $ whnf (insert' elems) empty
+    , bench "insert (duplicates)" $ whnf (insert' elems) initialPSQ
+    -- , bench "insert (decreasing)" $ whnf (insert' elemsDecreasing) initialPSQ
     , bench "fromList" $ whnf fromList $ map toBinding firstElems
     ]
   where
@@ -36,14 +36,14 @@ benchmark getElem benchmarkSize = bgroup "PSQueue"
 -- Benchmarking the PSQueues package
 -------------------------------------------------------------------------------
 
-psqlookup :: [Int] -> PSQ Int Int -> Int
-psqlookup xs m = foldl' (\n k -> fromMaybe n (lookup k m)) 0 xs
+lookup' :: [Int] -> PSQ Int Int -> Int
+lookup' xs m = foldl' (\n k -> fromMaybe n (lookup k m)) 0 xs
 
-psqins :: [BElem] -> PSQ Int Int -> PSQ Int Int
-psqins xs m0 = foldl' (\m (k, p, v) -> insert k p m) m0 xs
+insert' :: [BElem] -> PSQ Int Int -> PSQ Int Int
+insert' xs m0 = foldl' (\m (k, p, v) -> insert k p m) m0 xs
 
-psqdeleteMins :: PSQ Int Int -> Int
-psqdeleteMins = go 0
+prioritySum :: PSQ Int Int -> Int
+prioritySum = go 0
   where
     go !n t = case minView t of
       Nothing           -> n

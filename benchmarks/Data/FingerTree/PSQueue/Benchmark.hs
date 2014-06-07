@@ -15,11 +15,11 @@ import           Data.Maybe (fromMaybe)
 
 benchmark :: (Int -> BElem) -> Int -> Benchmark
 benchmark getElem benchmarkSize = bgroup "FingerTree PSQueue"
-      [ bench "minView" $ whnf fingerDeleteMins initialPSQ
-      , bench "lookup" $ whnf (fingerLookup keys) initialPSQ
-      , bench "insert (fresh)" $ whnf (fingerIns elems) empty
-      , bench "insert (duplicates)" $ whnf (fingerIns elems) initialPSQ
-      -- , bench "insert (decreasing)" $ whnf (fingerIns elemsDecreasing) initialPSQ
+      [ bench "minView" $ whnf prioritySum initialPSQ
+      , bench "lookup" $ whnf (lookup' keys) initialPSQ
+      , bench "insert (fresh)" $ whnf (insert' elems) empty
+      , bench "insert (duplicates)" $ whnf (insert' elems) initialPSQ
+      -- , bench "insert (decreasing)" $ whnf (insert' elemsDecreasing) initialPSQ
       , bench "fromList" $ whnf fromList $ map toBinding elems
       ]
   where
@@ -32,22 +32,20 @@ benchmark getElem benchmarkSize = bgroup "FingerTree PSQueue"
     toBinding :: BElem -> Binding Int Int
     toBinding (k, p, v) = k :-> p
 
--- Benchmarking the psqueue from the fingertree-psqueue package
--------------------------------------------------------------------------------
 
-fingerLookup :: [Int] -> PSQ Int Int -> Int
-fingerLookup xs m = foldl' (\n k -> fromMaybe n (lookup k m)) 0 xs
+lookup' :: [Int] -> PSQ Int Int -> Int
+lookup' xs m = foldl' (\n k -> fromMaybe n (lookup k m)) 0 xs
 
-fingerIns :: [BElem] -> PSQ Int Int -> PSQ Int Int
-fingerIns xs m0 = foldl' (\m (k, p, v) -> fingerInsert k p m) m0 xs
+insert' :: [BElem] -> PSQ Int Int -> PSQ Int Int
+insert' xs m0 = foldl' (\m (k, p, v) -> fingerInsert k p m) m0 xs
   where
     fingerInsert :: (Ord k, Ord v) => k -> v -> PSQ k v -> PSQ k v
     fingerInsert k v m = alter (const $ Just v) k m
 
-fingerDeleteMins :: PSQ Int Int -> Int
-fingerDeleteMins = go 0
+prioritySum :: PSQ Int Int -> Int
+prioritySum = go 0
   where
     go !n t = case minView t of
-      Nothing           -> n
+      Nothing              -> n
       Just ((k :-> x), t') -> go (n + k + x) t'
 

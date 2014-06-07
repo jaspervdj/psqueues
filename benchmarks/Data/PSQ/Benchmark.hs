@@ -12,12 +12,12 @@ import           BenchmarkTypes
 
 benchmark :: (Int -> BElem) -> Int -> Benchmark
 benchmark getElem benchmarkSize = bgroup "OrdPSQ"
-    [ bench "minView" $ whnf ord_psqdeleteMins initialPSQ
-    , bench "lookup" $ whnf (ord_psqlookup keys) initialPSQ
-    , bench "insert (fresh)" $ whnf (ord_psqins elems) empty
-    , bench "insert (next fresh)" $ whnf (ord_psqins secondElems) initialPSQ
-    , bench "insert (duplicates)" $ whnf (ord_psqins elems) initialPSQ
-    -- , bench "insert (decreasing)" $ whnf (ord_psqins elemsDecreasing) initialPSQ
+    [ bench "minView" $ whnf prioritySum initialPSQ
+    , bench "lookup" $ whnf (lookup' keys) initialPSQ
+    , bench "insert (fresh)" $ whnf (insert' elems) empty
+    , bench "insert (next fresh)" $ whnf (insert' secondElems) initialPSQ
+    , bench "insert (duplicates)" $ whnf (insert' elems) initialPSQ
+    -- , bench "insert (decreasing)" $ whnf (insert' elemsDecreasing) initialPSQ
     ]
   where
     (firstElems, secondElems) = splitAt (benchmarkSize `div` 2) elems
@@ -26,17 +26,15 @@ benchmark getElem benchmarkSize = bgroup "OrdPSQ"
 
     initialPSQ = fromList firstElems :: PSQ Int Int ()
 
--- Benchmarking our PSQ type
--------------------------------------------------------------------------------
 
-ord_psqlookup :: [Int] -> PSQ Int Int () -> Int
-ord_psqlookup xs m = foldl' (\n k -> maybe n fst (lookup k m)) 0 xs
+lookup' :: [Int] -> PSQ Int Int () -> Int
+lookup' xs m = foldl' (\n k -> maybe n fst (lookup k m)) 0 xs
 
-ord_psqins :: [BElem] -> PSQ Int Int () -> PSQ Int Int ()
-ord_psqins xs m0 = foldl' (\m (k, p, v) -> insert k p v m) m0 xs
+insert' :: [BElem] -> PSQ Int Int () -> PSQ Int Int ()
+insert' xs m0 = foldl' (\m (k, p, v) -> insert k p v m) m0 xs
 
-ord_psqdeleteMins :: PSQ Int Int () -> Int
-ord_psqdeleteMins = go 0
+prioritySum :: PSQ Int Int () -> Int
+prioritySum = go 0
   where
     go !n t = case minView t of
       Nothing              -> n
