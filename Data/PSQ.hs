@@ -83,7 +83,7 @@ module Data.PSQ
 
       -- * Traversals
     -- , map
-    -- , fold
+    , fold
     ) where
 
 import Prelude ()
@@ -245,6 +245,29 @@ toDescLists q = case tourView q of
     Null             -> emptySequ
     Single (E k p v) -> singleSequ (k, p, v)
     tl `Play` tr     -> toDescLists tr <> toDescLists tl
+
+------------------------------------------------------------------------
+-- Traversals
+
+fold :: (Ord p) => (k -> p -> v -> a -> a) -> a -> PSQ k p v -> a
+fold f acc =
+    let
+        fold_elem a (E k p v) = f k p v a
+
+        fold_tree acc Start = acc
+        fold_tree acc (LLoser _ e lt _ rt) = fold_tree' acc (e, lt, rt)
+        fold_tree acc (RLoser _ e lt _ rt) = fold_tree' acc (e, lt, rt)
+
+        fold_tree' acc ((E k p v), lt, rt) =
+            let
+                lta = fold_tree acc lt
+                rta = fold_tree lta rt
+            in
+                f k p v rta
+        go Void = acc
+        go (Winner _ t _) = fold_tree acc t
+    in
+        go
 
 ------------------------------------------------------------------------
 -- Min
