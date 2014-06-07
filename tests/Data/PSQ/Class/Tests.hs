@@ -236,6 +236,17 @@ prop_insertDelete = Tagged $
         (lookup k t == Nothing) ==>
             (delete k (insert k p c t) == (t :: psq Int Char))
 
+prop_insertDeleteView
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Eq (psq Int Char), Show (psq Int Char))
+    => Tagged psq Property
+prop_insertDeleteView = Tagged $
+    forAll arbitraryInt $ \k ->
+    forAll arbitraryInt $ \p ->
+    forAll arbitrary    $ \c ->
+    forAll arbitraryPSQ $ \t ->
+        (deleteView k (insert k p c t)) == Just (p, c, t :: psq Int Char)
+
 prop_deleteNonMember
     :: forall psq. (PSQ psq, Key psq ~ Int,
                     Eq (psq Int Char), Show (psq Int Char))

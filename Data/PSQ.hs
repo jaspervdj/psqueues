@@ -77,8 +77,12 @@ module Data.PSQ
     , toList
     -- , keys
 
+    -- * Min
+    , findMin
+    , deleteMin
+
       -- * Views
-    -- , deleteView
+    , deleteView
     , minView
 
       -- * Traversals
@@ -174,6 +178,21 @@ insert k p v q = case q of
     Winner e (LLoser _ e' tl m tr) m'
         | k <= m    -> insert k p v (Winner e' tl m) `play` (Winner e tr m')
         | otherwise -> (Winner e' tl m) `play` insert k p v (Winner e tr m')
+
+{-# INLINABLE deleteView #-}
+deleteView :: (Ord k, Ord p) => k -> PSQ k p v -> Maybe (p, v, PSQ k p v)
+deleteView k psq = case psq of
+    Void            -> Nothing
+    Winner (E k' p v) Start _ 
+        | k == k'   -> Just (p, v, empty)
+        | otherwise -> Nothing
+    Winner e (RLoser _ e' tl m tr) m'  
+        | k <= m    -> fmap (\(p,v,q) -> (p, v,  q `play` (Winner e' tr m'))) (deleteView k (Winner e tl m))
+        | otherwise -> fmap (\(p,v,q) -> (p, v,  (Winner e tl m) `play` q  )) (deleteView k (Winner e' tr m'))
+    Winner e (LLoser _ e' tl m tr) m' 
+        | k <= m    -> fmap (\(p,v,q) -> (p, v, q `play` (Winner e' tr m'))) (deleteView k (Winner e' tl m))
+        | otherwise -> fmap (\(p,v,q) -> (p, v, (Winner e' tl m) `play` q )) (deleteView k (Winner e tr m'))
+
 
 ------------------------------------------------------------------------
 -- Delete/Update
