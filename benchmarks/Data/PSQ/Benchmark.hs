@@ -37,5 +37,5 @@ prioritySum :: PSQ Int Int () -> Int
 prioritySum = go 0
   where
     go !n t = case minView t of
-      Nothing              -> n
-      Just ((k, x, _), t') -> go (n + k + x) t'
+      Nothing            -> n
+      Just (k, x, _, t') -> go (n + k + x) t'
