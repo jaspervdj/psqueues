@@ -252,8 +252,6 @@ toDescLists q = case tourView q of
 fold :: (Ord p) => (k -> p -> v -> a -> a) -> a -> PSQ k p v -> a
 fold f acc =
     let
-        fold_elem a (E k p v) = f k p v a
-
         fold_tree acc Start = acc
         fold_tree acc (LLoser _ e lt _ rt) = fold_tree' acc (e, lt, rt)
         fold_tree acc (RLoser _ e lt _ rt) = fold_tree' acc (e, lt, rt)
@@ -264,6 +262,7 @@ fold f acc =
                 rta = fold_tree lta rt
             in
                 f k p v rta
+
         go Void = acc
         go (Winner _ t _) = fold_tree acc t
     in
