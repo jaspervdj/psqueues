@@ -43,20 +43,21 @@ tests = Tagged
     , testCase "alter"    (untag' test_alter)
     , testCase "alterMin" (untag' test_alterMin)
 
-    , testProperty "show"            (untag' prop_show)
-    , testProperty "rnf"             (untag' prop_rnf)
-    , testProperty "singleton"       (untag' prop_singleton)
-    , testProperty "memberLookup"    (untag' prop_memberLookup)
-    , testProperty "insertLookup"    (untag' prop_insertLookup)
-    , testProperty "insertDelete"    (untag' prop_insertDelete)
-    , testProperty "deleteNonMember" (untag' prop_deleteNonMember)
-    , testProperty "alter"           (untag' prop_alter)
-    , testProperty "alterMin"        (untag' prop_alterMin)
-    , testProperty "toList"          (untag' prop_toList)
-    , testProperty "keys"            (untag' prop_keys)
-    , testProperty "deleteView"      (untag' prop_deleteView)
-    , testProperty "map"             (untag' prop_map)
-    , testProperty "fold'"           (untag' prop_fold')
+    , testProperty "show"             (untag' prop_show)
+    , testProperty "rnf"              (untag' prop_rnf)
+    , testProperty "singleton"        (untag' prop_singleton)
+    , testProperty "memberLookup"     (untag' prop_memberLookup)
+    , testProperty "insertLookup"     (untag' prop_insertLookup)
+    , testProperty "insertDelete"     (untag' prop_insertDelete)
+    , testProperty "insertDeleteView" (untag' prop_insertDeleteView)
+    , testProperty "deleteNonMember"  (untag' prop_deleteNonMember)
+    , testProperty "alter"            (untag' prop_alter)
+    , testProperty "alterMin"         (untag' prop_alterMin)
+    , testProperty "toList"           (untag' prop_toList)
+    , testProperty "keys"             (untag' prop_keys)
+    , testProperty "deleteView"       (untag' prop_deleteView)
+    , testProperty "map"              (untag' prop_map)
+    , testProperty "fold'"            (untag' prop_fold')
     ]
   where
     untag' :: Tagged psq test -> test
@@ -245,7 +246,11 @@ prop_insertDeleteView = Tagged $
     forAll arbitraryInt $ \p ->
     forAll arbitrary    $ \c ->
     forAll arbitraryPSQ $ \t ->
-        (deleteView k (insert k p c t)) == Just (p, c, t :: psq Int Char)
+        case deleteView k (insert k p c (t :: psq Int Char)) of
+            Nothing           -> False
+            Just (p', c', t')
+                | member k t -> p' == p && c' == c && size t' < size t
+                | otherwise  -> p' == p && c' == c && t' == t
 
 prop_deleteNonMember
     :: forall psq. (PSQ psq, Key psq ~ Int,
