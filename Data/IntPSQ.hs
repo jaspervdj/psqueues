@@ -36,6 +36,7 @@ module Data.IntPSQ
       -- * Traversal
     , map
     , fold'
+    , valid
 
       -- * Further internal functions
       -- TODO (jaspervdj): Delete
@@ -43,18 +44,22 @@ module Data.IntPSQ
     , fromList2
     , insert3
     , fromList3
+    , empty
+    , toList
     ) where
 
 import           Control.DeepSeq (NFData(rnf))
+import           Control.Applicative ((<$>), (<*>))
 
 import           Data.BitUtil
 import           Data.Bits
 import           Data.List (foldl')
+import           Data.Maybe (fromJust)
 import           Data.Word (Word)
-import           Data.Maybe (isJust)
+
+import qualified Data.List as List
 
 import           Prelude hiding (lookup, map, filter, foldr, foldl, null)
-
 
 -- TODO (SM): get rid of bang patterns
 
@@ -575,3 +580,75 @@ insertLargetThanMaxPrio =
         | zero k m       -> Bin k' p' x' m (go k p x l) r
         | otherwise      -> Bin k' p' x' m l            (go k p x r)
 
+
+
+-- check validity of the data structure
+valid :: Ord p => IntPSQ p v -> Bool
+valid psq =
+    not (hasBadNils psq) &&
+    not (hasDuplicateKeys psq) &&
+    hasMinHeapProperty psq &&
+    validMask psq
+
+hasBadNils :: IntPSQ p v -> Bool
+hasBadNils psq = case psq of
+    Nil                 -> False
+    Tip _ _ _           -> False
+    Bin _ _ _ _ Nil Nil -> True
+    Bin _ _ _ _ l r     ->  hasBadNils l || hasBadNils r
+
+hasDuplicateKeys :: IntPSQ p v -> Bool
+hasDuplicateKeys psq =
+    any ((> 1) . length) (List.group . List.sort $ collectKeys [] psq)
+  where
+    collectKeys :: [Int] -> IntPSQ p v -> [Int]
+    collectKeys keys Nil = keys
+    collectKeys keys (Tip k _ _) = k : keys
+    collectKeys keys (Bin k _ _ _ l r) =
+        let keys' = collectKeys (k : keys) l
+        in collectKeys keys' r
+
+hasMinHeapProperty :: Ord p => IntPSQ p v -> Bool
+hasMinHeapProperty psq = case psq of
+    Nil             -> True
+    Tip _ _ _       -> True
+    Bin _ p _ _ l r -> go p l && go p r 
+  where
+    go :: Ord p => p -> IntPSQ p v -> Bool
+    go _ Nil = True
+    go parentPrio (Tip _ prio _) = parentPrio <= prio
+    go parentPrio (Bin _ prio _  _ l r) =
+        parentPrio <= prio && go prio l && go prio r
+
+data Side = L | R
+
+validMask :: IntPSQ p v -> Bool
+validMask Nil = True
+validMask (Tip _ _ _) = True
+validMask (Bin _ _ _ m left right ) =
+    maskOk m left right && go m L left && go m R right
+  where
+    go :: Mask -> Side -> IntPSQ p v -> Bool
+    go parentMask side psq = case psq of
+        Nil -> True
+        Tip k _ _ -> checkMaskAndSideMatchKey parentMask side k 
+        Bin k _ _ mask l r ->
+            checkMaskAndSideMatchKey parentMask side k &&
+            maskOk mask l r &&
+            go mask L l &&
+            go mask R r
+
+    checkMaskAndSideMatchKey parentMask side key =
+        case side of
+            L -> parentMask .&. key == 0
+            R -> parentMask .&. key == parentMask
+
+    maskOk :: Mask -> IntPSQ p v -> IntPSQ p v -> Bool
+    maskOk mask l r = case xor <$> childKey l <*> childKey r of
+        Nothing -> True
+        Just xoredKeys ->
+            fromIntegral mask == highestBitMask (fromIntegral xoredKeys)
+
+    childKey Nil = Nothing
+    childKey (Tip k _ _) = Just k 
+    childKey (Bin k _ _ _ _ _) = Just k
