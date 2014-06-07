@@ -38,6 +38,7 @@ tests = Tagged
     , testCase "alter"   (untag' test_alter)
 
     , testProperty "singleton"       (untag' prop_singleton)
+    , testProperty "memberLookup"    (untag' prop_memberLookup)
     , testProperty "insertLookup"    (untag' prop_insertLookup)
     , testProperty "insertDelete"    (untag' prop_insertDelete)
     , testProperty "deleteNonMember" (untag' prop_deleteNonMember)
@@ -119,10 +120,14 @@ test_alter
     :: forall psq. (PSQ psq, Key psq ~ Int,
                     Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq Assertion
-test_alter = Tagged $
+test_alter = Tagged $ do
     alter f 3 (empty :: psq Int Char) @?= ("Hello", singleton 3 100 'a')
+    alter f 3 (singleton 3 100 'a' :: psq Int Char) @?= ("World", empty)
+
   where
-    f _ = ("Hello", Just (100, 'a'))
+    f Nothing           = ("Hello", Just (100, 'a'))
+    f (Just (100, 'a')) = ("World", Nothing)
+    f (Just _)          = error "test_alter: unexpected value"
 
 
 --------------------------------------------------------------------------------
@@ -136,6 +141,17 @@ prop_singleton
 prop_singleton = Tagged $ \k p x ->
     insert k p x empty == (singleton k p x :: psq Int Char)
 
+prop_memberLookup
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Show (psq Int Char))
+    => Tagged psq Property
+prop_memberLookup = Tagged $
+    forAll arbitraryInt $ \k ->
+    forAll arbitraryPSQ $ \t ->
+        case lookup k (t :: psq Int Char) of
+            Nothing -> not (member k t)
+            Just _  -> member k t
+
 prop_insertLookup
     :: forall psq. (PSQ psq, Key psq ~ Int,
                     Show (psq Int Char))
@@ -145,7 +161,7 @@ prop_insertLookup = Tagged $
     forAll arbitraryInt $ \p ->
     forAll arbitrary    $ \c ->
     forAll arbitraryPSQ $ \t ->
-        lookup k (insert k p c (t :: psq Int Char)) /= Nothing
+        lookup k (insert k p c (t :: psq Int Char)) == Just (p, c)
 
 prop_insertDelete
     :: forall psq. (PSQ psq, Key psq ~ Int,
