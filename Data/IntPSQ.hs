@@ -139,7 +139,7 @@ branchMask k1 k2 =
 
 
 ------------------------------------------------------------------------------
--- Queries
+-- Query
 ------------------------------------------------------------------------------
 
 null :: IntPSQ p v -> Bool
@@ -187,16 +187,9 @@ empty = Nil
 singleton :: Ord p => Key -> p -> v -> IntPSQ p v
 singleton k p v = fromList [(k, p, v)]
 
+------------------------------------------------------------------------------
 -- Insertion
-------------
-
--- | Link
-link :: Key -> p -> v -> Key -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
-link k p x k' k't otherTree
-  | zero m k' = Bin k p x m k't       otherTree
-  | otherwise = Bin k p x m otherTree k't
-  where
-    m = branchMask k k'
+------------------------------------------------------------------------------
 
 -- | This variant of insert has the most consistent performance. It does at
 -- most two root-to-leaf traversals, which are reallocating the nodes on their
@@ -204,25 +197,6 @@ link k p x k' k't otherTree
 {-# INLINE insert #-}
 insert :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
 insert k p x t0 = insertNew k p x (delete k t0)
-
-{-# INLINE alter #-}
-alter
-    :: Ord p
-    => (Maybe (p, v) -> (b, Maybe (p, v)))
-    -> Key
-    -> IntPSQ p v
-    -> (b, IntPSQ p v)
-alter f =
-    \k t0 -> case deleteView k t0 of
-              (t, mbX) ->
-                case f mbX of
-                  (b, mbX') ->
-                    (b, maybe t (\(p, v) -> insertNew k p v t) mbX')
-
-{-# INLINE alter_ #-}
-alter_ :: Ord p
-       => (Maybe (p, v) -> Maybe (p, v)) -> Key -> IntPSQ p v -> IntPSQ p v
-alter_ mkNext k t = snd (alter (\x -> ((), mkNext x)) k t)
 
 -- | Internal function to insert a key that is *not* present in the priority
 -- queue.
@@ -252,32 +226,175 @@ insertNew k p x t = case t of
               then Bin k' p' x' m (insertNew k  p  x  l) r
               else Bin k' p' x' m l                      (insertNew k  p  x  r)
 
-
--- TODO (SM): Make benchmarks run again, integrate this function with insert
--- and test how benchmarks times change.
-
--- | Internal function to insert a key with priority larger than the
--- maximal priority in the heap. This is always the case when using the PSQ
--- as the basis to implement a LRU cache, which associates a
--- access-tick-number with every element.
-{-# INLINABLE insertLargetThanMaxPrio #-}
-insertLargetThanMaxPrio :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-insertLargetThanMaxPrio =
-    go
+-- | Link
+link :: Key -> p -> v -> Key -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
+link k p x k' k't otherTree
+  | zero m k' = Bin k p x m k't       otherTree
+  | otherwise = Bin k p x m otherTree k't
   where
-    go k p x t = case t of
-      Nil -> Tip k p x
+    m = branchMask k k'
+
+
+------------------------------------------------------------------------------
+-- Delete/Alter
+------------------------------------------------------------------------------
+
+{-# INLINABLE delete #-}
+delete :: Ord p => Key -> IntPSQ p v -> IntPSQ p v
+delete k t = case t of
+    Nil           -> Nil
+
+    Tip k' _ _
+      | k == k'   -> Nil
+      | otherwise -> t
+
+    Bin k' p' x' m l r
+      | nomatch k k' m -> t
+      | k == k'        -> merge m l r
+      | zero k m       -> binShrinkL k' p' x' m (delete k l) r
+      | otherwise      -> binShrinkR k' p' x' m l            (delete k r)
+
+{-# INLINE alter #-}
+alter
+    :: Ord p
+    => (Maybe (p, v) -> (b, Maybe (p, v)))
+    -> Key
+    -> IntPSQ p v
+    -> (b, IntPSQ p v)
+alter f =
+    \k t0 -> case deleteView k t0 of
+              (t, mbX) ->
+                case f mbX of
+                  (b, mbX') ->
+                    (b, maybe t (\(p, v) -> insertNew k p v t) mbX')
+
+{-# INLINE alterMin #-}
+alterMin :: Ord p
+         => (Maybe (Key, p, v) -> (b, Maybe (Key, p, v)))
+         -> IntPSQ p v
+         -> (b, IntPSQ p v)
+alterMin f t = case t of
+    Nil             -> case f Nothing of
+                         (b, Nothing)           -> (b, Nil)
+                         (b, Just (k', p', x')) -> (b, Tip k' p' x')
+
+    Tip k p x       -> case f (Just (k, p, x)) of
+                         (b, Nothing)           -> (b, Nil)
+                         (b, Just (k', p', x')) -> (b, Tip k' p' x')
+
+    Bin k p x m l r -> case f (Just (k, p, x)) of
+                         (b, Nothing)           -> (b, merge m l r)
+                         (b, Just (k', p', x'))
+                           | k  /= k'  -> (b, insert k' p' x' (merge m l r))
+                           | p' <= p   -> (b, Bin k p' x' m l r)
+                           | otherwise -> (b, insertNew k p' x' (merge m l r))
+
+-- | Smart constructor for a 'Bin' node whose left subtree could have become
+-- 'Nil'.
+{-# INLINE binShrinkL #-}
+binShrinkL :: Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
+binShrinkL k p x m Nil r = case r of Nil -> Tip k p x; _ -> Bin k p x m Nil r
+binShrinkL k p x m l   r = Bin k p x m l r
+
+-- | Smart constructor for a 'Bin' node whose right subtree could have become
+-- 'Nil'.
+{-# INLINE binShrinkR #-}
+binShrinkR :: Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
+binShrinkR k p x m l Nil = case l of Nil -> Tip k p x; _ -> Bin k p x m l Nil
+binShrinkR k p x m l r   = Bin k p x m l r
+
+
+------------------------------------------------------------------------------
+-- Lists
+------------------------------------------------------------------------------
+
+{-# INLINABLE fromList #-}
+fromList :: Ord p => [(Key, p, v)] -> IntPSQ p v
+fromList = foldl' (\im (k, p, x) -> insert k p x im) empty
+
+toList :: IntPSQ p v -> [(Int, p, v)]
+toList =
+    go []
+  where
+    go acc Nil                = acc
+    go acc (Tip k' p' x')        = (k', p', x') : acc
+    go acc (Bin k' p' x' _m l r) = (k', p', x') : go (go acc r) l
+
+keys :: IntPSQ p v -> [Int]
+keys t = [k | (k, _, _) <- toList t]
+-- TODO (jaspervdj): More efficient implementations possible
+
+
+------------------------------------------------------------------------------
+-- Views
+------------------------------------------------------------------------------
+
+-- TODO (SM): verify that it is really worth do do deletion and lookup at the
+-- same time.
+{-# INLINABLE deleteView #-}
+deleteView :: Ord p => Key -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
+deleteView k t0 =
+    case delFrom t0 of
+      (# t, mbPX #) -> (t, mbPX)
+  where
+    delFrom t = case t of
+      Nil -> (# Nil, Nothing #)
 
       Tip k' p' x'
-        | k == k'   -> Tip k p x
-        | otherwise -> link k' p' x' k  (Tip k p x) Nil
+        | k == k'   -> (# Nil, Just (p', x') #)
+        | otherwise -> (# t,   Nothing       #)
 
       Bin k' p' x' m l r
-        | nomatch k k' m -> link k' p' x' k (Tip k p x) (merge m l r)
-        | k == k'        -> go k p x (merge m l r)
-        | zero k m       -> Bin k' p' x' m (go k p x l) r
-        | otherwise      -> Bin k' p' x' m l            (go k p x r)
+        | nomatch k k' m -> (# t, Nothing #)
+        | k == k'   -> let t' = merge m l r
+                       in  t' `seq` (# t', Just (p', x') #)
 
+        | zero k m  -> case delFrom l of
+                         (# l', mbPX #) -> let t' = binShrinkL k' p' x' m l' r
+                                           in  t' `seq` (# t', mbPX #)
+
+        | otherwise -> case delFrom r of
+                         (# r', mbPX #) -> let t' = binShrinkR k' p' x' m l  r'
+                                           in  t' `seq` (# t', mbPX #)
+
+{-# INLINE minView #-}
+minView :: Ord p => IntPSQ p v -> Maybe (Key, p, v, IntPSQ p v)
+minView t = case t of
+    Nil             -> Nothing
+    Tip k p x       -> Just (k, p, x, Nil)
+    Bin k p x m l r -> Just (k, p, x, merge m l r)
+
+
+------------------------------------------------------------------------------
+-- Traversal
+------------------------------------------------------------------------------
+
+{-# INLINABLE map #-}
+map :: (v -> v') -> IntPSQ p v -> IntPSQ p v'
+map f =
+    go
+  where
+    go t = case t of
+        Nil             -> Nil
+        Tip k p x       -> Tip k p (f x)
+        Bin k p x m l r -> Bin k p (f x) m (go l) (go r)
+
+{-# INLINABLE fold' #-}
+fold' :: (Int -> p -> v -> a -> a) -> a -> IntPSQ p v -> a
+fold' f = go
+  where
+    go !acc Nil                   = acc
+    go !acc (Tip k' p' x')        = f k' p' x' acc
+    go !acc (Bin k' p' x' _m l r) =
+        let !acc1 = f k' p' x' acc
+            !acc2 = go acc1 l
+            !acc3 = go acc2 r
+        in acc3
+
+
+------------------------------------------------------------------------------
+-- Alternative implementations
+------------------------------------------------------------------------------
 
 -- | A supposedly more clever variant of insert that first looks up the key
 -- and then re-establishes the min-heap property in a bottom-up fashion.
@@ -348,6 +465,10 @@ binBubbleR k p x m l r = case r of
                              -- times.
       | otherwise         -> Bin rk rp rx m l                   (Bin k p x rm rl rr)
 
+{-# INLINABLE fromList2 #-}
+fromList2 :: Ord p => [(Key, p, v)] -> IntPSQ p v
+fromList2 = foldl' (\im (k, p, x) -> insert2 k p x im) empty
+
 -- | A variant of insert that fuses the delete pass and the insertNew pass and
 -- does not need to re-establish the min-heap property in a bottom-up fashion.
 --
@@ -391,8 +512,6 @@ insert3 k p x t = case t of
             then Bin k' p' x' m (insert k p x l) r
             else Bin k' p' x' m l                (insert k p x r)
 
-
-
 -- | Internal function that merges two *disjoint* 'IntPSQ's that share the
 -- same prefix mask.
 {-# INLINABLE merge #-}
@@ -421,151 +540,42 @@ merge m l r = case l of
           | otherwise           -> Bin rk rp rx m l                (merge rm rl rr)
 
 
-
--- FromList
------------
-
-{-# INLINABLE fromList #-}
-fromList :: Ord p => [(Key, p, v)] -> IntPSQ p v
-fromList = foldl' (\im (k, p, x) -> insert k p x im) empty
-
-{-# INLINABLE fromList2 #-}
-fromList2 :: Ord p => [(Key, p, v)] -> IntPSQ p v
-fromList2 = foldl' (\im (k, p, x) -> insert2 k p x im) empty
-
 {-# INLINABLE fromList3 #-}
 fromList3 :: Ord p => [(Key, p, v)] -> IntPSQ p v
 fromList3 = foldl' (\im (k, p, x) -> insert3 k p x im) empty
 
-------------------------------------------------------------------------------
--- Modification
-------------------------------------------------------------------------------
 
 
-{-# INLINABLE map #-}
-map :: (v -> v') -> IntPSQ p v -> IntPSQ p v'
-map f =
+-- Unused
+------------------------------------------------------------------------------
+
+{-# INLINE alter_ #-}
+alter_ :: Ord p
+       => (Maybe (p, v) -> Maybe (p, v)) -> Key -> IntPSQ p v -> IntPSQ p v
+alter_ mkNext k t = snd (alter (\x -> ((), mkNext x)) k t)
+
+-- TODO (SM): Make benchmarks run again, integrate this function with insert
+-- and test how benchmarks times change.
+
+-- | Internal function to insert a key with priority larger than the
+-- maximal priority in the heap. This is always the case when using the PSQ
+-- as the basis to implement a LRU cache, which associates a
+-- access-tick-number with every element.
+{-# INLINABLE insertLargetThanMaxPrio #-}
+insertLargetThanMaxPrio :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
+insertLargetThanMaxPrio =
     go
   where
-    go t = case t of
-        Nil             -> Nil
-        Tip k p x       -> Tip k p (f x)
-        Bin k p x m l r -> Bin k p (f x) m (go l) (go r)
-
-
-------------------------------------------------------------------------------
--- Destruction
-------------------------------------------------------------------------------
-
-{-# INLINE alterMin #-}
-alterMin :: Ord p
-         => (Maybe (Key, p, v) -> (b, Maybe (Key, p, v)))
-         -> IntPSQ p v
-         -> (b, IntPSQ p v)
-alterMin f t = case t of
-    Nil             -> case f Nothing of
-                         (b, Nothing)           -> (b, Nil)
-                         (b, Just (k', p', x')) -> (b, Tip k' p' x')
-
-    Tip k p x       -> case f (Just (k, p, x)) of
-                         (b, Nothing)           -> (b, Nil)
-                         (b, Just (k', p', x')) -> (b, Tip k' p' x')
-
-    Bin k p x m l r -> case f (Just (k, p, x)) of
-                         (b, Nothing)           -> (b, merge m l r)
-                         (b, Just (k', p', x'))
-                           | k  /= k'  -> (b, insert k' p' x' (merge m l r))
-                           | p' <= p   -> (b, Bin k p' x' m l r)
-                           | otherwise -> (b, insertNew k p' x' (merge m l r))
-
-
-{-# INLINE minView #-}
-minView :: Ord p => IntPSQ p v -> Maybe (Key, p, v, IntPSQ p v)
-minView t = case t of
-    Nil             -> Nothing
-    Tip k p x       -> Just (k, p, x, Nil)
-    Bin k p x m l r -> Just (k, p, x, merge m l r)
-
--- | Smart constructor for a 'Bin' node whose left subtree could have become
--- 'Nil'.
-{-# INLINE binShrinkL #-}
-binShrinkL :: Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
-binShrinkL k p x m Nil r = case r of Nil -> Tip k p x; _ -> Bin k p x m Nil r
-binShrinkL k p x m l   r = Bin k p x m l r
-
--- | Smart constructor for a 'Bin' node whose right subtree could have become
--- 'Nil'.
-{-# INLINE binShrinkR #-}
-binShrinkR :: Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
-binShrinkR k p x m l Nil = case l of Nil -> Tip k p x; _ -> Bin k p x m l Nil
-binShrinkR k p x m l r   = Bin k p x m l r
-
-
--- TODO (SM): verify that it is really worth do do deletion and lookup at the
--- same time.
-{-# INLINABLE deleteView #-}
-deleteView :: Ord p => Key -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
-deleteView k t0 =
-    case delFrom t0 of
-      (# t, mbPX #) -> (t, mbPX)
-  where
-    delFrom t = case t of
-      Nil -> (# Nil, Nothing #)
+    go k p x t = case t of
+      Nil -> Tip k p x
 
       Tip k' p' x'
-        | k == k'   -> (# Nil, Just (p', x') #)
-        | otherwise -> (# t,   Nothing       #)
+        | k == k'   -> Tip k p x
+        | otherwise -> link k' p' x' k  (Tip k p x) Nil
 
       Bin k' p' x' m l r
-        | nomatch k k' m -> (# t, Nothing #)
-        | k == k'   -> let t' = merge m l r
-                       in  t' `seq` (# t', Just (p', x') #)
+        | nomatch k k' m -> link k' p' x' k (Tip k p x) (merge m l r)
+        | k == k'        -> go k p x (merge m l r)
+        | zero k m       -> Bin k' p' x' m (go k p x l) r
+        | otherwise      -> Bin k' p' x' m l            (go k p x r)
 
-        | zero k m  -> case delFrom l of
-                         (# l', mbPX #) -> let t' = binShrinkL k' p' x' m l' r
-                                           in  t' `seq` (# t', mbPX #)
-
-        | otherwise -> case delFrom r of
-                         (# r', mbPX #) -> let t' = binShrinkR k' p' x' m l  r'
-                                           in  t' `seq` (# t', mbPX #)
-
-
-{-# INLINABLE delete #-}
-delete :: Ord p => Key -> IntPSQ p v -> IntPSQ p v
-delete k t = case t of
-    Nil           -> Nil
-
-    Tip k' _ _
-      | k == k'   -> Nil
-      | otherwise -> t
-
-    Bin k' p' x' m l r
-      | nomatch k k' m -> t
-      | k == k'        -> merge m l r
-      | zero k m       -> binShrinkL k' p' x' m (delete k l) r
-      | otherwise      -> binShrinkR k' p' x' m l            (delete k r)
-
-
-toList :: IntPSQ p v -> [(Int, p, v)]
-toList =
-    go []
-  where
-    go acc Nil                = acc
-    go acc (Tip k' p' x')        = (k', p', x') : acc
-    go acc (Bin k' p' x' _m l r) = (k', p', x') : go (go acc r) l
-
-keys :: IntPSQ p v -> [Int]
-keys t = [k | (k, _, _) <- toList t]
--- TODO (jaspervdj): More efficient implementations possible
-
-{-# INLINABLE fold' #-}
-fold' :: (Int -> p -> v -> a -> a) -> a -> IntPSQ p v -> a
-fold' f = go
-  where
-    go !acc Nil                   = acc
-    go !acc (Tip k' p' x')        = f k' p' x' acc
-    go !acc (Bin k' p' x' _m l r) =
-        let !acc1 = f k' p' x' acc
-            !acc2 = go acc1 l
-            !acc3 = go acc2 r
-        in acc3
