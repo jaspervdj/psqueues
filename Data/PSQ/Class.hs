@@ -17,19 +17,58 @@ import qualified Data.PSQ      as PSQ
 class PSQ (psq :: * -> * -> *) where
     type Key psq :: *
 
-    empty     :: Ord p => psq p v
-    singleton :: Ord p => Key psq -> p -> v -> psq p v
-    fromList  :: Ord p => [(Key psq, p, v)] -> psq p v
+    -- Query
+    null
+        :: Ord p => psq p v -> Bool
+    size
+        :: Ord p => psq p v -> Int
+    member
+        :: Ord p => Key psq -> psq p v -> Bool
+    lookup
+        :: Ord p => Key psq -> psq p v -> Maybe (p, v)
+    findMin
+        :: Ord p => psq p v -> Maybe (p, v)
 
-    null   :: Ord p => psq p v -> Bool
-    size   :: Ord p => psq p v -> Int
-    toList :: Ord p => psq p v -> [(Key psq, p, v)]
-    lookup :: Ord p => Key psq -> psq p v -> Maybe (p, v)
+    -- Construction
+    empty
+        :: Ord p => psq p v
+    singleton
+        :: Ord p => Key psq -> p -> v -> psq p v
 
-    insert :: Ord p => Key psq -> p -> v -> psq p v -> psq p v
-    delete :: Ord p => Key psq -> psq p v -> psq p v
+    -- Insertion
+    insert
+        :: Ord p => Key psq -> p -> v -> psq p v -> psq p v
 
-    minViewWithKey :: Ord p => psq p v -> Maybe ((Key psq, p, v), psq p v)
+    -- Delete/update
+    delete
+        :: Ord p => Key psq -> psq p v -> psq p v
+    alter
+        :: Ord p
+        => (Maybe (p, v) -> (b, Maybe (p, v)))
+        -> Key psq -> psq p v -> (b, psq p v)
+    alterMin
+        :: Ord p
+        => (Maybe (Key psq, p, v) -> (b, Maybe (Key psq, p, v)))
+        -> psq p v -> (b, psq p v)
+
+    -- Lists
+    fromList
+        :: Ord p => [(Key psq, p, v)] -> psq p v
+    toList
+        :: Ord p => psq p v -> [(Key psq, p, v)]
+    keys
+        :: Ord p => psq p v -> [Key psq]
+
+    -- Views
+    deleteView
+        :: Ord p => Key psq -> psq p v -> Maybe (p, v, psq p v)
+    minView
+        :: Ord p => psq p v -> Maybe (Key psq, p, v, psq p v)
+
+    -- Traversals
+    map :: Ord p => (Key psq -> p -> v -> w) -> psq p v -> psq p w
+    fold'
+        :: Ord p => (Key psq -> p -> v -> a -> a) -> a -> psq p v -> a
 
 instance PSQ IntPSQ.IntPSQ where
     type Key IntPSQ.IntPSQ = Int
@@ -45,8 +84,6 @@ instance PSQ IntPSQ.IntPSQ where
 
     insert = IntPSQ.insert
     delete = IntPSQ.delete
-
-    minViewWithKey = IntPSQ.minViewWithKey
 
 instance forall k. Ord k => PSQ (PSQ.PSQ k) where
     type Key (PSQ.PSQ k) = k

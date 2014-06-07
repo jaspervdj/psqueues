@@ -114,9 +114,9 @@ lookup k (HashPSQ ipsq) = do
 insert :: (Ord k, Hashable k, Ord p)
        => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
 insert k p v (HashPSQ ipsq) =
-    HashPSQ (IPSQ.alter_ ins (hash k) ipsq)
+    HashPSQ (snd (IPSQ.alter (\x -> ((), ins x)) (hash k) ipsq))
   where
-    ins Nothing                 = Just (p,  B k  v  (OrdPSQ.empty             ))
+    ins Nothing                 = Just (p,  B k  v  (OrdPSQ.empty       ))
     ins (Just (p', B k' v' os))
       | k' == k                 = Just (p,  B k  v  (                 os))
       | p' <= p                 = Just (p', B k' v' (oinsert k  p  v  os))

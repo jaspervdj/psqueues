@@ -2,26 +2,47 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE UnboxedTuples #-}
 module Data.IntPSQ
-    ( IntPSQ(..)
-    , size
+    ( -- * Type
+      IntPSQ(..)
+
+      -- * Query
     , null
-    , map
-    , fromList
+    , size
+    , member
     , lookup
-    , delete
-    , deleteView
+    , findMin
+
+      -- * Construction
+    , empty
+    , singleton
+
+      -- * Insertion
     , insert
+
+      -- * Delete/update
+    , delete
     , alter
-    , alter_
     , alterMin
+
+      -- * Lists
+    , fromList
+    , toList
+    , keys
+
+      -- * Views
+    , deleteView
+    , minView
+
+      -- * Traversal
+    , map
+    , fold'
+
+      -- * Further internal functions
+      -- TODO (jaspervdj): Delete
     , insert2
     , fromList2
     , insert3
     , fromList3
-    , singleton
-    , empty
-    , minViewWithKey
-    , toList
     ) where
 
 import           Control.DeepSeq (NFData(rnf))
@@ -30,6 +51,7 @@ import           Data.BitUtil
 import           Data.Bits
 import           Data.List (foldl')
 import           Data.Word (Word)
+import           Data.Maybe (isJust)
 
 import           Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
@@ -76,11 +98,12 @@ instance (NFData p, NFData v) => NFData (IntPSQ p v) where
     rnf Nil                 = ()
 
 instance (Ord p, Eq v) => Eq (IntPSQ p v) where
-    x == y = case (minViewWithKey x, minViewWithKey y) of
-        (Nothing        , Nothing          ) -> True
-        (Just (xMin, x'), (Just (yMin, y'))) -> xMin == yMin && x' == y'
-        (Just _         , Nothing          ) -> False
-        (Nothing        , Just _           ) -> False
+    x == y = case (minView x, minView y) of
+        (Nothing              , Nothing                ) -> True
+        (Just (xk, xp, xv, x'), (Just (yk, yp, yv, y'))) ->
+            xk == yk && xp == yp && xv == yv && x' == y'
+        (Just _               , Nothing                ) -> False
+        (Nothing              , Just _                 ) -> False
 
 -- bit twiddling
 ----------------
@@ -123,6 +146,16 @@ null :: IntPSQ p v -> Bool
 null Nil = True
 null _   = False
 
+-- | /O(n)/. The number of elements stored in the PSQ.
+size :: IntPSQ p v -> Int
+size Nil               = 0
+size (Tip _ _ _)       = 1
+size (Bin _ _ _ _ l r) = 1 + size l + size r
+-- TODO (SM): benchmark this against a tail-recursive variant
+
+member :: Key -> IntPSQ p v -> Bool
+member k = isJust . lookup k
+
 lookup :: Key -> IntPSQ p v -> Maybe (p, v)
 lookup k t = case t of
     Nil                -> Nothing
@@ -137,20 +170,22 @@ lookup k t = case t of
       | zero k m       -> lookup k l
       | otherwise      -> lookup k r
 
--- | /O(n)/. The number of elements stored in the PSQ.
-size :: IntPSQ p v -> Int
-size Nil               = 0
-size (Tip _ _ _)       = 1
-size (Bin _ _ _ _ l r) = 1 + size l + size r
--- TODO (SM): benchmark this against a tail-recursive variant
+findMin :: Ord p => IntPSQ p v -> Maybe (p, v)
+findMin t = case minView t of
+    Nothing           -> Nothing
+    Just (_, p, v, _) -> Just (p, v)
+    -- TODO (jaspervdj): More efficient implementations are possible.
 
 ------------------------------------------------------------------------------
 --- Construction
 ------------------------------------------------------------------------------
 
-
 empty :: IntPSQ p v
 empty = Nil
+
+{-# INLINABLE singleton #-}
+singleton :: Ord p => Key -> p -> v -> IntPSQ p v
+singleton k p v = fromList [(k, p, v)]
 
 -- Insertion
 ------------
@@ -402,10 +437,6 @@ fromList2 = foldl' (\im (k, p, x) -> insert2 k p x im) empty
 fromList3 :: Ord p => [(Key, p, v)] -> IntPSQ p v
 fromList3 = foldl' (\im (k, p, x) -> insert3 k p x im) empty
 
-{-# INLINABLE singleton #-}
-singleton :: Ord p => Key -> p -> v -> IntPSQ p v
-singleton k p v = fromList [(k, p, v)]
-
 ------------------------------------------------------------------------------
 -- Modification
 ------------------------------------------------------------------------------
@@ -448,13 +479,12 @@ alterMin f t = case t of
                            | otherwise -> (b, insertNew k p' x' (merge m l r))
 
 
-{-# INLINE minViewWithKey #-}
-minViewWithKey :: Ord p => IntPSQ p v -> Maybe ((Key, p, v), IntPSQ p v)
-minViewWithKey t = case t of
+{-# INLINE minView #-}
+minView :: Ord p => IntPSQ p v -> Maybe (Key, p, v, IntPSQ p v)
+minView t = case t of
     Nil             -> Nothing
-    Tip k p x       -> Just ((k, p, x), Nil)
-    Bin k p x m l r -> Just ((k, p, x), merge m l r)
-
+    Tip k p x       -> Just (k, p, x, Nil)
+    Bin k p x m l r -> Just (k, p, x, merge m l r)
 
 -- | Smart constructor for a 'Bin' node whose left subtree could have become
 -- 'Nil'.
@@ -524,3 +554,18 @@ toList =
     go acc (Tip k' p' x')        = (k', p', x') : acc
     go acc (Bin k' p' x' _m l r) = (k', p', x') : go (go acc r) l
 
+keys :: IntPSQ p v -> [Int]
+keys t = [k | (k, _, _) <- toList t]
+-- TODO (jaspervdj): More efficient implementations possible
+
+{-# INLINABLE fold' #-}
+fold' :: (Int -> p -> v -> a -> a) -> a -> IntPSQ p v -> a
+fold' f = go
+  where
+    go !acc Nil                   = acc
+    go !acc (Tip k' p' x')        = f k' p' x' acc
+    go !acc (Bin k' p' x' _m l r) =
+        let !acc1 = f k' p' x' acc
+            !acc2 = go acc1 l
+            !acc3 = go acc2 r
+        in acc3
