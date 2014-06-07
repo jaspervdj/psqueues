@@ -92,6 +92,7 @@ Test-suite psqueues-tests
 
     other-modules:
         Data.PSQ.Class
+        Data.PSQ.Class.Gen
         Data.PSQ.Class.Tests
         Data.IntPSQ.Tests
 

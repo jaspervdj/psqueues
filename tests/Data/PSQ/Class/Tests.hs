@@ -22,6 +22,7 @@ import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
 
 import           Data.PSQ.Class
+import           Data.PSQ.Class.Gen
 
 --------------------------------------------------------------------------------
 -- Index of tests
@@ -70,11 +71,6 @@ tests = Tagged
 
 arbitraryInt :: Gen Int
 arbitraryInt = arbitrary
-
-arbitraryPSQ
-    :: (Arbitrary p, Arbitrary v, Arbitrary (Key psq), Ord p, PSQ psq)
-    => Gen (psq p v)
-arbitraryPSQ = fromList <$> arbitrary
 
 -- | This is a bit ridiculous. We need to call all 'Show' methods to get 100%
 -- coverage.
