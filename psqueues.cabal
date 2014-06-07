@@ -56,7 +56,6 @@ Library
 
     exposed-modules:
         Data.PSQ
-        Data.PSQ.Class
         Data.IntPSQ
         Data.HashPSQ
     other-modules:
@@ -92,6 +91,7 @@ Test-suite psqueues-tests
     type:           exitcode-stdio-1.0
 
     other-modules:
+        Data.PSQ.Class
         Data.PSQ.Class.Tests
         Data.IntPSQ.Tests
 
@@ -104,5 +104,6 @@ Test-suite psqueues-tests
         base,
         array,
         deepseq,
+        hashable,
         psqueues,
         tagged

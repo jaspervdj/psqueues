@@ -1,4 +1,5 @@
 -- | A
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Data.HashPSQ
   ( HashPSQ
   , empty
@@ -10,6 +11,7 @@ module Data.HashPSQ
   ) where
 
 import           Data.Hashable
+import           Control.DeepSeq (NFData (..))
 import qualified Data.IntPSQ as IPSQ -- TODO: I would consider renaming the import to IntPSQ
 import qualified Data.List   as L
 import qualified Data.PSQ    as OrdPSQ
@@ -24,8 +26,11 @@ import           Prelude hiding (lookup)
 data Bucket k p v = B !k !v !(OrdPSQ.PSQ k p v)
     deriving (Show)
 
+instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
+    rnf (B k v x) = rnf k `seq` rnf v `seq` rnf x
+
 newtype HashPSQ k p v = HashPSQ (IPSQ.IntPSQ p (Bucket k p v))
-    deriving (Show)
+    deriving (NFData, Show)
 
 instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
             Eq (HashPSQ k p v) where
@@ -73,7 +78,7 @@ oinsert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ.PSQ k p v -> OrdPSQ.PSQ k p v
 oinsert = OrdPSQ.insert
 
 {-# INLINABLE ominView #-}
-ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe ((k, p, v), OrdPSQ.PSQ k p v)
+ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe (k, p, v, OrdPSQ.PSQ k p v)
 ominView = OrdPSQ.minView
 
 {-
@@ -138,8 +143,8 @@ minView (HashPSQ ipsq ) =
     f Nothing                  = (Nothing, Nothing)
     f (Just (_h, p, B k v os)) =
         case ominView os of
-          Nothing                   -> (Just (k, p, v), Nothing)
-          Just ((k', p', v'),  os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
+          Nothing                -> (Just (k, p, v), Nothing)
+          Just (k', p', v', os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
 {-
 {-# INLINABLE deleteView #-}
 deleteView :: Ord k => k -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)

@@ -57,6 +57,6 @@ ins3 xs m0 = foldl' (\m (k, p, v) -> insert3 k p v m) m0 xs
 deleteMins :: IntPSQ Int () -> Int
 deleteMins = go 0
   where
-    go !n t = case minViewWithKey t of
-      Nothing           -> n
-      Just ((k, p, _), t') -> go (n + k + p) t'
+    go !n t = case minView t of
+      Nothing            -> n
+      Just (k, p, _, t') -> go (n + k + p) t'

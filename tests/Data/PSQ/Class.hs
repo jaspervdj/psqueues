@@ -27,7 +27,7 @@ class PSQ (psq :: * -> * -> *) where
     lookup
         :: Ord p => Key psq -> psq p v -> Maybe (p, v)
     findMin
-        :: Ord p => psq p v -> Maybe (p, v)
+        :: Ord p => psq p v -> Maybe (Key psq, p, v)
 
     -- Construction
     empty
