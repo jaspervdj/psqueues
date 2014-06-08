@@ -7,45 +7,48 @@ module Data.PSQueue.Benchmark
     ) where
 
 import           Data.List (foldl')
-import           Data.PSQueue hiding (map)
+import qualified Data.PSQueue as PSQueue
 import           Criterion.Main
 import           Prelude hiding (lookup)
 import           BenchmarkTypes
 import           Data.Maybe (fromMaybe)
 
-benchmark :: (Int -> BElem) -> Int -> Benchmark
-benchmark getElem benchmarkSize = bgroup "PSQueue"
-    [ bench "minView" $ whnf prioritySum initialPSQ
-    , bench "lookup" $ whnf (lookup' keys) initialPSQ
-    , bench "insert (fresh)" $ whnf (insert' elems) empty
-    , bench "insert (duplicates)" $ whnf (insert' elems) initialPSQ
-    -- , bench "insert (decreasing)" $ whnf (insert' elemsDecreasing) initialPSQ
-    , bench "fromList" $ whnf fromList $ map toBinding firstElems
-    ]
+benchmark :: String -> (Int -> BElem) -> Int -> BenchmarkSet
+benchmark name getElem benchmarkSize = BenchmarkSet
+    { bGroupName        = name
+    , bMinView          = whnf prioritySum initialPSQ
+    , bLookup           = whnf (lookup' keys) initialPSQ
+      -- TODO (AS): Get the size of the resulting PSQ, since there's no NFData
+      -- instance.
+    , bInsertEmpty      = whnf (insert' firstElems) PSQueue.empty
+    , bInsertNew        = whnf (insert' secondElems) initialPSQ
+    , bInsertDuplicates = whnf (insert' firstElems) initialPSQ
+    }
   where
     (firstElems, secondElems) = splitAt (benchmarkSize `div` 2) elems
     elems = map getElem [0..benchmarkSize]
     keys = map (\(x,_,_) -> x) elems
 
-    initialPSQ = fromList $ map toBinding firstElems :: PSQ Int Int
+    initialPSQ = PSQueue.fromList $ map toBinding firstElems :: PSQueue.PSQ Int Int
 
-    toBinding :: BElem -> Binding Int Int
-    toBinding (k, p, v) = k :-> p
+    toBinding :: BElem -> PSQueue.Binding Int Int
+    toBinding (k, p, v) = k PSQueue.:-> p
 
 
--- Benchmarking the PSQueues package
--------------------------------------------------------------------------------
+-- Get the sum of all priorities by getting all elements using 'lookup'
+lookup' :: [Int] -> PSQueue.PSQ Int Int -> Int
+lookup' xs m = foldl' (\n k -> fromMaybe n (PSQueue.lookup k m)) 0 xs
 
-lookup' :: [Int] -> PSQ Int Int -> Int
-lookup' xs m = foldl' (\n k -> fromMaybe n (lookup k m)) 0 xs
+-- Insert a list of elements one-by-one into a PSQ
+insert' :: [BElem] -> PSQueue.PSQ Int Int -> PSQueue.PSQ Int Int
+insert' xs m0 = foldl' (\m (k, p, v) -> PSQueue.insert k p m) m0 xs
 
-insert' :: [BElem] -> PSQ Int Int -> PSQ Int Int
-insert' xs m0 = foldl' (\m (k, p, v) -> insert k p m) m0 xs
-
-prioritySum :: PSQ Int Int -> Int
+-- Get the sum of all priorities by sequentially popping all elements using
+-- 'minView'
+prioritySum :: PSQueue.PSQ Int Int -> Int
 prioritySum = go 0
   where
-    go !n t = case minView t of
+    go !n t = case PSQueue.minView t of
       Nothing           -> n
-      Just ((k :-> x), t') -> go (n + k + x) t'
+      Just ((k PSQueue.:-> x), t') -> go (n + k + x) t'
 

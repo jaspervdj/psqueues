@@ -10,15 +10,15 @@ import           Criterion.Main
 import           Prelude hiding (lookup)
 import           BenchmarkTypes
 
-benchmark :: (Int -> BElem) -> Int -> Benchmark
-benchmark getElem benchmarkSize = bgroup "OrdPSQ"
-    [ bench "minView" $ whnf prioritySum initialPSQ
-    , bench "lookup" $ whnf (lookup' keys) initialPSQ
-    , bench "insert (fresh)" $ whnf (insert' elems) PSQ.empty
-    , bench "insert (next fresh)" $ whnf (insert' secondElems) initialPSQ
-    , bench "insert (duplicates)" $ whnf (insert' elems) initialPSQ
-    -- , bench "insert (decreasing)" $ whnf (insert' elemsDecreasing) initialPSQ
-    ]
+benchmark :: String -> (Int -> BElem) -> Int -> BenchmarkSet
+benchmark name getElem benchmarkSize = BenchmarkSet
+    { bGroupName        = name
+    , bMinView          = whnf minView' initialPSQ
+    , bLookup           = whnf (lookup' keys) initialPSQ
+    , bInsertEmpty      = nf (insert' firstElems) PSQ.empty
+    , bInsertNew        = nf (insert' secondElems) initialPSQ
+    , bInsertDuplicates = nf (insert' firstElems) initialPSQ
+    }
   where
     (firstElems, secondElems) = splitAt (benchmarkSize `div` 2) elems
     elems = map getElem [0..benchmarkSize]
@@ -27,14 +27,18 @@ benchmark getElem benchmarkSize = bgroup "OrdPSQ"
     initialPSQ = PSQ.fromList firstElems :: PSQ.PSQ Int Int ()
 
 
+-- Get the sum of all priorities by getting all elements using 'lookup'
 lookup' :: [Int] -> PSQ.PSQ Int Int () -> Int
 lookup' xs m = foldl' (\n k -> maybe n fst (PSQ.lookup k m)) 0 xs
 
+-- Insert a list of elements one-by-one into a PSQ
 insert' :: [BElem] -> PSQ.PSQ Int Int () -> PSQ.PSQ Int Int ()
 insert' xs m0 = foldl' (\m (k, p, v) -> PSQ.insert k p v m) m0 xs
 
-prioritySum :: PSQ.PSQ Int Int () -> Int
-prioritySum = go 0
+-- Get the sum of all priorities by sequentially popping all elements using
+-- 'minView'
+minView' :: PSQ.PSQ Int Int () -> Int
+minView' = go 0
   where
     go !n t = case PSQ.minView t of
       Nothing            -> n

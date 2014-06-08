@@ -5,37 +5,40 @@ module Data.IntPSQ.Benchmark
     ) where
 
 import           Data.List (foldl')
-import           Data.IntPSQ hiding (map)
+import qualified Data.IntPSQ as IntPSQ
 import           Criterion.Main
 import           Prelude hiding (lookup)
 import           BenchmarkTypes
 
-benchmark :: (Int -> BElem) -> Int -> Benchmark
-benchmark getElem benchmarkSize = bgroup "IntPSQ"
-      [ bench "minView" $ whnf deleteMins initialPSQ
-      , bench "lookup" $ whnf (lookup' keys) initialPSQ
-      , bench "insert (fresh)" $ whnf (ins firstElems) empty
-      , bench "insert (next fresh)" $ whnf (ins secondElems) initialPSQ
-      , bench "insert (duplicates)" $ whnf (ins firstElems) initialPSQ
-      -- , bench "insert (decreasing)" $ whnf (ins elemsDecreasing) initialPSQ
-      -- , bench "fromList" $ whnf fromList elems_with_unit
-      ]
+benchmark :: String -> (Int -> BElem) -> Int -> BenchmarkSet
+benchmark name getElem benchmarkSize = BenchmarkSet
+    { bGroupName        = name
+    , bMinView          = whnf minView' initialPSQ
+    , bLookup           = whnf (lookup' keys) initialPSQ
+    , bInsertEmpty      = nf (insert' firstElems) IntPSQ.empty
+    , bInsertNew        = nf (insert' secondElems) initialPSQ
+    , bInsertDuplicates = nf (insert' firstElems) initialPSQ
+    }
   where
     (firstElems, secondElems) = splitAt (benchmarkSize `div` 2) elems
     elems = map getElem [0..benchmarkSize]
     keys = map (\(x,_,_) -> x) elems
 
-    initialPSQ = fromList firstElems :: IntPSQ Int ()
+    initialPSQ = IntPSQ.fromList firstElems :: IntPSQ.IntPSQ Int ()
 
-lookup' :: [Int] -> IntPSQ Int () -> Int
-lookup' xs m = foldl' (\n k -> maybe n fst (lookup k m)) 0 xs
+-- Get the sum of all priorities by getting all elements using 'lookup'
+lookup' :: [Int] -> IntPSQ.IntPSQ Int () -> Int
+lookup' xs m = foldl' (\n k -> maybe n fst (IntPSQ.lookup k m)) 0 xs
 
-ins :: [(Int, Int, ())] -> IntPSQ Int () -> IntPSQ Int ()
-ins xs m0 = foldl' (\m (k, p, v) -> insert k p v m) m0 xs
+-- Insert a list of elements one-by-one into a PSQ
+insert' :: [(Int, Int, ())] -> IntPSQ.IntPSQ Int () -> IntPSQ.IntPSQ Int ()
+insert' xs m0 = foldl' (\m (k, p, v) -> IntPSQ.insert k p v m) m0 xs
 
-deleteMins :: IntPSQ Int () -> Int
-deleteMins = go 0
+-- Get the sum of all priorities by sequentially popping all elements using
+-- 'minView'
+minView' :: IntPSQ.IntPSQ Int () -> Int
+minView' = go 0
   where
-    go !n t = case minView t of
+    go !n t = case IntPSQ.minView t of
       Nothing            -> n
       Just (k, p, _, t') -> go (n + k + p) t'

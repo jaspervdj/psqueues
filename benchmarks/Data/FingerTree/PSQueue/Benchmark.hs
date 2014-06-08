@@ -13,15 +13,17 @@ import           Prelude hiding (lookup)
 import           BenchmarkTypes
 import           Data.Maybe (fromMaybe)
 
-benchmark :: (Int -> BElem) -> Int -> Benchmark
-benchmark getElem benchmarkSize = bgroup "FingerTree PSQueue"
-      [ bench "minView" $ whnf prioritySum initialPSQ
-      , bench "lookup" $ whnf (lookup' keys) initialPSQ
-      , bench "insert (fresh)" $ whnf (insert' elems) empty
-      , bench "insert (duplicates)" $ whnf (insert' elems) initialPSQ
-      -- , bench "insert (decreasing)" $ whnf (insert' elemsDecreasing) initialPSQ
-      , bench "fromList" $ whnf fromList $ map toBinding elems
-      ]
+benchmark :: String -> (Int -> BElem) -> Int -> BenchmarkSet
+benchmark name getElem benchmarkSize = BenchmarkSet
+    { bGroupName = name
+    , bMinView                = whnf minView' initialPSQ
+    , bLookup                 = whnf (lookup' keys) initialPSQ
+      -- TODO (AS): get the size of the resulting PSQs, since there's no
+      -- NFData instance
+    , bInsertEmpty            = whnf (insert' firstElems) empty
+    , bInsertNew              = whnf (insert' secondElems) initialPSQ
+    , bInsertDuplicates       = whnf (insert' firstElems) initialPSQ
+    }
   where
     (firstElems, secondElems) = splitAt (benchmarkSize `div` 2) elems
     elems = map getElem [0..benchmarkSize]
@@ -42,8 +44,8 @@ insert' xs m0 = foldl' (\m (k, p, v) -> fingerInsert k p m) m0 xs
     fingerInsert :: (Ord k, Ord v) => k -> v -> PSQ k v -> PSQ k v
     fingerInsert k v m = alter (const $ Just v) k m
 
-prioritySum :: PSQ Int Int -> Int
-prioritySum = go 0
+minView' :: PSQ Int Int -> Int
+minView' = go 0
   where
     go !n t = case minView t of
       Nothing              -> n
