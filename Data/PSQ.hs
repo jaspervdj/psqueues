@@ -89,14 +89,11 @@ module Data.PSQ
 
 import           Prelude         hiding (map, lookup, null)
 import           Control.DeepSeq (NFData(rnf))
-import           Data.Maybe      (Maybe(..), isJust)
+import           Data.Maybe      (isJust)
 
 -- | @E k p v@ binds the key @k@ to the value @v@ with priority @p@.
-data Elem k p v = E
-    { _key   :: !k
-    , prio   :: !p
-    , _value :: !v
-    } deriving (Eq, Show)
+data Elem k p v = E !k !p !v
+    deriving (Eq, Show)
 
 instance (NFData k, NFData p, NFData v) => NFData (Elem k p v) where
     rnf (E k p v) = rnf k `seq` rnf p `seq` rnf v
@@ -182,13 +179,13 @@ insert k p v q = case q of
 deleteView :: (Ord k, Ord p) => k -> PSQ k p v -> Maybe (p, v, PSQ k p v)
 deleteView k psq = case psq of
     Void            -> Nothing
-    Winner (E k' p v) Start _ 
+    Winner (E k' p v) Start _
         | k == k'   -> Just (p, v, empty)
         | otherwise -> Nothing
-    Winner e (RLoser _ e' tl m tr) m'  
+    Winner e (RLoser _ e' tl m tr) m'
         | k <= m    -> fmap (\(p,v,q) -> (p, v,  q `play` (Winner e' tr m'))) (deleteView k (Winner e tl m))
         | otherwise -> fmap (\(p,v,q) -> (p, v,  (Winner e tl m) `play` q  )) (deleteView k (Winner e' tr m'))
-    Winner e (LLoser _ e' tl m tr) m' 
+    Winner e (LLoser _ e' tl m tr) m'
         | k <= m    -> fmap (\(p,v,q) -> (p, v, q `play` (Winner e' tr m'))) (deleteView k (Winner e' tl m))
         | otherwise -> fmap (\(p,v,q) -> (p, v, (Winner e' tl m) `play` q )) (deleteView k (Winner e tr m'))
 
@@ -212,24 +209,6 @@ delete k q = case q of
         | k <= m    -> delete k (Winner e' tl m) `play` (Winner e tr m')
         | otherwise -> (Winner e' tl m) `play` delete k (Winner e tr m')
 
--- | /O(log n)/ Update a priority at a specific key with the result
--- of the provided function.  When the key is not a member of the
--- queue, the original queue is returned.
-adjust :: (Ord k, Ord p) => (p -> p) -> k -> PSQ k p v -> PSQ k p v
-adjust f k q0 =  go q0
-  where
-    go q = case q of
-        Void -> empty
-        Winner (E k' p v) Start _
-            | k == k'   -> singleton k' (f p) v
-            | otherwise -> singleton k' p v
-        Winner e (RLoser _ e' tl m tr) m'
-            | k <= m    -> go (Winner e tl m) `unsafePlay` (Winner e' tr m')
-            | otherwise -> (Winner e tl m) `unsafePlay` go (Winner e' tr m')
-        Winner e (LLoser _ e' tl m tr) m'
-            | k <= m    -> go (Winner e' tl m) `unsafePlay` (Winner e tr m')
-            | otherwise -> (Winner e' tl m) `unsafePlay` go (Winner e tr m')
-{-# INLINE adjust #-}
 
 ------------------------------------------------------------------------
 -- Conversion
@@ -259,15 +238,6 @@ toAscLists q = case tourView q of
     Single (E k p v) -> singleSequ (k, p, v)
     tl `Play` tr     -> toAscLists tl <> toAscLists tr
 
--- | /O(n)/ Convert to a descending list.
-toDescList :: PSQ k p v -> [(k, p, v)]
-toDescList q = seqToList (toDescLists q)
-
-toDescLists :: PSQ k p v -> Sequ (k, p, v)
-toDescLists q = case tourView q of
-    Null             -> emptySequ
-    Single (E k p v) -> singleSequ (k, p, v)
-    tl `Play` tr     -> toDescLists tr <> toDescLists tl
 
 ------------------------------------------------------------------------
 -- Traversals
@@ -315,12 +285,6 @@ findMin :: PSQ k p v -> Maybe (k, p, v)
 findMin Void           = Nothing
 findMin (Winner e _ _) = Just (unElem e)
 
--- | /O(log n)/ Delete the element with the lowest priority.  Returns
--- an empty queue if the queue is empty.
-deleteMin :: (Ord p) => PSQ k p v -> PSQ k p v
-deleteMin Void           = Void
-deleteMin (Winner _ t m) = secondBest t m
-
 -- | /O(log n)/ Retrieve the binding with the least priority, and the
 -- rest of the queue stripped of that binding.
 minView :: (Ord p) => PSQ k p v -> Maybe (k, p, v, PSQ k p v)
@@ -333,26 +297,6 @@ secondBest Start _                 = Void
 secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
 secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
 
--- | /O(r*(log n - log r))/ Return a list of elements ordered by
--- key whose priorities are at most @pt@.
-atMost :: (Ord p) => p -> PSQ k p v -> ([Elem k p v], PSQ k p v)
-atMost pt q = let (sequ, q') = atMosts pt q
-              in (seqToList sequ, q')
-
-atMosts :: (Ord p) => p -> PSQ k p v -> (Sequ (Elem k p v), PSQ k p v)
-atMosts !pt q = case q of
-    (Winner e _ _)
-        | prio e > pt -> (emptySequ, q)
-    Void              -> (emptySequ, Void)
-    Winner e Start _  -> (singleSequ e, Void)
-    Winner e (RLoser _ e' tl m tr) m' ->
-        let (sequ, q')   = atMosts pt (Winner e tl m)
-            (sequ', q'') = atMosts pt (Winner e' tr m')
-        in (sequ <> sequ', q' `play` q'')
-    Winner e (LLoser _ e' tl m tr) m' ->
-        let (sequ, q')   = atMosts pt (Winner e' tl m)
-            (sequ', q'') = atMosts pt (Winner e tr m')
-        in (sequ <> sequ', q' `play` q'')
 
 ------------------------------------------------------------------------
 -- Loser tree
@@ -511,16 +455,6 @@ Winner e@(E k p v) t m `play` Winner e'@(E k' p' v') t' m'
     | p <= p'   = Winner e (rbalance k' p' v' t m t') m'
     | otherwise = Winner e' (lbalance k p v t m t') m'
 {-# INLINE play #-}
-
--- | A version of 'play' that can be used if the shape of the tree has
--- not changed or if the tree is known to be balanced.
-unsafePlay :: (Ord p) => PSQ k p v -> PSQ k p v -> PSQ k p v
-Void `unsafePlay` t' =  t'
-t `unsafePlay` Void  =  t
-Winner e@(E k p v) t m `unsafePlay` Winner e'@(E k' p' v') t' m'
-    | p <= p'   = Winner e (rloser k' p' v' t m t') m'
-    | otherwise = Winner e' (lloser k p v t m t') m'
-{-# INLINE unsafePlay #-}
 
 data TourView k p v = Null
                 | Single {-# UNPACK #-} !(Elem k p v)
