@@ -54,7 +54,7 @@ import           Control.Applicative ((<$>), (<*>))
 import           Data.BitUtil
 import           Data.Bits
 import           Data.List (foldl')
-import           Data.Maybe (fromJust)
+import           Data.Maybe (isJust, fromJust)
 import           Data.Word (Word)
 
 import qualified Data.List as List
@@ -552,7 +552,8 @@ fromList3 :: Ord p => [(Key, p, v)] -> IntPSQ p v
 fromList3 = foldl' (\im (k, p, x) -> insert3 k p x im) empty
 
 
--- Unused
+------------------------------------------------------------------------------
+-- Improved insert performance for special cases
 ------------------------------------------------------------------------------
 
 -- TODO (SM): Make benchmarks run again, integrate this function with insert
@@ -581,6 +582,10 @@ insertLargetThanMaxPrio =
         | otherwise      -> Bin k' p' x' m l            (go k p x r)
 
 
+------------------------------------------------------------------------------
+-- Validity checks for the datastructure invariants
+------------------------------------------------------------------------------
+
 
 -- check validity of the data structure
 valid :: Ord p => IntPSQ p v -> Bool
@@ -595,7 +600,7 @@ hasBadNils psq = case psq of
     Nil                 -> False
     Tip _ _ _           -> False
     Bin _ _ _ _ Nil Nil -> True
-    Bin _ _ _ _ l r     ->  hasBadNils l || hasBadNils r
+    Bin _ _ _ _ l r     -> hasBadNils l || hasBadNils r
 
 hasDuplicateKeys :: IntPSQ p v -> Bool
 hasDuplicateKeys psq =
@@ -612,7 +617,7 @@ hasMinHeapProperty :: Ord p => IntPSQ p v -> Bool
 hasMinHeapProperty psq = case psq of
     Nil             -> True
     Tip _ _ _       -> True
-    Bin _ p _ _ l r -> go p l && go p r 
+    Bin _ p _ _ l r -> go p l && go p r
   where
     go :: Ord p => p -> IntPSQ p v -> Bool
     go _ Nil = True
@@ -631,7 +636,7 @@ validMask (Bin _ _ _ m left right ) =
     go :: Mask -> Side -> IntPSQ p v -> Bool
     go parentMask side psq = case psq of
         Nil -> True
-        Tip k _ _ -> checkMaskAndSideMatchKey parentMask side k 
+        Tip k _ _ -> checkMaskAndSideMatchKey parentMask side k
         Bin k _ _ mask l r ->
             checkMaskAndSideMatchKey parentMask side k &&
             maskOk mask l r &&
@@ -650,5 +655,5 @@ validMask (Bin _ _ _ m left right ) =
             fromIntegral mask == highestBitMask (fromIntegral xoredKeys)
 
     childKey Nil = Nothing
-    childKey (Tip k _ _) = Just k 
+    childKey (Tip k _ _) = Just k
     childKey (Bin k _ _ _ _ _) = Just k
