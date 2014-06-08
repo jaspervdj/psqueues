@@ -19,6 +19,11 @@ module Data.IntPSQ
       -- * Insertion
     , insert
 
+      -- ** Unsafe inserts
+      -- (They will be exported from an internal module only)
+    , insertNew
+    , insertLargetThanMaxPrio
+
       -- * Delete/update
     , delete
     , alter
@@ -36,6 +41,8 @@ module Data.IntPSQ
       -- * Traversal
     , map
     , fold'
+
+      -- * Testing
     , valid
 
       -- * Further internal functions
@@ -44,8 +51,6 @@ module Data.IntPSQ
     , fromList2
     , insert3
     , fromList3
-    , empty
-    , toList
     ) where
 
 import           Control.DeepSeq (NFData(rnf))
@@ -54,7 +59,7 @@ import           Control.Applicative ((<$>), (<*>))
 import           Data.BitUtil
 import           Data.Bits
 import           Data.List (foldl')
-import           Data.Maybe (isJust, fromJust)
+import           Data.Maybe (isJust)
 import           Data.Word (Word)
 
 import qualified Data.List as List
@@ -607,11 +612,11 @@ hasDuplicateKeys psq =
     any ((> 1) . length) (List.group . List.sort $ collectKeys [] psq)
   where
     collectKeys :: [Int] -> IntPSQ p v -> [Int]
-    collectKeys keys Nil = keys
-    collectKeys keys (Tip k _ _) = k : keys
-    collectKeys keys (Bin k _ _ _ l r) =
-        let keys' = collectKeys (k : keys) l
-        in collectKeys keys' r
+    collectKeys ks Nil = ks
+    collectKeys ks (Tip k _ _) = k : ks
+    collectKeys ks (Bin k _ _ _ l r) =
+        let ks' = collectKeys (k : ks) l
+        in collectKeys ks' r
 
 hasMinHeapProperty :: Ord p => IntPSQ p v -> Bool
 hasMinHeapProperty psq = case psq of
