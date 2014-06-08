@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE TypeFamilies        #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.PSQ.Class.Tests
     ( tests
     ) where
@@ -31,6 +30,7 @@ import           Data.PSQ.Class.Gen
 
 tests
     :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Foldable (psq Int),
                     NFData (psq Int Char),
@@ -206,47 +206,49 @@ prop_singleton = Tagged $
 
 prop_memberLookup
     :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Arbitrary (psq Int Char),
                     Show (psq Int Char))
-    => Tagged psq Property
-prop_memberLookup = Tagged $
+    => Tagged psq (psq Int Char -> Property)
+prop_memberLookup = Tagged $ \t ->
     forAll arbitraryInt $ \k ->
-    forAll arbitraryPSQ $ \t ->
         case lookup k (t :: psq Int Char) of
             Nothing -> not (member k t)
             Just _  -> member k t
 
 prop_insertLookup
     :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Arbitrary (psq Int Char),
                     Show (psq Int Char))
-    => Tagged psq Property
-prop_insertLookup = Tagged $
+    => Tagged psq (psq Int Char -> Property)
+prop_insertLookup = Tagged $ \t ->
     forAll arbitraryInt $ \k ->
     forAll arbitraryInt $ \p ->
     forAll arbitrary    $ \c ->
-    forAll arbitraryPSQ $ \t ->
         lookup k (insert k p c (t :: psq Int Char)) == Just (p, c)
 
 prop_insertDelete
     :: forall psq. (PSQ psq, Key psq ~ Int,
-                    Eq (psq Int Char), Show (psq Int Char))
-    => Tagged psq Property
-prop_insertDelete = Tagged $
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Property)
+prop_insertDelete = Tagged $ \t ->
     forAll arbitraryInt $ \k ->
     forAll arbitraryInt $ \p ->
     forAll arbitrary    $ \c ->
-    forAll arbitraryPSQ $ \t ->
         (lookup k t == Nothing) ==>
             (delete k (insert k p c t) == (t :: psq Int Char))
 
 prop_insertDeleteView
     :: forall psq. (PSQ psq, Key psq ~ Int,
-                    Eq (psq Int Char), Show (psq Int Char))
-    => Tagged psq Property
-prop_insertDeleteView = Tagged $
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Property)
+prop_insertDeleteView = Tagged $ \t ->
     forAll arbitraryInt $ \k ->
     forAll arbitraryInt $ \p ->
     forAll arbitrary    $ \c ->
-    forAll arbitraryPSQ $ \t ->
         case deleteView k (insert k p c (t :: psq Int Char)) of
             Nothing           -> False
             Just (p', c', t')
@@ -255,19 +257,19 @@ prop_insertDeleteView = Tagged $
 
 prop_deleteNonMember
     :: forall psq. (PSQ psq, Key psq ~ Int,
-                    Eq (psq Int Char), Show (psq Int Char))
-    => Tagged psq Property
-prop_deleteNonMember = Tagged $
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Property)
+prop_deleteNonMember = Tagged $ \t ->
     forAll arbitraryInt $ \k ->
-    forAll arbitraryPSQ $ \t ->
         (lookup k t == Nothing) ==> (delete k t == (t :: psq Int Char))
 
 prop_alter
     :: forall psq. (PSQ psq, Key psq ~ Int, Show (psq Int Char))
-    => Tagged psq Property
-prop_alter = Tagged $
+    => Tagged psq (psq Int Char -> Property)
+prop_alter = Tagged $ \t ->
     forAll arbitraryInt $ \k ->
-    forAll arbitraryPSQ $ \t ->
         let ((), t') = alter f k t :: ((), psq Int Char)
         in case lookup k t of
             Just _  -> (size t - 1) == size t' && lookup k t' == Nothing
@@ -278,20 +280,21 @@ prop_alter = Tagged $
 
 prop_alterMin
     :: forall psq. (PSQ psq, Key psq ~ Int,
-                    Eq (psq Int Char), Show (psq Int Char))
-    => Tagged psq Property
-prop_alterMin = Tagged $
-    forAll arbitraryPSQ $ \t ->
-        let (mbMin, t') = alterMin f (t :: psq Int Char)
-        in case mbMin of
-            Nothing        -> t' == singleton 3 100 'a'
-            Just (k, p, v) ->
-                findMin t == Just (k, p, v) &&
-                member k t &&
-                (case () of
-                    _ | isAlphaNum v -> lookup k t' == Just (k, v)
-                      | isPrint v    -> lookup (ord v) t' == Just (ord v, v)
-                      | otherwise    -> not (member k t'))
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_alterMin = Tagged $ \t ->
+    let (mbMin, t') = alterMin f (t :: psq Int Char)
+    in case mbMin of
+        Nothing        -> t' == singleton 3 100 'a'
+        Just (k, p, v) ->
+            findMin t == Just (k, p, v) &&
+            member k t &&
+            (case () of
+                _ | isAlphaNum v -> lookup k t' == Just (k, v)
+                  | isPrint v    -> lookup (ord v) t' == Just (ord v, v)
+                  | otherwise    -> not (member k t'))
   where
     f Nothing       = (Nothing, Just (3, 100, 'a'))
     f (Just (k, p, v))
@@ -301,51 +304,54 @@ prop_alterMin = Tagged $
 
 prop_toList
     :: forall psq. (PSQ psq, Key psq ~ Int,
-                    Eq (psq Int Char), Show (psq Int Char))
-    => Tagged psq Property
-prop_toList = Tagged $
-    forAll arbitraryPSQ $ \t ->
-        (t :: psq Int Char) == fromList (toList t)
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_toList = Tagged $ \t ->
+    (t :: psq Int Char) == fromList (toList t)
 
 prop_keys
     :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Arbitrary (psq Int Char),
                     Show (psq Int Char))
-    => Tagged psq Property
-prop_keys = Tagged $
-    forAll arbitraryPSQ $ \t ->
-        List.sort (keys (t :: psq Int Char)) ==
-            List.sort [k | (k, _, _) <- toList t]
+    => Tagged psq (psq Int Char -> Bool)
+prop_keys = Tagged $ \t ->
+    List.sort (keys (t :: psq Int Char)) ==
+        List.sort [k | (k, _, _) <- toList t]
 
 prop_deleteView
     :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Arbitrary (psq Int Char),
                     Show (psq Int Char))
-    => Tagged psq Property
-prop_deleteView = Tagged $
+    => Tagged psq (psq Int Char -> Property)
+prop_deleteView = Tagged $ \t ->
     forAll arbitraryInt $ \k ->
-    forAll arbitraryPSQ $ \t ->
         case deleteView k (t :: psq Int Char) of
             Nothing         -> not (member k t)
             Just (p, v, t') -> lookup k t == Just (p, v) && not (member k t')
 
 prop_map
     :: forall psq. (PSQ psq, Key psq ~ Int,
-                    Eq (psq Int Char), Show (psq Int Char))
-    => Tagged psq Property
-prop_map = Tagged $
-    forAll arbitraryPSQ $ \t ->
-        map f (t :: psq Int Char) ==
-            fromList (List.map (\(p, v, x) -> (p, v, f p v x)) (toList t))
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_map = Tagged $ \t ->
+    map f (t :: psq Int Char) ==
+        fromList (List.map (\(p, v, x) -> (p, v, f p v x)) (toList t))
   where
     f :: Int -> Int -> Char -> Char
     f p v x = if p > v then x else 'a'
 
 prop_fold'
-    :: forall psq. (PSQ psq, Key psq ~ Int, Show (psq Int Char))
-    => Tagged psq Property
-prop_fold' = Tagged $
-    forAll arbitraryPSQ $ \t ->
-        fold' f acc0 (t :: psq Int Char) ==
-            List.foldl' (\acc (k, p, x) -> f k p x acc) acc0 (toList t)
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Arbitrary (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_fold' = Tagged $ \t ->
+    fold' f acc0 (t :: psq Int Char) ==
+        List.foldl' (\acc (k, p, x) -> f k p x acc) acc0 (toList t)
   where
     -- Needs to be commutative
     f k p x (kpSum, xs) = (kpSum + k + p, List.sort (x : xs))
@@ -353,11 +359,12 @@ prop_fold' = Tagged $
 
 prop_foldr
     :: forall psq. (PSQ psq, Key psq ~ Int,
-                    Foldable (psq Int), Show (psq Int Char))
-    => Tagged psq Property
-prop_foldr = Tagged $
-    forAll arbitraryPSQ $ \t ->
-        foldr f 0 (t :: psq Int Char) ==
-            List.foldr (\(_, _, x) acc -> f x acc) 0 (toList t)
+                    Arbitrary (psq Int Char),
+                    Foldable (psq Int),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_foldr = Tagged $ \t ->
+    foldr f 0 (t :: psq Int Char) ==
+        List.foldr (\(_, _, x) acc -> f x acc) 0 (toList t)
   where
     f x acc = acc + ord x

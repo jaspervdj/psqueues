@@ -32,7 +32,7 @@ tests =
 -- 100% test coverage...
 test_hasBadNils :: Assertion
 test_hasBadNils =
-    assert $ hasBadNils (Bin 1 2 'x' 0 Nil Nil)
+    assert $ hasBadNils (Bin 1 (2 :: Int) 'x' 0 Nil Nil)
 
 --------------------------------------------------------------------------------
 -- QuickCheck properties
