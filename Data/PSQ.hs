@@ -87,9 +87,10 @@ module Data.PSQ
     , fold'
     ) where
 
-import           Prelude         hiding (map, lookup, null)
+import           Prelude         hiding (map, lookup, null, foldr)
 import           Control.DeepSeq (NFData(rnf))
 import           Data.Maybe      (isJust)
+import           Data.Foldable   (Foldable (foldr))
 
 -- | @E k p v@ binds the key @k@ to the value @v@ with priority @p@.
 data Elem k p v = E !k !p !v
@@ -123,6 +124,10 @@ instance (Eq k, Ord p, Eq v) => Eq (PSQ k p v) where
             xk == yk && xp == yp && xv == yv && x' == y'
         (Just _               , Nothing                ) -> False
         (Nothing              , Just _                 ) -> False
+
+instance Foldable (PSQ k p) where
+    foldr _ z Void                   = z
+    foldr f z (Winner (E _ _ x) l _) = f x (foldr f z l)
 
 -- | /O(1)/ True if the queue is empty.
 null :: PSQ k p v -> Bool
@@ -350,6 +355,10 @@ instance (NFData k, NFData p, NFData v) => NFData (LTree k p v) where
     rnf (LLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
     rnf (RLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
 
+instance Foldable (LTree k p) where
+    foldr _ z Start                      = z
+    foldr f z (LLoser _ (E _ _ x) l _ r) = f x (foldr f (foldr f z r) l)
+    foldr f z (RLoser _ (E _ _ x) l _ r) = f x (foldr f (foldr f z r) l)
 
 size' :: LTree k p v -> Size
 size' Start              = 0

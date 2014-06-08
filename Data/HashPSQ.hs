@@ -10,13 +10,13 @@ module Data.HashPSQ
   , minView
   ) where
 
+import           Prelude hiding (lookup, foldr)
+import           Data.Foldable (Foldable (foldr))
 import           Data.Hashable
 import           Control.DeepSeq (NFData (..))
 import qualified Data.IntPSQ as IPSQ -- TODO: I would consider renaming the import to IntPSQ
 import qualified Data.List   as L
 import qualified Data.PSQ    as OrdPSQ
-
-import           Prelude hiding (lookup)
 
 ------------------------------------------------------------------------------
 -- Types
@@ -39,6 +39,9 @@ instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
         (Just (xMin, x'), (Just (yMin, y'))) -> xMin == yMin && x' == y'
         (Just _         , Nothing          ) -> False
         (Nothing        , Just _           ) -> False
+
+instance Foldable (HashPSQ k p) where
+    foldr = error "TODO: Foldable HashPSQ"
 
 ------------------------------------------------------------------------------
 -- Overflow list functions
