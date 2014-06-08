@@ -57,15 +57,10 @@ Library
     exposed-modules:
         Data.PSQ
         Data.IntPSQ
+        Data.IntPSQ.Internal
         Data.HashPSQ
     other-modules:
         Data.BitUtil
-    include-dirs: include
-
-    if impl(ghc<7.0)
-        extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
-    if impl(ghc >= 7.8)
-        extensions: RoleAnnotations
 
 benchmark bench
   type:                exitcode-stdio-1.0

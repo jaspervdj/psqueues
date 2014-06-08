@@ -10,7 +10,9 @@ import qualified Data.PSQ             as PSQ
 
 main :: IO ()
 main = defaultMain
-    [ testGroup "Data.PSQ.Class.Tests IntPSQ"  $ untag
+    [ testGroup "Data.IntPSQ.Tests"
+        Data.IntPSQ.Tests.tests
+    , testGroup "Data.PSQ.Class.Tests IntPSQ"  $ untag
         (Data.PSQ.Class.Tests.tests :: Tagged IntPSQ.IntPSQ         [Test])
     , testGroup "Data.PSQ.Class.Tests PSQ"     $ untag
         (Data.PSQ.Class.Tests.tests :: Tagged (PSQ.PSQ Int)         [Test])
