@@ -203,9 +203,8 @@ findMin t = case minView t of
 empty :: IntPSQ p v
 empty = Nil
 
-{-# INLINABLE singleton #-}
 singleton :: Ord p => Key -> p -> v -> IntPSQ p v
-singleton k p v = fromList [(k, p, v)]
+singleton = Tip
 
 ------------------------------------------------------------------------------
 -- Insertion
@@ -214,7 +213,6 @@ singleton k p v = fromList [(k, p, v)]
 -- | This variant of insert has the most consistent performance. It does at
 -- most two root-to-leaf traversals, which are reallocating the nodes on their
 -- path.
-{-# INLINE insert #-}
 insert :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
 insert k p x t0 = insertNew k p x (delete k t0)
 
