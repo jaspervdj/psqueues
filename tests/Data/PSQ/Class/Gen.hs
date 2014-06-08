@@ -8,15 +8,15 @@ module Data.PSQ.Class.Gen
     ) where
 
 import           Control.Applicative (pure, (<$>), (<*>))
-import           Test.QuickCheck     (Gen, Arbitrary (..), frequency, choose)
-import           Data.List           (foldl')
-import           Control.Monad       (replicateM)
+import           Test.QuickCheck     (Gen, Arbitrary (..), frequency, choose,
+                                      elements)
+import           Control.Monad       (foldM, replicateM)
 
 import           Data.PSQ.Class      (PSQ (..))
 
 data Action k p v
     = Insert k p v
-    | Delete k
+    | DeleteRandomMember
     | DeleteMin
     deriving (Show, Eq)
 
@@ -25,14 +25,16 @@ arbitraryAction
     => Gen (Action k p v)
 arbitraryAction = frequency
     [ (10, Insert <$> arbitrary <*> arbitrary <*> arbitrary)
-    , (1,  Delete <$> arbitrary)
+    , (2,  pure DeleteRandomMember)
     , (2,  pure DeleteMin)
     ]
 
-apply :: (PSQ psq, Ord p) => Action (Key psq) p v -> psq p v -> psq p v
-apply (Insert k p x) t = insert k p x t
-apply (Delete k)     t = delete k t
-apply DeleteMin      t = case minView t of
+apply :: (PSQ psq, Ord p) => Action (Key psq) p v -> psq p v -> Gen (psq p v)
+apply (Insert k p x)     t = return $ insert k p x t
+apply DeleteRandomMember t = do
+    key <- elements (keys t)
+    return $ delete key t
+apply DeleteMin          t = return $ case minView t of
     Nothing            -> t
     Just (_, _, _, t') -> t'
 
@@ -43,4 +45,4 @@ arbitraryPSQ
 arbitraryPSQ = do
     numActions <- choose (0, 100)
     actions    <- replicateM numActions arbitraryAction
-    return $ foldl' (\a t -> apply t a) (empty :: psq p v) actions
+    foldM (\t a -> apply a t) (empty :: psq p v) actions
