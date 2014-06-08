@@ -70,8 +70,8 @@ module Data.PSQ
 
       -- * Delete/Update
     , delete
-    -- , alter
-    -- , alterMin
+    , alter
+    , alterMin
 
       -- * Conversion
     , fromList
@@ -214,6 +214,35 @@ delete k q = case q of
         | k <= m    -> delete k (Winner e' tl m) `play` (Winner e tr m')
         | otherwise -> (Winner e' tl m) `play` delete k (Winner e tr m')
 
+{-# INLINE alter #-}
+alter :: (Ord k, Ord p)
+      => (Maybe (p, v) -> (b, Maybe (p, v)))
+      -> k
+      -> PSQ k p v
+      -> (b, PSQ k p v)
+alter f k psq0 =
+    let (psq1, mbPV) = case deleteView k psq0 of
+                         Nothing          -> (psq0, Nothing)
+                         Just (p, v, psq) -> (psq, Just (p, v))
+        (!b, mbPV') = f mbPV
+    in case mbPV' of
+         Nothing     -> (b, psq1)
+         Just (p, v) -> (b, insert k p v psq1)
+
+{-# INLINE alterMin #-}
+alterMin :: (Ord k, Ord p)
+         => (Maybe (k, p, v) -> (b, Maybe (k, p, v)))
+         -> PSQ k p v
+         -> (b, PSQ k p v)
+alterMin f psq0 =
+    case minView psq0 of
+        Nothing -> let (!b, mbKPV) = f Nothing
+                   in (b, insertMay mbKPV psq0)
+        Just (k,p,v, psq1) -> let (!b, mbKPV) = f $ Just (k, p, v)
+                              in (b, insertMay mbKPV psq1)
+  where
+    insertMay Nothing          psq = psq
+    insertMay (Just (k, p, v)) psq = insert k p v psq
 
 ------------------------------------------------------------------------
 -- Conversion
