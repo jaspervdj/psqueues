@@ -58,6 +58,7 @@ import           Control.Applicative ((<$>), (<*>))
 
 import           Data.BitUtil
 import           Data.Bits
+import           Data.Foldable(Foldable(foldr))
 import           Data.List (foldl')
 import           Data.Maybe (isJust)
 import           Data.Word (Word)
@@ -114,6 +115,13 @@ instance (Ord p, Eq v) => Eq (IntPSQ p v) where
             xk == yk && xp == yp && xv == yv && x' == y'
         (Just _               , Nothing                ) -> False
         (Nothing              , Just _                 ) -> False
+
+instance Foldable (IntPSQ p) where
+    foldr f z Nil = z
+    foldr f z (Tip _ _ v) = f v z
+    foldr f z (Bin _ _ v _ l r) = f v z''
+      where z' = foldr f z l
+            z'' = foldr f z' r
 
 -- bit twiddling
 ----------------
