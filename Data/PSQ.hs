@@ -124,6 +124,9 @@ instance (Eq k, Ord p, Eq v) => Eq (PSQ k p v) where
         (Just _               , Nothing                ) -> False
         (Nothing              , Just _                 ) -> False
 
+instance Functor (PSQ k p) where
+    fmap f = map (\_ _ v -> f v)
+
 -- | /O(1)/ True if the queue is empty.
 null :: PSQ k p v -> Bool
 null Void           = True

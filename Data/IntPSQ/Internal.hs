@@ -131,6 +131,9 @@ instance Foldable (IntPSQ p) where
         z' = foldr f z l
         z'' = foldr f z' r
 
+instance Functor (IntPSQ p) where
+	fmap f = map (\_ _ v -> f v)
+
 
 -- bit twiddling
 ----------------
