@@ -201,7 +201,7 @@ deleteView k psq = case psq of
         | k <= m    -> fmap (\(p,v,q) -> (p, v,  q `play` (Winner e' tr m'))) (deleteView k (Winner e tl m))
         | otherwise -> fmap (\(p,v,q) -> (p, v,  (Winner e tl m) `play` q  )) (deleteView k (Winner e' tr m'))
     Winner e (LLoser _ e' tl m tr) m'
-        | k <= m    -> fmap (\(p,v,q) -> (p, v, q `play` (Winner e' tr m'))) (deleteView k (Winner e' tl m))
+        | k <= m    -> fmap (\(p,v,q) -> (p, v, q `play` (Winner e tr m'))) (deleteView k (Winner e' tl m))
         | otherwise -> fmap (\(p,v,q) -> (p, v, (Winner e' tl m) `play` q )) (deleteView k (Winner e tr m'))
 
 
