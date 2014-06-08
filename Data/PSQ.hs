@@ -277,7 +277,7 @@ toAscLists q = case tourView q of
 -- Traversals
 
 {-# INLINABLE map #-}
-map :: forall k p v w. Ord p => (k -> p -> v -> w) -> PSQ k p v -> PSQ k p w
+map :: forall k p v w. (k -> p -> v -> w) -> PSQ k p v -> PSQ k p w
 map f = goPSQ
   where
     goElem :: Elem k p v -> Elem k p w
@@ -292,24 +292,18 @@ map f = goPSQ
     goLTree (LLoser s e l k r) = LLoser s (goElem e) (goLTree l) k (goLTree r)
     goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
 
-fold' :: (Ord p) => (k -> p -> v -> a -> a) -> a -> PSQ k p v -> a
-fold' f acc0 =
-    let
-        fold_tree acc Start = acc
-        fold_tree acc (LLoser _ e lt _ rt) = fold_tree' acc (e, lt, rt)
-        fold_tree acc (RLoser _ e lt _ rt) = fold_tree' acc (e, lt, rt)
 
-        fold_tree' acc ((E k p v), lt, rt) =
-            let
-                lta = fold_tree acc lt
-                rta = fold_tree lta rt
-            in
-                f k p v rta
+{-# INLINE fold' #-}
+fold' :: (k -> p -> v -> a -> a) -> a -> PSQ k p v -> a
+fold' f =
+    \acc0 psq -> case psq of
+                   Void           -> acc0
+                   (Winner _ t _) -> go acc0 t
+  where
+    go !acc Start                        = acc
+    go !acc (LLoser _ (E k p v) lt _ rt) = go (f k p v (go acc lt)) rt
+    go !acc (RLoser _ (E k p v) lt _ rt) = go (f k p v (go acc lt)) rt
 
-        go Void = acc0
-        go (Winner _ t _) = fold_tree acc0 t
-    in
-        go
 
 ------------------------------------------------------------------------
 -- Min
