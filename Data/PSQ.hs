@@ -93,13 +93,10 @@ import           Data.Maybe      (isJust)
 
 -- | @E k p v@ binds the key @k@ to the value @v@ with priority @p@.
 data Elem k p v = E !k !p !v
-    deriving (Eq, Show)
+    deriving (Show)
 
 instance (NFData k, NFData p, NFData v) => NFData (Elem k p v) where
     rnf (E k p v) = rnf k `seq` rnf p `seq` rnf v
-
-instance Functor (Elem k p) where
-    fmap f (E k p v) = E k p (f v)
 
 unElem :: Elem k p v -> (k, p, v)
 unElem (E k p v) = (k, p, v)
@@ -113,11 +110,19 @@ data PSQ k p v
     | Winner !(Elem k p v)
              !(LTree k p v)
              !k
-    deriving (Eq, Show)
+    deriving (Show)
 
 instance (NFData k, NFData p, NFData v) => NFData (PSQ k p v) where
     rnf Void           = ()
     rnf (Winner e t m) = rnf e `seq` rnf m `seq` rnf t
+
+instance (Eq k, Ord p, Eq v) => Eq (PSQ k p v) where
+    x == y = case (minView x, minView y) of
+        (Nothing              , Nothing                ) -> True
+        (Just (xk, xp, xv, x'), (Just (yk, yp, yv, y'))) ->
+            xk == yk && xp == yp && xv == yv && x' == y'
+        (Just _               , Nothing                ) -> False
+        (Nothing              , Just _                 ) -> False
 
 -- | /O(1)/ True if the queue is empty.
 null :: PSQ k p v -> Bool
@@ -315,13 +320,12 @@ data LTree k p v
                             !(LTree k p v)
                             !k              -- split key
                             !(LTree k p v)
-    deriving (Eq, Show)
+    deriving (Show)
 
 instance (NFData k, NFData p, NFData v) => NFData (LTree k p v) where
     rnf Start              = ()
     rnf (LLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
     rnf (RLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
-
 
 
 size' :: LTree k p v -> Size
