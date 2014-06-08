@@ -1,9 +1,11 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Data.IntPSQ.Tests
     ( tests
     ) where
 
-import           Test.QuickCheck                      (Property, forAll)
+import           Prelude hiding (lookup)
+
+import           Test.QuickCheck                      (Property, arbitrary,
+                                                       forAll)
 import           Test.Framework                       (Test)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
 
@@ -16,7 +18,8 @@ import           Data.PSQ.Class.Gen
 
 tests :: [Test]
 tests =
-    [ testProperty "prop_valid" prop_valid
+    [ testProperty "valid"                   prop_valid
+    , testProperty "insertLargerThanMaxPrio" prop_insertLargerThanMaxPrio
     ]
 
 --------------------------------------------------------------------------------
@@ -26,3 +29,15 @@ tests =
 prop_valid :: Property
 prop_valid = forAll arbitraryPSQ $ \t ->
     valid (t :: IntPSQ Int Char)
+
+prop_insertLargerThanMaxPrio :: Property
+prop_insertLargerThanMaxPrio =
+    forAll arbitraryPSQ $ \t ->
+    forAll arbitrary    $ \k ->
+    forAll arbitrary    $ \x ->
+        let max' x Nothing  = Just x
+            max' x (Just y) = Just (max x y)
+            maxPriority     = fold' (\x _ _ acc -> max' x acc) Nothing t
+            priority        = maybe 3 (+ 1) maxPriority
+            t'              = insertLargerThanMaxPrio k priority x t
+        in valid (t' :: IntPSQ Int Char) && lookup k t' == Just (priority, x)
