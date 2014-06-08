@@ -45,6 +45,7 @@ tests = Tagged
     , testCase "findMin"  (untag' test_findMin)
     , testCase "alter"    (untag' test_alter)
     , testCase "alterMin" (untag' test_alterMin)
+    , testCase "fromList" (untag' test_fromList)
 
     , testProperty "show"             (untag' prop_show)
     , testProperty "rnf"              (untag' prop_rnf)
@@ -170,6 +171,14 @@ test_alterMin = Tagged $ do
     alterMin (\_ -> ((), Nothing)) (empty :: psq Int Char) @?= ((), empty)
     alterMin (\_ -> ((), Nothing)) (singleton 3 100 'a'  :: psq Int Char) @?=
         ((), empty)
+
+test_fromList
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Eq (psq Int Char), Show (psq Int Char))
+    => Tagged psq Assertion
+test_fromList = Tagged $
+    let ls = [(1, 0, 'A'), (2, 0, 'B'), (3, 0, 'C'), (4, 0, 'D')]
+    in (fromList ls :: psq Int Char) @?= fromList (reverse ls)
 
 
 --------------------------------------------------------------------------------
