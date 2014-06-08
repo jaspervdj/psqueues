@@ -6,11 +6,12 @@ module Data.HashPSQ
   , singleton
   , insert
   , lookup
+  , map
   , fromList
   , minView
   ) where
 
-import           Prelude hiding (lookup, foldr)
+import           Prelude hiding (map, lookup, null, foldr)
 import           Data.Foldable (Foldable (foldr))
 import           Data.Hashable
 import           Control.DeepSeq (NFData (..))
@@ -21,7 +22,6 @@ import qualified Data.PSQ    as OrdPSQ
 ------------------------------------------------------------------------------
 -- Types
 ------------------------------------------------------------------------------
-
 
 data Bucket k p v = B !k !v !(OrdPSQ.PSQ k p v)
     deriving (Show)
@@ -42,6 +42,9 @@ instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
 
 instance Foldable (HashPSQ k p) where
     foldr = error "TODO: Foldable HashPSQ"
+
+instance Functor (HashPSQ k p) where
+    fmap f = map (\_ _ v -> f v)
 
 ------------------------------------------------------------------------------
 -- Overflow list functions
@@ -83,6 +86,9 @@ oinsert = OrdPSQ.insert
 {-# INLINABLE ominView #-}
 ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe (k, p, v, OrdPSQ.PSQ k p v)
 ominView = OrdPSQ.minView
+
+mapBucket :: (k -> p -> v -> w) -> p -> Bucket k p v -> Bucket k p w
+mapBucket f p (B k v opsq) = B k (f k p v) (OrdPSQ.map f opsq)
 
 {-
 {-# INLINABLE ominView #-}
@@ -148,6 +154,16 @@ minView (HashPSQ ipsq ) =
         case ominView os of
           Nothing                -> (Just (k, p, v), Nothing)
           Just (k', p', v', os') -> (Just (k, p, v), Just (hash k', p', B k' v' os'))
+
+------------------------------------------------------------------------
+-- Traversals
+
+{-# INLINABLE map #-}
+map :: (k -> p -> v -> w) -> HashPSQ k p v -> HashPSQ k p w
+map f (HashPSQ ipsq) = HashPSQ (IPSQ.map g ipsq)
+  where
+    g h p v = mapBucket f p v  
+
 {-
 {-# INLINABLE deleteView #-}
 deleteView :: Ord k => k -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
