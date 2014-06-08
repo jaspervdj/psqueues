@@ -7,12 +7,13 @@ module Data.PSQ.Class.Tests
     ( tests
     ) where
 
-import           Prelude             hiding (null, lookup, map)
+import           Prelude             hiding (null, lookup, map, foldr)
 import           Control.Applicative ((<$>))
 import           Control.DeepSeq     (NFData, rnf)
 import           Data.Tagged         (Tagged (..), untag)
 import qualified Data.List           as List
 import           Data.Char           (isPrint, isAlphaNum, ord)
+import           Data.Foldable       (Foldable, foldr)
 
 import           Test.QuickCheck                      (Arbitrary (..), Property,
                                                        Gen, (==>), forAll)
@@ -31,6 +32,7 @@ import           Data.PSQ.Class.Gen
 tests
     :: forall psq. (PSQ psq, Key psq ~ Int,
                     Eq (psq Int Char),
+                    Foldable (psq Int),
                     NFData (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq [Test]
@@ -59,6 +61,7 @@ tests = Tagged
     , testProperty "deleteView"       (untag' prop_deleteView)
     , testProperty "map"              (untag' prop_map)
     , testProperty "fold'"            (untag' prop_fold')
+    , testProperty "foldr"            (untag' prop_foldr)
     ]
   where
     untag' :: Tagged psq test -> test
@@ -345,3 +348,14 @@ prop_fold' = Tagged $
     -- Needs to be commutative
     f k p x (kpSum, xs) = (kpSum + k + p, List.sort (x : xs))
     acc0                = (0, [])
+
+prop_foldr
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Foldable (psq Int), Show (psq Int Char))
+    => Tagged psq Property
+prop_foldr = Tagged $
+    forAll arbitraryPSQ $ \t ->
+        foldr f 0 (t :: psq Int Char) ==
+            List.foldr (\(_, _, x) acc -> f x acc) 0 (toList t)
+  where
+    f x acc = acc + ord x

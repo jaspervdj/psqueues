@@ -7,7 +7,9 @@ import           Prelude hiding (lookup)
 import           Test.QuickCheck                      (Property, arbitrary,
                                                        forAll)
 import           Test.Framework                       (Test)
+import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
+import           Test.HUnit                           (Assertion, assert)
 
 import           Data.IntPSQ.Internal
 import           Data.PSQ.Class.Gen
@@ -18,9 +20,19 @@ import           Data.PSQ.Class.Gen
 
 tests :: [Test]
 tests =
-    [ testProperty "valid"                   prop_valid
+    [ testCase     "hasBadNils"              test_hasBadNils
+    , testProperty "valid"                   prop_valid
     , testProperty "insertLargerThanMaxPrio" prop_insertLargerThanMaxPrio
     ]
+
+--------------------------------------------------------------------------------
+-- Unit tests
+--------------------------------------------------------------------------------
+
+-- 100% test coverage...
+test_hasBadNils :: Assertion
+test_hasBadNils =
+    assert $ hasBadNils (Bin 1 2 'x' 0 Nil Nil)
 
 --------------------------------------------------------------------------------
 -- QuickCheck properties

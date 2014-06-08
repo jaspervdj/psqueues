@@ -3,7 +3,10 @@
 {-# LANGUAGE UnboxedTuples #-}
 module Data.IntPSQ.Internal
     ( -- * Type
-      IntPSQ
+      Nat
+    , Key
+    , Mask
+    , IntPSQ (..)
 
       -- * Query
     , null
@@ -44,6 +47,10 @@ module Data.IntPSQ.Internal
 
       -- * Testing
     , valid
+    , hasBadNils
+    , hasDuplicateKeys
+    , hasMinHeapProperty
+    , validMask
 
       -- * Further internal functions
       -- TODO (jaspervdj): Delete
