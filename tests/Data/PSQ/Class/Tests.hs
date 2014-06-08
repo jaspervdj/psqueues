@@ -155,10 +155,12 @@ test_alter
 test_alter = Tagged $ do
     alter f 3 (empty :: psq Int Char) @?= ("Hello", singleton 3 100 'a')
     alter f 3 (singleton 3 100 'a' :: psq Int Char) @?= ("World", empty)
+    alter f 3 (singleton 3 100 'b' :: psq Int Char) @?=
+        ("Cats", singleton 3 101 'b')
   where
     f Nothing           = ("Hello", Just (100, 'a'))
     f (Just (100, 'a')) = ("World", Nothing)
-    f (Just _)          = error "test_alter: unexpected value"
+    f (Just _)          = ("Cats",  Just (101, 'b'))
 
 test_alterMin
     :: forall psq. (PSQ psq, Key psq ~ Int,
