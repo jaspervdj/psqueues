@@ -35,9 +35,10 @@ prop_insertLargerThanMaxPrio =
     forAll arbitraryPSQ $ \t ->
     forAll arbitrary    $ \k ->
     forAll arbitrary    $ \x ->
-        let max' x Nothing  = Just x
-            max' x (Just y) = Just (max x y)
-            maxPriority     = fold' (\x _ _ acc -> max' x acc) Nothing t
+        let maxPriority     = fold' (\_ p _ acc -> max' p acc) Nothing t
             priority        = maybe 3 (+ 1) maxPriority
             t'              = insertLargerThanMaxPrio k priority x t
         in valid (t' :: IntPSQ Int Char) && lookup k t' == Just (priority, x)
+  where
+    max' x Nothing  = Just x
+    max' x (Just y) = Just (max x y)
