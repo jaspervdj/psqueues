@@ -78,6 +78,7 @@ module Data.PSQ
       -- * Conversion
     , fromList
     , toList
+    , toAscList
     , keys
 
       -- * Views
