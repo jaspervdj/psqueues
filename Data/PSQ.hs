@@ -52,7 +52,9 @@
 -- <http://citeseer.ist.psu.edu/hinze01simple.html>
 module Data.PSQ
     ( -- * Type
-      PSQ
+      PSQ (..)
+    , LTree (..)
+    , Elem (..)
 
       -- * Query
     , null
@@ -117,7 +119,7 @@ instance (NFData k, NFData p, NFData v) => NFData (PSQ k p v) where
     rnf Void           = ()
     rnf (Winner e t m) = rnf e `seq` rnf m `seq` rnf t
 
-instance (Eq k, Ord p, Eq v) => Eq (PSQ k p v) where
+instance (Ord k, Ord p, Eq v) => Eq (PSQ k p v) where
     x == y = case (minView x, minView y) of
         (Nothing              , Nothing                ) -> True
         (Just (xk, xp, xv, x'), (Just (yk, yp, yv, y'))) ->
@@ -305,8 +307,10 @@ map f = goPSQ
 fold' :: (k -> p -> v -> a -> a) -> a -> PSQ k p v -> a
 fold' f =
     \acc0 psq -> case psq of
-                   Void           -> acc0
-                   (Winner _ t _) -> go acc0 t
+                   Void                   -> acc0
+                   (Winner (E k p v) t _) ->
+                        let !acc1 = f k p v acc0
+                        in  go acc1 t
   where
     go !acc Start                        = acc
     go !acc (LLoser _ (E k p v) lt _ rt) = go (f k p v (go acc lt)) rt
@@ -323,12 +327,12 @@ findMin (Winner e _ _) = Just (unElem e)
 
 -- | /O(log n)/ Retrieve the binding with the least priority, and the
 -- rest of the queue stripped of that binding.
-minView :: (Ord p) => PSQ k p v -> Maybe (k, p, v, PSQ k p v)
+minView :: (Ord k, Ord p) => PSQ k p v -> Maybe (k, p, v, PSQ k p v)
 minView Void           = Nothing
 minView (Winner e t m) = let (k,p,v) = unElem e in
                            Just (k, p, v, secondBest t m)
 
-secondBest :: (Ord p) => LTree k p v -> k -> PSQ k p v
+secondBest :: (Ord k, Ord p) => LTree k p v -> k -> PSQ k p v
 secondBest Start _                 = Void
 secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
 secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
@@ -487,12 +491,12 @@ rdoubleRight _ _ _ _ _ _ = moduleError "rdoubleRight" "malformed tree"
 -- | Take two pennants and returns a new pennant that is the union of
 -- the two with the precondition that the keys in the ﬁrst tree are
 -- strictly smaller than the keys in the second tree.
-play :: (Ord p) => PSQ k p v -> PSQ k p v -> PSQ k p v
+play :: (Ord p, Ord k) => PSQ k p v -> PSQ k p v -> PSQ k p v
 Void `play` t' = t'
 t `play` Void  = t
 Winner e@(E k p v) t m `play` Winner e'@(E k' p' v') t' m'
-    | p <= p'   = Winner e (rbalance k' p' v' t m t') m'
-    | otherwise = Winner e' (lbalance k p v t m t') m'
+    | p < p' || (p == p' && k <= k') = Winner e (rbalance k' p' v' t m t') m'
+    | otherwise                      = Winner e' (lbalance k p v t m t') m'
 {-# INLINE play #-}
 
 data TourView k p v = Null
