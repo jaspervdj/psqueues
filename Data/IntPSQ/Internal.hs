@@ -26,6 +26,7 @@ module Data.IntPSQ.Internal
       -- (They will be exported from an internal module only)
     , insertNew
     , insertLargerThanMaxPrio
+    , insertLargerThanMaxPrioView
 
       -- * Delete/update
     , delete
@@ -38,6 +39,7 @@ module Data.IntPSQ.Internal
     , keys
 
       -- * Views
+    , insertView
     , deleteView
     , minView
 
@@ -58,6 +60,8 @@ module Data.IntPSQ.Internal
     , fromList2
     , insert3
     , fromList3
+    , link
+    , merge
     ) where
 
 import           Control.DeepSeq (NFData(rnf))
@@ -358,6 +362,12 @@ keys t = [k | (k, _, _) <- toList t]
 -- Views
 ------------------------------------------------------------------------------
 
+-- | Like insert, but returns the replaced element if any.
+insertView :: Ord p => Key -> p -> v -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
+insertView k p x t0 = case deleteView k t0 of
+  Nothing          -> (insertNew k p x t0, Nothing)
+  Just (p', v', t) -> (insertNew k p x t,  Just (p', v'))
+
 -- TODO (SM): verify that it is really worth do do deletion and lookup at the
 -- same time.
 {-# INLINABLE deleteView #-}
@@ -603,6 +613,36 @@ insertLargerThanMaxPrio =
         | k == k'        -> go k p x (merge m l r)
         | zero k m       -> Bin k' p' x' m (go k p x l) r
         | otherwise      -> Bin k' p' x' m l            (go k p x r)
+
+
+{-# INLINABLE insertLargerThanMaxPrioView #-}
+insertLargerThanMaxPrioView :: Ord p => Key -> p -> v -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
+insertLargerThanMaxPrioView k0 p0 v0 t0 =
+  case go k0 p0 v0 t0 of
+    (# t, mbPX #) -> (t, mbPX)
+  where
+    go k p x t = case t of
+     Nil -> (# Tip k p x, Nothing #)
+
+     Tip k' p' x'
+       | k == k'   -> (# Tip k p x,                        Just (p', x') #)
+       | otherwise -> (# link k' p' x' k  (Tip k p x) Nil, Nothing #)
+
+     Bin k' p' x' m l r
+       | nomatch k k' m -> let t' = merge m l r
+                           in t' `seq`
+                             let t'' = link k' p' x' k (Tip k p x) t'
+                             in t'' `seq` (# t'', Nothing #)
+
+       | k == k'        -> let t' = merge m l r
+                           in t' `seq` case go k p x t' of
+                               (# t'', _ #) -> t'' `seq` (# t'', Just (p', x') #)
+
+       | zero k m       -> case go k p x l of
+                             (# l', mbPX #) -> l' `seq` (# Bin k' p' x' m l' r, mbPX #)
+
+       | otherwise      -> case go k p x r of
+                             (# r', mbPX #) -> r' `seq` (# Bin k' p' x' m l r', mbPX #)
 
 
 ------------------------------------------------------------------------------
