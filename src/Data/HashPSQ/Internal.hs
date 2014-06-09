@@ -4,6 +4,7 @@
 module Data.HashPSQ.Internal
     ( -- * Type
       Bucket (..)
+    , toBucket
     , HashPSQ (..)
 
       -- * Query
@@ -55,6 +56,12 @@ import qualified Data.PSQ        as PSQ
 
 data Bucket k p v = B !k !v !(PSQ.PSQ k p v)
     deriving (Show)
+
+{-# INLINABLE toBucket #-}
+toBucket :: (Ord k, Ord p) => PSQ.PSQ k p v -> Maybe (p, Bucket k p v)
+toBucket opsq = case PSQ.minView opsq of
+    Nothing               -> Nothing
+    Just (k, p, x, opsq') -> Just (p, B k x opsq')
 
 instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
     rnf (B k v x) = rnf k `seq` rnf v `seq` rnf x
@@ -138,13 +145,19 @@ insert k p v (HashPSQ ipsq) =
   where
     ins Nothing           = Just (p,  B k  v  (PSQ.empty             ))
     ins (Just (p', B k' v' os))
-        | k' == k         = Just (p,  B k  v  (                    os))
-        | p' <= p         = Just (p', B k' v' (PSQ.insert k  p  v  os))
-        -- This is a bit tricky: k might already be present in 'os' and we don't
-        -- want to end up with duplicate keys.
-        | PSQ.member k os = Just (p,  B k  v  (PSQ.insert k' p' v'
-                                                    (PSQ.delete k os)))
-        | otherwise       = Just (p , B k  v  (PSQ.insert k' p' v' os))
+        | k' == k         =
+            -- Tricky: p might have less priority than an item in 'os'.
+            toBucket (PSQ.insert k p v os)
+        | p' <= p         =
+            Just (p', B k' v' (PSQ.insert k  p  v  os))
+        | PSQ.member k os =
+            -- This is a bit tricky: k might already be present in 'os' and we
+            -- don't want to end up with duplicate keys.
+            Just (p,  B k  v  (PSQ.insert k' p' v' (PSQ.delete k os)))
+        | otherwise       =
+            Just (p , B k  v  (PSQ.insert k' p' v' os))
+
+
 
 
 --------------------------------------------------------------------------------
@@ -237,7 +250,7 @@ minView
     => HashPSQ k p v -> Maybe (k, p, v, HashPSQ k p v)
 minView (HashPSQ ipsq ) =
     case IntPSQ.alterMin f ipsq of
-        (Nothing,        _    ) -> Nothing
+        (Nothing       , _    ) -> Nothing
         (Just (k, p, x), ipsq') -> Just (k, p, x, HashPSQ ipsq')
   where
     f Nothing                 = (Nothing, Nothing)
