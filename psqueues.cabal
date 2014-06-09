@@ -62,6 +62,7 @@ Library
         Data.IntPSQ.Internal
         Data.WIntPSQ
         Data.HashPSQ
+        Data.HashPSQ.Internal
     other-modules:
         Data.BitUtil
 
