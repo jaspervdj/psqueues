@@ -118,8 +118,21 @@ instance forall k. Ord k => PSQ (PSQ.PSQ k) where
 instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where
     type Key (HashPSQ.HashPSQ k) = k
 
-    empty       = HashPSQ.empty
-    singleton   = HashPSQ.singleton
-    fromList    = HashPSQ.fromList
-
-    lookup = HashPSQ.lookup
+    null       = HashPSQ.null
+    size       = HashPSQ.size
+    member     = HashPSQ.member
+    lookup     = HashPSQ.lookup
+    findMin    = HashPSQ.findMin
+    empty      = HashPSQ.empty
+    singleton  = HashPSQ.singleton
+    insert     = HashPSQ.insert
+    delete     = HashPSQ.delete
+    alter      = HashPSQ.alter
+    alterMin   = HashPSQ.alterMin
+    fromList   = HashPSQ.fromList
+    toList     = HashPSQ.toList
+    keys       = HashPSQ.keys
+    deleteView = HashPSQ.deleteView
+    minView    = HashPSQ.minView
+    map        = HashPSQ.map
+    fold'      = HashPSQ.fold'
