@@ -136,11 +136,15 @@ insert :: (Ord k, Hashable k, Ord p)
 insert k p v (HashPSQ ipsq) =
     HashPSQ (snd (IntPSQ.alter (\x -> ((), ins x)) (hash k) ipsq))
   where
-    ins Nothing     = Just (p,  B k  v  (PSQ.empty             ))
+    ins Nothing           = Just (p,  B k  v  (PSQ.empty             ))
     ins (Just (p', B k' v' os))
-        | k' == k   = Just (p,  B k  v  (                    os))
-        | p' <= p   = Just (p', B k' v' (PSQ.insert k  p  v  os))
-        | otherwise = Just (p , B k  v  (PSQ.insert k' p' v' os))
+        | k' == k         = Just (p,  B k  v  (                    os))
+        | p' <= p         = Just (p', B k' v' (PSQ.insert k  p  v  os))
+        -- This is a bit tricky: k might already be present in 'os' and we don't
+        -- want to end up with duplicate keys.
+        | PSQ.member k os = Just (p,  B k  v  (PSQ.insert k' p' v'
+                                                    (PSQ.delete k os)))
+        | otherwise       = Just (p , B k  v  (PSQ.insert k' p' v' os))
 
 
 --------------------------------------------------------------------------------
