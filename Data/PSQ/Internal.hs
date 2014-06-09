@@ -40,10 +40,23 @@ module Data.PSQ.Internal
     , map
     , fold'
 
-      -- * Internals
+      -- * Tournament view
     , TourView (..)
     , tourView
     , play
+
+      -- * Balancing internals
+    , left
+    , right
+    , maxKey
+    , lsingleLeft
+    , rsingleLeft
+    , lsingleRight
+    , rsingleRight
+    , ldoubleLeft
+    , rdoubleLeft
+    , ldoubleRight
+    , rdoubleRight
     ) where
 
 import           Prelude         hiding (map, lookup, null, foldr)
@@ -505,7 +518,7 @@ tourView (Winner e (LLoser _ e' tl m tr) m') =
 -- Utility functions
 
 moduleError :: String -> String -> a
-moduleError fun msg = error ("GHC.Event.PSQ." ++ fun ++ ':' : ' ' : msg)
+moduleError fun msg = error ("Data.PSQ.Internal." ++ fun ++ ':' : ' ' : msg)
 {-# NOINLINE moduleError #-}
 
 ------------------------------------------------------------------------
@@ -525,6 +538,3 @@ infixr 5 <>
 
 seqToList :: Sequ a -> [a]
 seqToList (Sequ x) = x []
-
-instance Show a => Show (Sequ a) where
-    showsPrec d a = showsPrec d (seqToList a)

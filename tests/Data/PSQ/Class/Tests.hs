@@ -11,11 +11,11 @@ import           Control.Applicative ((<$>))
 import           Control.DeepSeq     (NFData, rnf)
 import           Data.Tagged         (Tagged (..), untag)
 import qualified Data.List           as List
-import           Data.Char           (isPrint, isAlphaNum, ord)
+import           Data.Char           (isPrint, isAlphaNum, ord, toLower)
 import           Data.Foldable       (Foldable, foldr)
 
 import           Test.QuickCheck                      (Arbitrary (..), Property,
-                                                       Gen, (==>), forAll)
+                                                       (==>), forAll)
 import           Test.HUnit                           (Assertion, assert, (@?=))
 import           Test.Framework                       (Test)
 import           Test.Framework.Providers.HUnit       (testCase)
@@ -23,6 +23,7 @@ import           Test.Framework.Providers.QuickCheck2 (testProperty)
 
 import           Data.PSQ.Class
 import           Data.PSQ.Class.Gen
+import           Data.PSQ.Tests.Util
 
 --------------------------------------------------------------------------------
 -- Index of tests
@@ -33,11 +34,13 @@ tests
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Foldable (psq Int),
+                    Functor (psq Int),
                     NFData (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq [Test]
 tests = Tagged
-    [ testCase "equality" (untag' test_equality)
+    [ testCase "rnf"      (untag' test_rnf)
+    , testCase "equality" (untag' test_equality)
     , testCase "size"     (untag' test_size)
     , testCase "size2"    (untag' test_size2)
     , testCase "empty"    (untag' test_empty)
@@ -46,6 +49,7 @@ tests = Tagged
     , testCase "alter"    (untag' test_alter)
     , testCase "alterMin" (untag' test_alterMin)
     , testCase "fromList" (untag' test_fromList)
+    , testCase "foldr"    (untag' test_foldr)
 
     , testProperty "show"             (untag' prop_show)
     , testProperty "rnf"              (untag' prop_rnf)
@@ -61,6 +65,7 @@ tests = Tagged
     , testProperty "keys"             (untag' prop_keys)
     , testProperty "deleteView"       (untag' prop_deleteView)
     , testProperty "map"              (untag' prop_map)
+    , testProperty "fmap"             (untag' prop_fmap)
     , testProperty "fold'"            (untag' prop_fold')
     , testProperty "foldr"            (untag' prop_foldr)
     ]
@@ -70,24 +75,15 @@ tests = Tagged
 
 
 --------------------------------------------------------------------------------
--- Arbitrary instances
---------------------------------------------------------------------------------
-
-arbitraryInt :: Gen Int
-arbitraryInt = arbitrary
-
--- | This is a bit ridiculous. We need to call all 'Show' methods to get 100%
--- coverage.
-coverShowInstance :: Show a => a -> String
-coverShowInstance x =
-    showsPrec 0 x $
-    showList [x]  $
-    show x
-
-
---------------------------------------------------------------------------------
 -- HUnit tests
 --------------------------------------------------------------------------------
+
+test_rnf
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    NFData (psq Int Char))
+    => Tagged psq Assertion
+test_rnf = Tagged $
+    rnf (empty :: psq Int Char) `seq` return ()
 
 test_equality
     :: forall psq. (PSQ psq, Key psq ~ Int,
@@ -179,6 +175,13 @@ test_fromList
 test_fromList = Tagged $
     let ls = [(1, 0, 'A'), (2, 0, 'B'), (3, 0, 'C'), (4, 0, 'D')]
     in (fromList ls :: psq Int Char) @?= fromList (reverse ls)
+
+test_foldr
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Foldable (psq Int))
+    => Tagged psq Assertion
+test_foldr = Tagged $
+    foldr (\x acc -> acc + ord x) 0 (empty :: psq Int Char) @?= 0
 
 
 --------------------------------------------------------------------------------
@@ -352,6 +355,17 @@ prop_map = Tagged $ \t ->
   where
     f :: Int -> Int -> Char -> Char
     f p v x = if p > v then x else 'a'
+
+prop_fmap
+    :: forall psq. (PSQ psq, Key psq ~ Int,
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Functor (psq Int),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_fmap = Tagged $ \t ->
+    fmap toLower (t :: psq Int Char) ==
+        fromList (List.map (\(p, v, x) -> (p, v, toLower x)) (toList t))
 
 prop_fold'
     :: forall psq. (PSQ psq, Key psq ~ Int,

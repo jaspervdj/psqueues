@@ -8,6 +8,10 @@ coverage:
 	hpc markup --destdir=.hpc \
 	    --exclude=Data.IntPSQ.Tests    \
 	    --exclude=Data.PSQ.Class       \
+	    --exclude=Data.PSQ.Class.Gen   \
+	    --exclude=Data.PSQ.Class.Tests \
+	    --exclude=Data.PSQ.Tests       \
+	    --exclude=Data.PSQ.Tests.Util  \
 	    --exclude=Main                 \
 	    Main
 	rm -f Main.tix
