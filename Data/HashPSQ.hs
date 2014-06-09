@@ -1,4 +1,3 @@
--- | A
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Data.HashPSQ
   ( HashPSQ
@@ -15,21 +14,21 @@ import           Prelude hiding (map, lookup, null, foldr)
 import           Data.Foldable (Foldable (foldr))
 import           Data.Hashable
 import           Control.DeepSeq (NFData (..))
-import qualified Data.IntPSQ as IPSQ -- TODO: I would consider renaming the import to IntPSQ
+import qualified Data.IntPSQ as IntPSQ
 import qualified Data.List   as L
-import qualified Data.PSQ    as OrdPSQ
+import qualified Data.PSQ    as PSQ
 
 ------------------------------------------------------------------------------
 -- Types
 ------------------------------------------------------------------------------
 
-data Bucket k p v = B !k !v !(OrdPSQ.PSQ k p v)
+data Bucket k p v = B !k !v !(PSQ.PSQ k p v)
     deriving (Show)
 
 instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
     rnf (B k v x) = rnf k `seq` rnf v `seq` rnf x
 
-newtype HashPSQ k p v = HashPSQ (IPSQ.IntPSQ p (Bucket k p v))
+newtype HashPSQ k p v = HashPSQ (IntPSQ.IntPSQ p (Bucket k p v))
     deriving (NFData, Show)
 
 instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
@@ -51,25 +50,25 @@ instance Functor (HashPSQ k p) where
 ------------------------------------------------------------------------------
 
 
--- TODO: Rename OrdPSQ to PSQ and inline all these functions
+-- TODO: Rename PSQ to PSQ and inline all these functions
 
 {-# INLINABLE olookup #-}
-olookup :: Ord k => k -> OrdPSQ.PSQ k p v -> Maybe (p, v)
-olookup = OrdPSQ.lookup
+olookup :: Ord k => k -> PSQ.PSQ k p v -> Maybe (p, v)
+olookup = PSQ.lookup
 
 {-# INLINABLE odelete #-}
-odelete :: (Ord k, Ord p) => k -> OrdPSQ.PSQ  k p v -> OrdPSQ.PSQ  k p v
-odelete = OrdPSQ.delete
+odelete :: (Ord k, Ord p) => k -> PSQ.PSQ  k p v -> PSQ.PSQ  k p v
+odelete = PSQ.delete
 
 {-
 {-# INLINABLE odelete #-}
-odeleteView :: (Ord k, Ord p) => k -> OrdPSQ.PSQ k p v -> (Maybe (p, v), OrdPSQ.PSQ  k p v)
+odeleteView :: (Ord k, Ord p) => k -> PSQ.PSQ k p v -> (Maybe (p, v), PSQ.PSQ  k p v)
 odeleteView k os0 =
     case go os0 of
       (# mbX, os0' #) -> (mbX, os0')
   where
     go os = case os of
-      OrdPSQ.empty                -> (# Nothing, OrdPSQ.empty  #)
+      PSQ.empty                -> (# Nothing, PSQ.empty  #)
       OInsert k' p' v' os' -> case compare k k' of
         LT -> case go os' of
                 (# mbX, os'') -> let os''' = OInsert k' p' v' (go os')
@@ -80,21 +79,21 @@ odeleteView k os0 =
 
 
 {-# INLINABLE oinsert #-}
-oinsert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ.PSQ k p v -> OrdPSQ.PSQ k p v
-oinsert = OrdPSQ.insert
+oinsert :: (Ord k, Ord p) => k -> p -> v -> PSQ.PSQ k p v -> PSQ.PSQ k p v
+oinsert = PSQ.insert
 
 {-# INLINABLE ominView #-}
-ominView :: (Ord k, Ord p) => OrdPSQ.PSQ k p v -> Maybe (k, p, v, OrdPSQ.PSQ k p v)
-ominView = OrdPSQ.minView
+ominView :: (Ord k, Ord p) => PSQ.PSQ k p v -> Maybe (k, p, v, PSQ.PSQ k p v)
+ominView = PSQ.minView
 
 mapBucket :: (k -> p -> v -> w) -> p -> Bucket k p v -> Bucket k p w
-mapBucket f p (B k v opsq) = B k (f k p v) (OrdPSQ.map f opsq)
+mapBucket f p (B k v opsq) = B k (f k p v) (PSQ.map f opsq)
 
 {-
 {-# INLINABLE ominView #-}
 oalter :: (Ord k, Ord p)
         => (Maybe (p, v) -> Maybe (k, p, v))
-        -> k -> OrdPSQ.PSQ  k p v -> OrdPSQ.PSQ  k p v
+        -> k -> PSQ.PSQ  k p v -> PSQ.PSQ  k p v
 oalter f os0 =
     case odeleteView k os0 of
       (os, mbX) ->
@@ -114,12 +113,12 @@ singleton :: (Ord k, Hashable k, Ord p) => k -> p -> v -> HashPSQ k p v
 singleton k p v = insert k p v empty
 
 empty :: HashPSQ k p v
-empty = HashPSQ IPSQ.empty
+empty = HashPSQ IntPSQ.empty
 
 {-# INLINABLE lookup #-}
 lookup :: (Ord k, Hashable k, Ord p) => k -> HashPSQ k p v -> Maybe (p, v)
 lookup k (HashPSQ ipsq) = do
-    (p0, B k0 v0 os) <- IPSQ.lookup (hash k) ipsq
+    (p0, B k0 v0 os) <- IntPSQ.lookup (hash k) ipsq
     if k0 == k
       then return (p0, v0)
       else olookup k os
@@ -128,9 +127,9 @@ lookup k (HashPSQ ipsq) = do
 insert :: (Ord k, Hashable k, Ord p)
        => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
 insert k p v (HashPSQ ipsq) =
-    HashPSQ (snd (IPSQ.alter (\x -> ((), ins x)) (hash k) ipsq))
+    HashPSQ (snd (IntPSQ.alter (\x -> ((), ins x)) (hash k) ipsq))
   where
-    ins Nothing                 = Just (p,  B k  v  (OrdPSQ.empty       ))
+    ins Nothing                 = Just (p,  B k  v  (PSQ.empty       ))
     ins (Just (p', B k' v' os))
       | k' == k                 = Just (p,  B k  v  (                 os))
       | p' <= p                 = Just (p', B k' v' (oinsert k  p  v  os))
@@ -145,7 +144,7 @@ fromList = L.foldl' (\psq (k, p, x) -> insert k p x psq) empty
 minView :: (Ord k, Hashable k, Ord p)
         => HashPSQ k p v -> Maybe ((k, p, v), HashPSQ k p v)
 minView (HashPSQ ipsq ) =
-    case IPSQ.alterMin f ipsq of
+    case IntPSQ.alterMin f ipsq of
       (Nothing, _)      -> Nothing
       (Just el , ipsq') -> Just (el, HashPSQ ipsq')
   where
@@ -160,7 +159,7 @@ minView (HashPSQ ipsq ) =
 
 {-# INLINABLE map #-}
 map :: (k -> p -> v -> w) -> HashPSQ k p v -> HashPSQ k p w
-map f (HashPSQ ipsq) = HashPSQ (IPSQ.map g ipsq)
+map f (HashPSQ ipsq) = HashPSQ (IntPSQ.map g ipsq)
   where
     g h p v = mapBucket f p v  
 
@@ -178,7 +177,7 @@ alter :: (Ord k, Hashable k, Ord p)
       => (Maybe (p, v) -> (b, Maybe (k, p, v)))
       -> k -> HashPSQ k p v -> (b, HashPSQ k p v)
 alter f =
-    \k (HashPSQ ipsq) -> HashPSQ (IPSQ.alter f' (hash k) ipsq)
+    \k (HashPSQ ipsq) -> HashPSQ (IntPSQ.alter f' (hash k) ipsq)
   where
     f' mbX = case f mbX of
                (b, mbX') -> (b, insertIfNecessary mbX')
@@ -190,7 +189,7 @@ alter f =
 
     insertIfNecessary Nothing ->
 
-    Nothing                 = Just (p,  B k  v  (OrdPSQ.empty           ))
+    Nothing                 = Just (p,  B k  v  (PSQ.empty           ))
     f' (Just (p', B k' v' os))
       | k == k                  = Just (p,  B k  v  (                 os))
       | p' <= p                 = Just (p', B k' v' (oinsert k  p  v  os))
