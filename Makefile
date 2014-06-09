@@ -2,7 +2,7 @@ coverage:
 	mkdir -p .hpc
 	rm -f .hpc/*.mix
 	rm -f Main.tix
-	ghc --make -fhpc -fforce-recomp -itests -o .hpc/Main tests/Main.hs
+	ghc --make -fhpc -fforce-recomp -isrc -itests -o .hpc/Main tests/Main.hs
 	-./.hpc/Main
 	hpc report Main
 	hpc markup --destdir=.hpc \
