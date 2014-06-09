@@ -39,6 +39,11 @@ module Data.PSQ.Internal
       -- * Traversals
     , map
     , fold'
+
+      -- * Internals
+    , TourView (..)
+    , tourView
+    , play
     ) where
 
 import           Prelude         hiding (map, lookup, null, foldr)
@@ -347,9 +352,11 @@ rloser k p v tl m tr = RLoser (1 + size' tl + size' tr) (E k p v) tl m tr
 
 -- | Balance factor
 omega :: Int
-omega = 4
+omega = 4  -- Has to be greater than 3.75 because Hinze's paper said so.
 
-lbalance, rbalance :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+lbalance, rbalance
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lbalance k p v l m r
     | size' l + size' r < 2     = lloser        k p v l m r
     | size' r > omega * size' l = lbalanceLeft  k p v l m r
@@ -362,30 +369,42 @@ rbalance k p v l m r
     | size' l > omega * size' r = rbalanceRight k p v l m r
     | otherwise                 = rloser        k p v l m r
 
-lbalanceLeft :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+lbalanceLeft
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lbalanceLeft  k p v l m r
     | size' (left r) < size' (right r) = lsingleLeft  k p v l m r
     | otherwise                        = ldoubleLeft  k p v l m r
 
-lbalanceRight :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+lbalanceRight
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lbalanceRight k p v l m r
     | size' (left l) > size' (right l) = lsingleRight k p v l m r
     | otherwise                        = ldoubleRight k p v l m r
 
-rbalanceLeft :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+rbalanceLeft
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rbalanceLeft  k p v l m r
     | size' (left r) < size' (right r) = rsingleLeft  k p v l m r
     | otherwise                        = rdoubleLeft  k p v l m r
 
-rbalanceRight :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+rbalanceRight
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rbalanceRight k p v l m r
     | size' (left l) > size' (right l) = rsingleRight k p v l m r
     | otherwise                        = rdoubleRight k p v l m r
 
-lsingleLeft :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+lsingleLeft
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lsingleLeft k1 p1 v1 t1 m1 (LLoser _ (E k2 p2 v2) t2 m2 t3)
-    | p1 <= p2  = lloser k1 p1 v1 (rloser k2 p2 v2 t1 m1 t2) m2 t3
-    | otherwise = lloser k2 p2 v2 (lloser k1 p1 v1 t1 m1 t2) m2 t3
+    | (p1, k1) `beats` (p2, k2) =
+        lloser k1 p1 v1 (rloser k2 p2 v2 t1 m1 t2) m2 t3
+    | otherwise                 =
+        lloser k2 p2 v2 (lloser k1 p1 v1 t1 m1 t2) m2 t3
 lsingleLeft k1 p1 v1 t1 m1 (RLoser _ (E k2 p2 v2) t2 m2 t3) =
     rloser k2 p2 v2 (lloser k1 p1 v1 t1 m1 t2) m2 t3
 lsingleLeft _ _ _ _ _ _ = moduleError "lsingleLeft" "malformed tree"
@@ -404,36 +423,48 @@ lsingleRight k1 p1 v1 (RLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
     lloser k1 p1 v1 t1 m1 (lloser k2 p2 v2 t2 m2 t3)
 lsingleRight _ _ _ _ _ _ = moduleError "lsingleRight" "malformed tree"
 
-rsingleRight :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+rsingleRight
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rsingleRight k1 p1 v1 (LLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
     lloser k2 p2 v2 t1 m1 (rloser k1 p1 v1 t2 m2 t3)
 rsingleRight k1 p1 v1 (RLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3
-    | p1 <= p2  = rloser k1 p1 v1 t1 m1 (lloser k2 p2 v2 t2 m2 t3)
-    | otherwise = rloser k2 p2 v2 t1 m1 (rloser k1 p1 v1 t2 m2 t3)
+    | (p1, k1) `beats` (p2, k2) =
+        rloser k1 p1 v1 t1 m1 (lloser k2 p2 v2 t2 m2 t3)
+    | otherwise                 =
+        rloser k2 p2 v2 t1 m1 (rloser k1 p1 v1 t2 m2 t3)
 rsingleRight _ _ _ _ _ _ = moduleError "rsingleRight" "malformed tree"
 
-ldoubleLeft :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+ldoubleLeft
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 ldoubleLeft k1 p1 v1 t1 m1 (LLoser _ (E k2 p2 v2) t2 m2 t3) =
     lsingleLeft k1 p1 v1 t1 m1 (lsingleRight k2 p2 v2 t2 m2 t3)
 ldoubleLeft k1 p1 v1 t1 m1 (RLoser _ (E k2 p2 v2) t2 m2 t3) =
     lsingleLeft k1 p1 v1 t1 m1 (rsingleRight k2 p2 v2 t2 m2 t3)
 ldoubleLeft _ _ _ _ _ _ = moduleError "ldoubleLeft" "malformed tree"
 
-ldoubleRight :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+ldoubleRight
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 ldoubleRight k1 p1 v1 (LLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
     lsingleRight k1 p1 v1 (lsingleLeft k2 p2 v2 t1 m1 t2) m2 t3
 ldoubleRight k1 p1 v1 (RLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
     lsingleRight k1 p1 v1 (rsingleLeft k2 p2 v2 t1 m1 t2) m2 t3
 ldoubleRight _ _ _ _ _ _ = moduleError "ldoubleRight" "malformed tree"
 
-rdoubleLeft :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+rdoubleLeft
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rdoubleLeft k1 p1 v1 t1 m1 (LLoser _ (E k2 p2 v2) t2 m2 t3) =
     rsingleLeft k1 p1 v1 t1 m1 (lsingleRight k2 p2 v2 t2 m2 t3)
 rdoubleLeft k1 p1 v1 t1 m1 (RLoser _ (E k2 p2 v2) t2 m2 t3) =
     rsingleLeft k1 p1 v1 t1 m1 (rsingleRight k2 p2 v2 t2 m2 t3)
 rdoubleLeft _ _ _ _ _ _ = moduleError "rdoubleLeft" "malformed tree"
 
-rdoubleRight :: (Ord p) => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+rdoubleRight
+    :: (Ord k, Ord p)
+    => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rdoubleRight k1 p1 v1 (LLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
     rsingleRight k1 p1 v1 (lsingleLeft k2 p2 v2 t1 m1 t2) m2 t3
 rdoubleRight k1 p1 v1 (RLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
@@ -447,9 +478,16 @@ play :: (Ord p, Ord k) => PSQ k p v -> PSQ k p v -> PSQ k p v
 Void `play` t' = t'
 t `play` Void  = t
 Winner e@(E k p v) t m `play` Winner e'@(E k' p' v') t' m'
-    | p < p' || (p == p' && k <= k') = Winner e (rbalance k' p' v' t m t') m'
-    | otherwise                      = Winner e' (lbalance k p v t m t') m'
+    | (p, k) `beats` (p', k') = Winner e (rbalance k' p' v' t m t') m'
+    | otherwise               = Winner e' (lbalance k p v t m t') m'
 {-# INLINE play #-}
+
+-- | When priorities are equal, the tree with the lowest key wins. This is
+-- important to have a deterministic `==`, which requires on `minView` pulling
+-- out the elements in the right order.
+beats :: (Ord p, Ord k) => (p, k) -> (p, k) -> Bool
+beats (p, !k) (p', !k') = p < p' || (p == p' && k <= k')
+{-# INLINE beats #-}
 
 data TourView k p v = Null
                 | Single {-# UNPACK #-} !(Elem k p v)
