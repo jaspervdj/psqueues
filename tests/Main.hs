@@ -8,6 +8,7 @@ import qualified Data.IntPSQ.Tests
 import qualified Data.PSQ             as PSQ
 import qualified Data.PSQ.Class.Tests
 import qualified Data.PSQ.Tests
+import           Data.PSQ.Tests.Util
 
 main :: IO ()
 main = defaultMain
@@ -16,9 +17,12 @@ main = defaultMain
     , testGroup "Data.PSQ.Tests"
         Data.PSQ.Tests.tests
     , testGroup "Data.PSQ.Class.Tests IntPSQ"  $ untag
-        (Data.PSQ.Class.Tests.tests :: Tagged IntPSQ.IntPSQ         [Test])
+        (Data.PSQ.Class.Tests.tests
+            :: Tagged IntPSQ.IntPSQ [Test])
     , testGroup "Data.PSQ.Class.Tests PSQ"     $ untag
-        (Data.PSQ.Class.Tests.tests :: Tagged (PSQ.PSQ Int)         [Test])
+        (Data.PSQ.Class.Tests.tests
+            :: Tagged (PSQ.PSQ Int) [Test])
     , testGroup "Data.PSQ.Class.Tests HashPSQ" $ untag
-        (Data.PSQ.Class.Tests.tests :: Tagged (HashPSQ.HashPSQ Int) [Test])
+        (Data.PSQ.Class.Tests.tests
+            :: Tagged (HashPSQ.HashPSQ LousyHashedInt) [Test])
     ]

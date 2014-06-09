@@ -30,7 +30,7 @@ import           Data.PSQ.Tests.Util
 --------------------------------------------------------------------------------
 
 tests
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Foldable (psq Int),
@@ -79,14 +79,14 @@ tests = Tagged
 --------------------------------------------------------------------------------
 
 test_rnf
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     NFData (psq Int Char))
     => Tagged psq Assertion
 test_rnf = Tagged $
     rnf (empty :: psq Int Char) `seq` return ()
 
 test_equality
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Eq (psq Int Char))
     => Tagged psq Assertion
 test_equality = Tagged $ do
@@ -98,14 +98,14 @@ test_equality = Tagged $ do
     s = singleton 3 100 'a' :: psq Int Char
 
 test_size
-    :: forall psq. (PSQ psq, Key psq ~ Int)
+    :: forall psq. (PSQ psq, TestKey (Key psq))
     => Tagged psq Assertion
 test_size = Tagged $ do
     null (empty               :: psq Int Char) @?= True
     null (singleton 1 100 'a' :: psq Int Char) @?= False
 
 test_size2
-    :: forall psq. (PSQ psq, Key psq ~ Int)
+    :: forall psq. (PSQ psq, TestKey (Key psq))
     => Tagged psq Assertion
 test_size2 = Tagged $ do
     size (empty               :: psq Int ())   @?= 0
@@ -114,14 +114,14 @@ test_size2 = Tagged $ do
                               :: psq Int Char) @?= 3
 
 test_empty
-    :: forall psq. (PSQ psq, Key psq ~ Int)
+    :: forall psq. (PSQ psq, TestKey (Key psq))
     => Tagged psq Assertion
 test_empty = Tagged $ do
     toList (empty :: psq Int ())   @?= []
     size   (empty :: psq Char Int) @?= 0
 
 test_lookup
-    :: forall psq. (PSQ psq, Key psq ~ Int)
+    :: forall psq. (PSQ psq, TestKey (Key psq))
     => Tagged psq Assertion
 test_lookup = Tagged $ do
     employeeCurrency 1 @?= Just 1
@@ -133,12 +133,12 @@ test_lookup = Tagged $ do
 
     employeeCurrency :: Int -> Maybe Int
     employeeCurrency name = do
-        dept    <- snd <$> lookup name employeeDept
-        country <- snd <$> lookup dept deptCountry
-        snd <$> lookup country countryCurrency
+        dept    <- snd <$> lookup (toTestKey name) employeeDept
+        country <- snd <$> lookup (toTestKey dept) deptCountry
+        snd <$> lookup (toTestKey country) countryCurrency
 
 test_findMin
-    :: forall psq. (PSQ psq, Key psq ~ Int)
+    :: forall psq. (PSQ psq, TestKey (Key psq))
     => Tagged psq Assertion
 test_findMin = Tagged $ do
     findMin (empty :: psq Int Char) @?= Nothing
@@ -146,7 +146,7 @@ test_findMin = Tagged $ do
         Just (3, 100, 'b')
 
 test_alter
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq Assertion
 test_alter = Tagged $ do
@@ -160,7 +160,7 @@ test_alter = Tagged $ do
     f (Just _)          = ("Cats",  Just (101, 'b'))
 
 test_alterMin
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq Assertion
 test_alterMin = Tagged $ do
@@ -169,7 +169,7 @@ test_alterMin = Tagged $ do
         ((), empty)
 
 test_fromList
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq Assertion
 test_fromList = Tagged $
@@ -177,7 +177,7 @@ test_fromList = Tagged $
     in (fromList ls :: psq Int Char) @?= fromList (reverse ls)
 
 test_foldr
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Foldable (psq Int))
     => Tagged psq Assertion
 test_foldr = Tagged $
@@ -190,7 +190,7 @@ test_foldr = Tagged $
 
 -- | For 100% test coverage...
 prop_show
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Show (psq Int Char))
     => Tagged psq Property
 prop_show = Tagged $
@@ -199,7 +199,7 @@ prop_show = Tagged $
 
 -- | For 100% test coverage...
 prop_rnf
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     NFData (psq Int Char), Show (psq Int Char))
     => Tagged psq Property
 prop_rnf = Tagged $
@@ -207,60 +207,60 @@ prop_rnf = Tagged $
         rnf (t :: psq Int Char) `seq` True
 
 prop_singleton
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Eq (psq Int Char))
     => Tagged psq Property
 prop_singleton = Tagged $
-    forAll arbitraryInt $ \k ->
-    forAll arbitraryInt $ \p ->
-    forAll arbitrary    $ \x ->
+    forAll arbitraryTestKey $ \k ->
+    forAll arbitraryInt     $ \p ->
+    forAll arbitrary        $ \x ->
         insert k p x empty == (singleton k p x :: psq Int Char)
 
 prop_memberLookup
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_memberLookup = Tagged $ \t ->
-    forAll arbitraryInt $ \k ->
+    forAll arbitraryTestKey $ \k ->
         case lookup k (t :: psq Int Char) of
             Nothing -> not (member k t)
             Just _  -> member k t
 
 prop_insertLookup
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_insertLookup = Tagged $ \t ->
-    forAll arbitraryInt $ \k ->
-    forAll arbitraryInt $ \p ->
-    forAll arbitrary    $ \c ->
+    forAll arbitraryTestKey $ \k ->
+    forAll arbitraryInt     $ \p ->
+    forAll arbitrary        $ \c ->
         lookup k (insert k p c (t :: psq Int Char)) == Just (p, c)
 
 prop_insertDelete
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_insertDelete = Tagged $ \t ->
-    forAll arbitraryInt $ \k ->
-    forAll arbitraryInt $ \p ->
-    forAll arbitrary    $ \c ->
+    forAll arbitraryTestKey $ \k ->
+    forAll arbitraryInt     $ \p ->
+    forAll arbitrary        $ \c ->
         (lookup k t == Nothing) ==>
             (delete k (insert k p c t) == (t :: psq Int Char))
 
 prop_insertDeleteView
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_insertDeleteView = Tagged $ \t ->
-    forAll arbitraryInt $ \k ->
-    forAll arbitraryInt $ \p ->
-    forAll arbitrary    $ \c ->
+    forAll arbitraryTestKey $ \k ->
+    forAll arbitraryInt     $ \p ->
+    forAll arbitrary        $ \c ->
         case deleteView k (insert k p c (t :: psq Int Char)) of
             Nothing           -> False
             Just (p', c', t')
@@ -268,20 +268,21 @@ prop_insertDeleteView = Tagged $ \t ->
                 | otherwise  -> p' == p && c' == c && t' == t
 
 prop_deleteNonMember
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_deleteNonMember = Tagged $ \t ->
-    forAll arbitraryInt $ \k ->
+    forAll arbitraryTestKey $ \k ->
         (lookup k t == Nothing) ==> (delete k t == (t :: psq Int Char))
 
 prop_alter
-    :: forall psq. (PSQ psq, Key psq ~ Int, Show (psq Int Char))
+    :: forall psq. (PSQ psq, TestKey (Key psq),
+                    Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_alter = Tagged $ \t ->
-    forAll arbitraryInt $ \k ->
+    forAll arbitraryTestKey $ \k ->
         let ((), t') = alter f k t :: ((), psq Int Char)
         in case lookup k t of
             Just _  -> (size t - 1) == size t' && lookup k t' == Nothing
@@ -291,7 +292,7 @@ prop_alter = Tagged $ \t ->
     f (Just _)  = ((), Nothing)
 
 prop_alterMin
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Show (psq Int Char))
@@ -304,18 +305,19 @@ prop_alterMin = Tagged $ \t ->
             findMin t == Just (k, p, v) &&
             member k t &&
             (case () of
-                _ | isAlphaNum v -> lookup k t' == Just (k, v)
-                  | isPrint v    -> lookup (ord v) t' == Just (ord v, v)
+                _ | isAlphaNum v -> lookup k t' == Just (fromTestKey k, v)
+                  | isPrint v    -> lookup (toTestKey $ ord v) t' ==
+                                        Just (ord v, v)
                   | otherwise    -> not (member k t'))
   where
-    f Nothing       = (Nothing, Just (3, 100, 'a'))
+    f Nothing          = (Nothing, Just (3, 100, 'a'))
     f (Just (k, p, v))
-        | isAlphaNum v = (Just (k, p, v), Just (k, k, v))
-        | isPrint v    = (Just (k, p, v), Just (ord v, ord v, v))
+        | isAlphaNum v = (Just (k, p, v), Just (k, fromTestKey k, v))
+        | isPrint v    = (Just (k, p, v), Just (toTestKey (ord v), ord v, v))
         | otherwise    = (Just (k, p, v), Nothing)
 
 prop_toList
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Show (psq Int Char))
@@ -324,7 +326,7 @@ prop_toList = Tagged $ \t ->
     (t :: psq Int Char) == fromList (toList t)
 
 prop_keys
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Bool)
@@ -333,31 +335,30 @@ prop_keys = Tagged $ \t ->
         List.sort [k | (k, _, _) <- toList t]
 
 prop_deleteView
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_deleteView = Tagged $ \t ->
-    forAll arbitraryInt $ \k ->
+    forAll arbitraryTestKey $ \k ->
         case deleteView k (t :: psq Int Char) of
             Nothing         -> not (member k t)
             Just (p, v, t') -> lookup k t == Just (p, v) && not (member k t')
 
 prop_map
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Bool)
 prop_map = Tagged $ \t ->
     map f (t :: psq Int Char) ==
-        fromList (List.map (\(p, v, x) -> (p, v, f p v x)) (toList t))
+        fromList (List.map (\(k, p, x) -> (k, p, f k p x)) (toList t))
   where
-    f :: Int -> Int -> Char -> Char
-    f p v x = if p > v then x else 'a'
+    f k p x = if fromEnum k > p then x else 'a'
 
 prop_fmap
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Functor (psq Int),
@@ -368,7 +369,7 @@ prop_fmap = Tagged $ \t ->
         fromList (List.map (\(p, v, x) -> (p, v, toLower x)) (toList t))
 
 prop_fold'
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Bool)
@@ -377,11 +378,11 @@ prop_fold' = Tagged $ \t ->
         List.foldl' (\acc (k, p, x) -> f k p x acc) acc0 (toList t)
   where
     -- Needs to be commutative
-    f k p x (kpSum, xs) = (kpSum + k + p, List.sort (x : xs))
+    f k p x (kpSum, xs) = (kpSum + fromEnum k + p, List.sort (x : xs))
     acc0                = (0, [])
 
 prop_foldr
-    :: forall psq. (PSQ psq, Key psq ~ Int,
+    :: forall psq. (PSQ psq,
                     Arbitrary (psq Int Char),
                     Foldable (psq Int),
                     Show (psq Int Char))

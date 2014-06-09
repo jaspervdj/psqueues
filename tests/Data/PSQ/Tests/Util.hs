@@ -1,17 +1,48 @@
 -- | Various test utilities
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Data.PSQ.Tests.Util
-    ( arbitraryInt
+    ( LousyHashedInt (..)
+    , TestKey (..)
+    , arbitraryInt
+    , arbitraryTestKey
     , coverShowInstance
     , assertErrorCall
     ) where
 
-import           Control.Exception (ErrorCall (..), fromException, handle)
-import           Test.HUnit        (Assertion, assertFailure)
-import           Test.QuickCheck   (Gen, arbitrary)
+import           Control.Applicative ((<$>))
+import           Data.Hashable       (Hashable (..))
+import           Control.Exception   (ErrorCall (..), fromException, handle)
+import           Test.HUnit          (Assertion, assertFailure)
+import           Test.QuickCheck     (Arbitrary (..), Gen, arbitrary)
+import           Control.DeepSeq     (NFData)
 
--- | Useful because we don't have to fix the type.
+-- | A type we used a key in the PSQs in the tests. It intentionally has a
+-- really bad 'Hashable' instance so we get lots of collisions.
+newtype LousyHashedInt = LousyHashedInt Int
+    deriving (Enum, Eq, Integral, NFData, Num, Ord, Real, Show)
+
+instance Arbitrary LousyHashedInt where
+    arbitrary = LousyHashedInt <$> arbitraryInt
+
+instance Hashable LousyHashedInt where
+    hashWithSalt salt (LousyHashedInt x) = hashWithSalt salt x `mod` 100
+
+class (Arbitrary a, Enum a, Eq a, Num a, Ord a, Show a) => TestKey a where
+    toTestKey :: Int -> a
+    toTestKey = toEnum
+
+    fromTestKey :: a -> Int
+    fromTestKey = fromEnum
+
+instance TestKey LousyHashedInt where
+
+instance TestKey Int where
+
 arbitraryInt :: Gen Int
 arbitraryInt = arbitrary
+
+arbitraryTestKey :: TestKey a => Gen a
+arbitraryTestKey = toEnum <$> arbitraryInt
 
 -- | This is a bit ridiculous. We need to call all 'Show' methods to get 100%
 -- coverage.
