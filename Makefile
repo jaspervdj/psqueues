@@ -8,10 +8,10 @@ coverage:
 	hpc markup --destdir=.hpc \
 	    --exclude=Data.HashPSQ.Tests    \
 	    --exclude=Data.IntPSQ.Tests     \
+	    --exclude=Data.OrdPSQ.Tests     \
 	    --exclude=Data.PSQ.Class        \
 	    --exclude=Data.PSQ.Class.Gen    \
 	    --exclude=Data.PSQ.Class.Tests  \
-	    --exclude=Data.PSQ.Tests        \
 	    --exclude=Data.PSQ.Tests.Util   \
 	    --exclude=Main                  \
 	    Main

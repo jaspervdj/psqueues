@@ -1,9 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy         #-}
 {-# LANGUAGE BangPatterns        #-}
-module Data.PSQ
+module Data.OrdPSQ
     ( -- * Type
-      PSQ
+      OrdPSQ
 
       -- * Query
     , null
@@ -41,4 +41,4 @@ module Data.PSQ
 
 import           Prelude hiding (map, lookup, null, foldr)
 
-import           Data.PSQ.Internal
+import           Data.OrdPSQ.Internal

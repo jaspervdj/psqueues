@@ -1,4 +1,4 @@
-module Data.PSQ.Tests
+module Data.OrdPSQ.Tests
     ( tests
     ) where
 
@@ -8,7 +8,7 @@ import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
 import           Test.HUnit                           (Assertion, assert)
 
-import           Data.PSQ.Internal
+import           Data.OrdPSQ.Internal
 import           Data.PSQ.Class.Gen                   ()
 import           Data.PSQ.Tests.Util
 
@@ -60,7 +60,7 @@ test_invalidLTree :: Assertion
 test_invalidLTree = do
     assertModuleError "left"   "empty" (left   (Start :: LTree Int Int Char))
     assertModuleError "right"  "empty" (right  (Start :: LTree Int Int Char))
-    assertModuleError "maxKey" "empty" (maxKey (empty :: PSQ Int Int Char))
+    assertModuleError "maxKey" "empty" (maxKey (empty :: OrdPSQ Int Int Char))
 
 test_balanceErrors :: Assertion
 test_balanceErrors = do
@@ -81,7 +81,7 @@ test_balanceErrors = do
 -- QuickCheck properties
 --------------------------------------------------------------------------------
 
-prop_toAscList :: PSQ Int Int Char -> Bool
+prop_toAscList :: OrdPSQ Int Int Char -> Bool
 prop_toAscList t = isUniqueSorted [k | (k, _, _) <- toAscList t]
   where
     isUniqueSorted (x : y : zs) = x < y && isUniqueSorted (y : zs)

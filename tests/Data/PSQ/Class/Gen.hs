@@ -16,7 +16,7 @@ import           Control.Monad       (foldM, replicateM)
 import           Data.Hashable       (Hashable)
 
 import           Data.PSQ.Class      (PSQ (..))
-import qualified Data.PSQ            as PSQ
+import qualified Data.OrdPSQ         as OrdPSQ
 import qualified Data.IntPSQ         as IntPSQ
 import qualified Data.HashPSQ        as HashPSQ
 
@@ -60,7 +60,7 @@ shrinkPSQ
 shrinkPSQ t = [delete k t | k <- keys t]
 
 instance forall k p v. (Arbitrary k, Arbitrary p, Arbitrary v, Ord k, Ord p) =>
-            Arbitrary (PSQ.PSQ k p v) where
+            Arbitrary (OrdPSQ.OrdPSQ k p v) where
     arbitrary = arbitraryPSQ
     shrink    = shrinkPSQ
 

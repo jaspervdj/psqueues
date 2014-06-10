@@ -15,12 +15,12 @@ description:
     .
     - `IntPSQ`s are the most efficient structure, but require the keys to be
       of type `Int`.
-    - `PSQ`s just require the key to implement the `Ord` typeclass, but are
+    - `OrdPSQ`s just require the key to implement the `Ord` typeclass, but are
       the slowest structures of the three.
     - `HashPSQ`s require the key to implement both the `Ord` and `Hashable`
       typeclasses. They use an `IntMap` over the hash of the keys combined
-      with a `PSQ` to manage collisions. Except for keys with a very fast
-      comparison and small smaps `HashPSQ`s are faster than `PSQ`s.
+      with a `OrdPSQ` to manage collisions. Except for keys with a very fast
+      comparison and small smaps `HashPSQ`s are faster than `OrdPSQ`s.
     .
     Typical use cases for priority search queues are LRU caches, where the
     priority is the time of the last access, and timeout management, where the
@@ -56,8 +56,8 @@ Library
     hs-source-dirs: src
 
     exposed-modules:
-        Data.PSQ
-        Data.PSQ.Internal
+        Data.OrdPSQ
+        Data.OrdPSQ.Internal
         Data.IntPSQ
         Data.IntPSQ.Internal
         Data.WIntPSQ
@@ -93,7 +93,9 @@ Test-suite psqueues-tests
         Data.PSQ.Class
         Data.PSQ.Class.Gen
         Data.PSQ.Class.Tests
+        Data.HashPSQ.Tests
         Data.IntPSQ.Tests
+        Data.OrdPSQ.Tests
 
     build-depends:
         HUnit                      >= 1.2 && < 1.3,

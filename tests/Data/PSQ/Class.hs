@@ -1,5 +1,5 @@
 -- | Generic class with properties and methods that are available for all
--- different implementations ('IntPSQ', 'PSQ' and 'HashPSQ').
+-- different implementations ('IntPSQ', 'OrdPSQ' and 'HashPSQ').
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE Rank2Types          #-}
@@ -12,7 +12,7 @@ import           Data.Hashable (Hashable)
 
 import qualified Data.IntPSQ   as IntPSQ
 import qualified Data.HashPSQ  as HashPSQ
-import qualified Data.PSQ      as PSQ
+import qualified Data.OrdPSQ   as OrdPSQ
 
 class PSQ (psq :: * -> * -> *) where
     type Key psq :: *
@@ -92,27 +92,27 @@ instance PSQ IntPSQ.IntPSQ where
     map        = IntPSQ.map
     fold'      = IntPSQ.fold'
 
-instance forall k. Ord k => PSQ (PSQ.PSQ k) where
-    type Key (PSQ.PSQ k) = k
+instance forall k. Ord k => PSQ (OrdPSQ.OrdPSQ k) where
+    type Key (OrdPSQ.OrdPSQ k) = k
 
-    null       = PSQ.null
-    size       = PSQ.size
-    member     = PSQ.member
-    lookup     = PSQ.lookup
-    findMin    = PSQ.findMin
-    empty      = PSQ.empty
-    singleton  = PSQ.singleton
-    insert     = PSQ.insert
-    delete     = PSQ.delete
-    alter      = PSQ.alter
-    alterMin   = PSQ.alterMin
-    fromList   = PSQ.fromList
-    toList     = PSQ.toList
-    keys       = PSQ.keys
-    deleteView = PSQ.deleteView
-    minView    = PSQ.minView
-    map        = PSQ.map
-    fold'      = PSQ.fold'
+    null       = OrdPSQ.null
+    size       = OrdPSQ.size
+    member     = OrdPSQ.member
+    lookup     = OrdPSQ.lookup
+    findMin    = OrdPSQ.findMin
+    empty      = OrdPSQ.empty
+    singleton  = OrdPSQ.singleton
+    insert     = OrdPSQ.insert
+    delete     = OrdPSQ.delete
+    alter      = OrdPSQ.alter
+    alterMin   = OrdPSQ.alterMin
+    fromList   = OrdPSQ.fromList
+    toList     = OrdPSQ.toList
+    keys       = OrdPSQ.keys
+    deleteView = OrdPSQ.deleteView
+    minView    = OrdPSQ.minView
+    map        = OrdPSQ.map
+    fold'      = OrdPSQ.fold'
 
 
 instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where

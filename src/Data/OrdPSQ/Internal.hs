@@ -1,9 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy         #-}
 {-# LANGUAGE BangPatterns        #-}
-module Data.PSQ.Internal
+module Data.OrdPSQ.Internal
     ( -- * Type
-      PSQ (..)
+      OrdPSQ (..)
     , LTree (..)
     , Elem (..)
 
@@ -78,18 +78,18 @@ unElem (E k p v) = (k, p, v)
 ------------------------------------------------------------------------
 -- | A mapping from keys @k@ to priorites @p@.
 
-data PSQ k p v
+data OrdPSQ k p v
     = Void
     | Winner !(Elem k p v)
              !(LTree k p v)
              !k
     deriving (Show)
 
-instance (NFData k, NFData p, NFData v) => NFData (PSQ k p v) where
+instance (NFData k, NFData p, NFData v) => NFData (OrdPSQ k p v) where
     rnf Void           = ()
     rnf (Winner e t m) = rnf e `seq` rnf m `seq` rnf t
 
-instance (Ord k, Ord p, Eq v) => Eq (PSQ k p v) where
+instance (Ord k, Ord p, Eq v) => Eq (OrdPSQ k p v) where
     x == y = case (minView x, minView y) of
         (Nothing              , Nothing                ) -> True
         (Just (xk, xp, xv, x'), (Just (yk, yp, yv, y'))) ->
@@ -97,30 +97,30 @@ instance (Ord k, Ord p, Eq v) => Eq (PSQ k p v) where
         (Just _               , Nothing                ) -> False
         (Nothing              , Just _                 ) -> False
 
-instance Foldable (PSQ k p) where
+instance Foldable (OrdPSQ k p) where
     foldr _ z Void                   = z
     foldr f z (Winner (E _ _ x) l _) = f x (foldr f z l)
 
-instance Functor (PSQ k p) where
+instance Functor (OrdPSQ k p) where
     fmap f = map (\_ _ v -> f v)
 
 -- | /O(1)/ True if the queue is empty.
-null :: PSQ k p v -> Bool
+null :: OrdPSQ k p v -> Bool
 null Void           = True
 null (Winner _ _ _) = False
 
 -- | /O(1)/ The number of elements in a queue.
-size :: (Ord p) => PSQ k p v -> Int
+size :: (Ord p) => OrdPSQ k p v -> Int
 size Void            = 0
 size (Winner _ lt _) = 1 + size' lt
 
 -- | /O(log n)/ Check if a key is present in the the queue.
-member :: Ord k => k -> PSQ k p v -> Bool
+member :: Ord k => k -> OrdPSQ k p v -> Bool
 member k = isJust . lookup k
 
 -- | /O(log n)/ The priority and value of a given key, or Nothing if
 -- the key is not bound.
-lookup :: (Ord k) => k -> PSQ k p v -> Maybe (p, v)
+lookup :: (Ord k) => k -> OrdPSQ k p v -> Maybe (p, v)
 lookup k q = case tourView q of
     Null -> Nothing
     Single (E k' p v)
@@ -133,11 +133,11 @@ lookup k q = case tourView q of
 ------------------------------------------------------------------------
 -- Construction
 
-empty :: PSQ k p v
+empty :: OrdPSQ k p v
 empty = Void
 
 -- | /O(1)/ Build a queue with one element.
-singleton :: k -> p -> v -> PSQ k p v
+singleton :: k -> p -> v -> OrdPSQ k p v
 singleton k p v = Winner (E k p v) Start k
 
 ------------------------------------------------------------------------
@@ -146,7 +146,7 @@ singleton k p v = Winner (E k p v) Start k
 -- | /O(log n)/ Insert a new key, priority and value in the queue.  If
 -- the key is already present in the queue, the associated priority
 -- and value are replaced with the supplied priority and value.
-insert :: (Ord k, Ord p) => k -> p -> v -> PSQ k p v -> PSQ k p v
+insert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
 insert k p v q = case q of
     Void -> singleton k p v
     Winner (E k' p' v') Start _ -> case compare k k' of
@@ -161,7 +161,7 @@ insert k p v q = case q of
         | otherwise -> (Winner e' tl m) `play` insert k p v (Winner e tr m')
 
 {-# INLINABLE deleteView #-}
-deleteView :: (Ord k, Ord p) => k -> PSQ k p v -> Maybe (p, v, PSQ k p v)
+deleteView :: (Ord k, Ord p) => k -> OrdPSQ k p v -> Maybe (p, v, OrdPSQ k p v)
 deleteView k psq = case psq of
     Void            -> Nothing
     Winner (E k' p v) Start _
@@ -181,7 +181,7 @@ deleteView k psq = case psq of
 -- | /O(log n)/ Delete a key and its priority and value from the
 -- queue.  When the key is not a member of the queue, the original
 -- queue is returned.
-delete :: (Ord k, Ord p) => k -> PSQ k p v -> PSQ k p v
+delete :: (Ord k, Ord p) => k -> OrdPSQ k p v -> OrdPSQ k p v
 delete k q = case q of
     Void -> empty
     Winner (E k' p v) Start _
@@ -198,8 +198,8 @@ delete k q = case q of
 alter :: (Ord k, Ord p)
       => (Maybe (p, v) -> (b, Maybe (p, v)))
       -> k
-      -> PSQ k p v
-      -> (b, PSQ k p v)
+      -> OrdPSQ k p v
+      -> (b, OrdPSQ k p v)
 alter f k psq0 =
     let (psq1, mbPV) = case deleteView k psq0 of
                          Nothing          -> (psq0, Nothing)
@@ -212,8 +212,8 @@ alter f k psq0 =
 {-# INLINE alterMin #-}
 alterMin :: (Ord k, Ord p)
          => (Maybe (k, p, v) -> (b, Maybe (k, p, v)))
-         -> PSQ k p v
-         -> (b, PSQ k p v)
+         -> OrdPSQ k p v
+         -> (b, OrdPSQ k p v)
 alterMin f psq0 =
     case minView psq0 of
         Nothing -> let (!b, mbKPV) = f Nothing
@@ -230,23 +230,23 @@ alterMin f psq0 =
 -- | /O(n*log n)/ Build a queue from a list of key/priority/value
 -- tuples.  If the list contains more than one priority and value for
 -- the same key, the last priority and value for the key is retained.
-fromList :: (Ord k, Ord p) => [(k, p, v)] -> PSQ k p v
+fromList :: (Ord k, Ord p) => [(k, p, v)] -> OrdPSQ k p v
 fromList = foldr (\(k, p, v) q -> insert k p v q) empty
 
 -- | /O(n)/ Convert to a list of key/priority/value tuples.
-toList :: PSQ k p v -> [(k, p, v)]
+toList :: OrdPSQ k p v -> [(k, p, v)]
 toList = toAscList
 
 -- | /O(n)/ Obtain the list of present keys in the queue.
-keys :: PSQ k p v -> [k]
+keys :: OrdPSQ k p v -> [k]
 keys t = [k | (k, _, _) <- toList t]
 -- TODO (jaspervdj): There must be faster implementations.
 
 -- | /O(n)/ Convert to an ascending list.
-toAscList :: PSQ k p v -> [(k, p, v)]
+toAscList :: OrdPSQ k p v -> [(k, p, v)]
 toAscList q  = seqToList (toAscLists q)
 
-toAscLists :: PSQ k p v -> Sequ (k, p, v)
+toAscLists :: OrdPSQ k p v -> Sequ (k, p, v)
 toAscLists q = case tourView q of
     Null             -> emptySequ
     Single (E k p v) -> singleSequ (k, p, v)
@@ -257,13 +257,13 @@ toAscLists q = case tourView q of
 -- Traversals
 
 {-# INLINABLE map #-}
-map :: forall k p v w. (k -> p -> v -> w) -> PSQ k p v -> PSQ k p w
+map :: forall k p v w. (k -> p -> v -> w) -> OrdPSQ k p v -> OrdPSQ k p w
 map f = goPSQ
   where
     goElem :: Elem k p v -> Elem k p w
     goElem (E k p x) = E k p (f k p x)
 
-    goPSQ :: PSQ k p v -> PSQ k p w
+    goPSQ :: OrdPSQ k p v -> OrdPSQ k p w
     goPSQ Void           = Void
     goPSQ (Winner e l k) = Winner (goElem e) (goLTree l) k
 
@@ -274,7 +274,7 @@ map f = goPSQ
 
 
 {-# INLINE fold' #-}
-fold' :: (k -> p -> v -> a -> a) -> a -> PSQ k p v -> a
+fold' :: (k -> p -> v -> a -> a) -> a -> OrdPSQ k p v -> a
 fold' f =
     \acc0 psq -> case psq of
                    Void                   -> acc0
@@ -291,18 +291,18 @@ fold' f =
 -- Min
 
 -- | /O(1)/ The element with the lowest priority.
-findMin :: PSQ k p v -> Maybe (k, p, v)
+findMin :: OrdPSQ k p v -> Maybe (k, p, v)
 findMin Void           = Nothing
 findMin (Winner e _ _) = Just (unElem e)
 
 -- | /O(log n)/ Retrieve the binding with the least priority, and the
 -- rest of the queue stripped of that binding.
-minView :: (Ord k, Ord p) => PSQ k p v -> Maybe (k, p, v, PSQ k p v)
+minView :: (Ord k, Ord p) => OrdPSQ k p v -> Maybe (k, p, v, OrdPSQ k p v)
 minView Void           = Nothing
 minView (Winner e t m) = let (k,p,v) = unElem e in
                            Just (k, p, v, secondBest t m)
 
-secondBest :: (Ord k, Ord p) => LTree k p v -> k -> PSQ k p v
+secondBest :: (Ord k, Ord p) => LTree k p v -> k -> OrdPSQ k p v
 secondBest Start _                 = Void
 secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
 secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
@@ -352,7 +352,7 @@ right Start                = moduleError "right" "empty loser tree"
 right (LLoser _ _ _  _ tr) = tr
 right (RLoser _ _ _  _ tr) = tr
 
-maxKey :: PSQ k p v -> k
+maxKey :: OrdPSQ k p v -> k
 maxKey Void           = moduleError "maxKey" "empty queue"
 maxKey (Winner _ _ m) = m
 
@@ -487,7 +487,7 @@ rdoubleRight _ _ _ _ _ _ = moduleError "rdoubleRight" "malformed tree"
 -- | Take two pennants and returns a new pennant that is the union of
 -- the two with the precondition that the keys in the ﬁrst tree are
 -- strictly smaller than the keys in the second tree.
-play :: (Ord p, Ord k) => PSQ k p v -> PSQ k p v -> PSQ k p v
+play :: (Ord p, Ord k) => OrdPSQ k p v -> OrdPSQ k p v -> OrdPSQ k p v
 Void `play` t' = t'
 t `play` Void  = t
 Winner e@(E k p v) t m `play` Winner e'@(E k' p' v') t' m'
@@ -504,9 +504,9 @@ beats (p, !k) (p', !k') = p < p' || (p == p' && k <= k')
 
 data TourView k p v = Null
                 | Single {-# UNPACK #-} !(Elem k p v)
-                | (PSQ k p v) `Play` (PSQ k p v)
+                | (OrdPSQ k p v) `Play` (OrdPSQ k p v)
 
-tourView :: PSQ k p v -> TourView k p v
+tourView :: OrdPSQ k p v -> TourView k p v
 tourView Void               = Null
 tourView (Winner e Start _) = Single e
 tourView (Winner e (RLoser _ e' tl m tr) m') =
@@ -518,7 +518,7 @@ tourView (Winner e (LLoser _ e' tl m tr) m') =
 -- Utility functions
 
 moduleError :: String -> String -> a
-moduleError fun msg = error ("Data.PSQ.Internal." ++ fun ++ ':' : ' ' : msg)
+moduleError fun msg = error ("Data.OrdPSQ.Internal." ++ fun ++ ':' : ' ' : msg)
 {-# NOINLINE moduleError #-}
 
 ------------------------------------------------------------------------

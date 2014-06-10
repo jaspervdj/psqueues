@@ -5,7 +5,7 @@ import           Criterion.Main
 
 import           BenchmarkTypes
 
-import qualified Data.PSQ.Benchmark                 as OrdPSQ
+import qualified Data.OrdPSQ.Benchmark              as OrdPSQ
 import qualified Data.IntPSQ.Benchmark              as IntPSQ
 import qualified Data.WIntPSQ.Benchmark             as WIntPSQ
 import qualified Data.HashPSQ.Benchmark             as HashPSQ

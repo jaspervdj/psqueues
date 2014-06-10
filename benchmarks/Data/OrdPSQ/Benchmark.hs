@@ -1,11 +1,11 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Data.PSQ.Benchmark
+module Data.OrdPSQ.Benchmark
     ( benchmark
     ) where
 
 import           Data.List (foldl')
-import qualified Data.PSQ as PSQ
+import qualified Data.OrdPSQ as OrdPSQ
 import           Criterion.Main
 import           Prelude hiding (lookup)
 import           BenchmarkTypes
@@ -15,7 +15,7 @@ benchmark name getElem benchmarkSize = BenchmarkSet
     { bGroupName        = name
     , bMinView          = whnf minView' initialPSQ
     , bLookup           = whnf (lookup' keys) initialPSQ
-    , bInsertEmpty      = nf (insert' firstElems) PSQ.empty
+    , bInsertEmpty      = nf (insert' firstElems) OrdPSQ.empty
     , bInsertNew        = nf (insert' secondElems) initialPSQ
     , bInsertDuplicates = nf (insert' firstElems) initialPSQ
     }
@@ -24,22 +24,22 @@ benchmark name getElem benchmarkSize = BenchmarkSet
     elems = map getElem [0..benchmarkSize]
     keys = map (\(x,_,_) -> x) elems
 
-    initialPSQ = PSQ.fromList firstElems :: PSQ.PSQ Int Int ()
+    initialPSQ = OrdPSQ.fromList firstElems :: OrdPSQ.OrdPSQ Int Int ()
 
 
 -- Get the sum of all priorities by getting all elements using 'lookup'
-lookup' :: [Int] -> PSQ.PSQ Int Int () -> Int
-lookup' xs m = foldl' (\n k -> maybe n fst (PSQ.lookup k m)) 0 xs
+lookup' :: [Int] -> OrdPSQ.OrdPSQ Int Int () -> Int
+lookup' xs m = foldl' (\n k -> maybe n fst (OrdPSQ.lookup k m)) 0 xs
 
 -- Insert a list of elements one-by-one into a PSQ
-insert' :: [BElem] -> PSQ.PSQ Int Int () -> PSQ.PSQ Int Int ()
-insert' xs m0 = foldl' (\m (k, p, v) -> PSQ.insert k p v m) m0 xs
+insert' :: [BElem] -> OrdPSQ.OrdPSQ Int Int () -> OrdPSQ.OrdPSQ Int Int ()
+insert' xs m0 = foldl' (\m (k, p, v) -> OrdPSQ.insert k p v m) m0 xs
 
 -- Get the sum of all priorities by sequentially popping all elements using
 -- 'minView'
-minView' :: PSQ.PSQ Int Int () -> Int
+minView' :: OrdPSQ.OrdPSQ Int Int () -> Int
 minView' = go 0
   where
-    go !n t = case PSQ.minView t of
+    go !n t = case OrdPSQ.minView t of
       Nothing            -> n
       Just (k, x, _, t') -> go (n + k + x) t'
