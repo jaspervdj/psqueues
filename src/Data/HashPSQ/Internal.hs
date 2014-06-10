@@ -141,7 +141,8 @@ singleton k p v = insert k p v empty
 insert :: (Ord k, Hashable k, Ord p)
        => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
 insert k p v (HashPSQ ipsq) =
-    HashPSQ (snd (IntPSQ.alter (\x -> ((), ins x)) (hash k) ipsq))
+    case IntPSQ.alter (\x -> ((), ins x)) (hash k) ipsq of
+        ((), ipsq') -> HashPSQ ipsq'
   where
     ins Nothing           = Just (p,  B k  v  (PSQ.empty             ))
     ins (Just (p', B k' v' os))

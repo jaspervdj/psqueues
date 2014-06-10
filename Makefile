@@ -6,13 +6,14 @@ coverage:
 	-./.hpc/Main
 	hpc report Main
 	hpc markup --destdir=.hpc \
-	    --exclude=Data.IntPSQ.Tests    \
-	    --exclude=Data.PSQ.Class       \
-	    --exclude=Data.PSQ.Class.Gen   \
-	    --exclude=Data.PSQ.Class.Tests \
-	    --exclude=Data.PSQ.Tests       \
-	    --exclude=Data.PSQ.Tests.Util  \
-	    --exclude=Main                 \
+	    --exclude=Data.HashPSQ.Tests    \
+	    --exclude=Data.IntPSQ.Tests     \
+	    --exclude=Data.PSQ.Class        \
+	    --exclude=Data.PSQ.Class.Gen    \
+	    --exclude=Data.PSQ.Class.Tests  \
+	    --exclude=Data.PSQ.Tests        \
+	    --exclude=Data.PSQ.Tests.Util   \
+	    --exclude=Main                  \
 	    Main
 	rm -f Main.tix
 	@echo "Now go check out .hpc/hpc_index.html"

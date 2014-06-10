@@ -41,6 +41,6 @@ minView' :: HashPSQ.HashPSQ Int Int () -> Int
 minView' = go 0
   where
     go !n t = case HashPSQ.minView t of
-      Nothing               -> n
-      Just ((k, x, _),  t') -> go (n + k + x) t'
+      Nothing             -> n
+      Just (k, x, _,  t') -> go (n + k + x) t'
 

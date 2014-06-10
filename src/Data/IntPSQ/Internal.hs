@@ -53,15 +53,6 @@ module Data.IntPSQ.Internal
     , hasDuplicateKeys
     , hasMinHeapProperty
     , validMask
-
-      -- * Further internal functions
-      -- TODO (jaspervdj): Delete
-    , insert2
-    , fromList2
-    , insert3
-    , fromList3
-    , link
-    , merge
     ) where
 
 import           Control.DeepSeq (NFData(rnf))
@@ -432,126 +423,6 @@ fold' f = go
         in acc3
 
 
-------------------------------------------------------------------------------
--- Alternative implementations
-------------------------------------------------------------------------------
-
--- | A supposedly more clever variant of insert that first looks up the key
--- and then re-establishes the min-heap property in a bottom-up fashion.
---
--- NOTE (SM): the performacne of this function is bad if there are many
--- priority decrements of keys that are deep down in the map. I think it might
--- even have a quadratic worst-case performance because of the repeated calls
--- to 'merge'.
-{-# INLINABLE insert2 #-}
-insert2 :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-insert2 k p x =
-    go
-  where
-    go t = case t of
-      Nil -> Tip k p x
-
-      Tip k' p' x'
-        | k == k'           -> Tip k p x
-        | (p, k) < (p', k') -> link k  p  x  k' t           Nil
-        | otherwise         -> link k' p' x' k  (Tip k p x) Nil
-
-      Bin k' p' x' m l r
-        | nomatch k k' m ->
-            if (p, k) < (p', k')
-              then link k  p  x  k' t           Nil
-              else link k' p' x' k  (Tip k p x) (merge m l r)
-
-        | k == k' ->
-            if p < p'
-              then Bin k p x m l r
-              else insertNew k p x (merge m l r)
-
-        | zero k m  -> binBubbleL k' p' x' m (go l) r
-        | otherwise -> binBubbleR k' p' x' m l      (go r)
-
--- | A smart constructor for a 'Bin' node whose left subtree's root could have
--- a smaller priority and therefore needs to be bubbled up.
-{-# INLINE binBubbleL #-}
-binBubbleL :: Ord p => Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
-binBubbleL k p x m l r = case l of
-    Nil                   -> Bin k  p  x  m Nil                   r
-    Tip lk lp lx
-      | (p, k) < (lp, lk) -> Bin k  p  x  m l                     r
-      | zero k m          -> Bin lk lp lx m (Tip k p x)           r
-      | otherwise         -> Bin lk lp lx m Nil                   (insertNew k p x r)
-
-    Bin lk lp lx lm ll lr
-      | (p, k) < (lp, lk) -> Bin k  p  x  m l                     r
-      | zero k m          -> Bin lk lp lx m (Bin k p  x lm ll lr) r
-      | otherwise         -> Bin lk lp lx m (merge lm ll lr)      (insertNew k p x r)
-
--- | A smart constructor for a 'Bin' node whose right subtree's root could
--- have a smaller priority and therefore needs to be bubbled up.
-{-# INLINE binBubbleR #-}
-binBubbleR :: Ord p => Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
-binBubbleR k p x m l r = case r of
-    Nil                   -> Bin k  p  x  m l                   Nil
-    Tip rk rp rx
-      | (p, k) < (rp, rk) -> Bin k  p  x  m l                   r
-      | zero k m          -> Bin rk rp rx m (insertNew k p x l) Nil
-      | otherwise         -> Bin rk rp rx m l                   (Tip k p x)
-
-    Bin rk rp rx rm rl rr
-      | (p, k) < (rp, rk) -> Bin k  p  x  m l                   r
-      | zero k m          -> Bin rk rp rx m (insertNew k p x l) (merge rm rl rr)
-                             -- NOTE that this case can be quite expensive, as
-                             -- we might end up merging the same case multiple
-                             -- times.
-      | otherwise         -> Bin rk rp rx m l                   (Bin k p x rm rl rr)
-
-{-# INLINABLE fromList2 #-}
-fromList2 :: Ord p => [(Key, p, v)] -> IntPSQ p v
-fromList2 = foldl' (\im (k, p, x) -> insert2 k p x im) empty
-
--- | A variant of insert that fuses the delete pass and the insertNew pass and
--- does not need to re-establish the min-heap property in a bottom-up fashion.
---
--- NOTE (SM) surprisingly, it is slower in benchmarks, which might be cause it
--- is buggy, or because there's some bad Core being generated.
-{-# INLINABLE insert3 #-}
-insert3 :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-insert3 k p x t = case t of
-    Nil -> Tip k p x
-
-    Tip k' p' x' ->
-      case compare k k' of
-        EQ -> Tip k' p x
-        LT -> if p' <= p'
-                then link k  p  x  k' t           Nil
-                else link k' p' x' k  (Tip k p x) Nil
-        GT -> if p < p'
-                then link k  p  x  k' t           Nil
-                else link k' p' x' k  (Tip k p x) Nil
-
-    Bin k' p' x' m l r
-      | nomatch k k' m ->
-          if (p, k) < (p', k')
-            then link k  p  x  k' t           Nil
-            else link k' p' x' k  (Tip k p x) (merge m l r)
-
-      | k == k' ->
-          if p <= p'
-            then Bin k' p x m l r
-            else insertNew k p x (merge m l r)
-
-      | (p, k) < (p', k') ->
-          case (zero k m, zero k' m) of
-            (False, False) -> Bin k p x m                               l   (insertNew k' p' x' (delete k r))
-            (False, True ) -> Bin k p x m (insertNew k' p' x'           l )                     (delete k r)
-            (True,  False) -> Bin k p x m                     (delete k l)  (insertNew k' p' x'           r )
-            (True,  True ) -> Bin k p x m (insertNew k' p' x' (delete k l))                               r
-
-      | otherwise ->
-          if zero k m
-            then Bin k' p' x' m (insert k p x l) r
-            else Bin k' p' x' m l                (insert k p x r)
-
 -- | Internal function that merges two *disjoint* 'IntPSQ's that share the
 -- same prefix mask.
 {-# INLINABLE merge #-}
@@ -578,11 +449,6 @@ merge m l r = case l of
         Bin rk rp rx rm rl rr
           | (lp, lk) < (rp, rk) -> Bin lk lp lx m (merge lm ll lr) r
           | otherwise           -> Bin rk rp rx m l                (merge rm rl rr)
-
-
-{-# INLINABLE fromList3 #-}
-fromList3 :: Ord p => [(Key, p, v)] -> IntPSQ p v
-fromList3 = foldl' (\im (k, p, x) -> insert3 k p x im) empty
 
 
 ------------------------------------------------------------------------------

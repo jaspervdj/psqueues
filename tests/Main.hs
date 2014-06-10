@@ -3,6 +3,7 @@ import           Data.Tagged          (Tagged (..), untag)
 import           Test.Framework       (Test, defaultMain, testGroup)
 
 import qualified Data.HashPSQ         as HashPSQ
+import qualified Data.HashPSQ.Tests
 import qualified Data.IntPSQ          as IntPSQ
 import qualified Data.IntPSQ.Tests
 import qualified Data.PSQ             as PSQ
@@ -14,6 +15,8 @@ main :: IO ()
 main = defaultMain
     [ testGroup "Data.IntPSQ.Tests"
         Data.IntPSQ.Tests.tests
+    , testGroup "Data.HashPSQ.Tests"
+        Data.HashPSQ.Tests.tests
     , testGroup "Data.PSQ.Tests"
         Data.PSQ.Tests.tests
     , testGroup "Data.PSQ.Class.Tests IntPSQ"  $ untag
