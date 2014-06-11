@@ -53,6 +53,7 @@ tests = Tagged
 
     , testProperty "show"             (untag' prop_show)
     , testProperty "rnf"              (untag' prop_rnf)
+    , testProperty "size"             (untag' prop_size)
     , testProperty "singleton"        (untag' prop_singleton)
     , testProperty "memberLookup"     (untag' prop_memberLookup)
     , testProperty "insertLookup"     (untag' prop_insertLookup)
@@ -205,6 +206,13 @@ prop_rnf
 prop_rnf = Tagged $
     forAll arbitraryPSQ $ \t ->
         rnf (t :: psq Int Char) `seq` True
+
+prop_size
+    :: forall psq. (PSQ psq, TestKey (Key psq),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_size = Tagged $ \t ->
+    size (t :: psq Int Char) == length (toList t)
 
 prop_singleton
     :: forall psq. (PSQ psq, TestKey (Key psq),
