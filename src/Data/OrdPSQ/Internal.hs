@@ -120,6 +120,7 @@ member k = isJust . lookup k
 
 -- | /O(log n)/ The priority and value of a given key, or Nothing if
 -- the key is not bound.
+{-# INLINABLE lookup #-}
 lookup :: (Ord k) => k -> OrdPSQ k p v -> Maybe (p, v)
 lookup k q = case tourView q of
     Null -> Nothing
@@ -146,6 +147,7 @@ singleton k p v = Winner (E k p v) Start k
 -- | /O(log n)/ Insert a new key, priority and value in the queue.  If
 -- the key is already present in the queue, the associated priority
 -- and value are replaced with the supplied priority and value.
+{-# INLINABLE insert #-}
 insert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
 insert k p v q = case q of
     Void -> singleton k p v
@@ -181,6 +183,7 @@ deleteView k psq = case psq of
 -- | /O(log n)/ Delete a key and its priority and value from the
 -- queue.  When the key is not a member of the queue, the original
 -- queue is returned.
+{-# INLINABLE delete #-}
 delete :: (Ord k, Ord p) => k -> OrdPSQ k p v -> OrdPSQ k p v
 delete k q = case q of
     Void -> empty
@@ -230,6 +233,7 @@ alterMin f psq0 =
 -- | /O(n*log n)/ Build a queue from a list of key/priority/value
 -- tuples.  If the list contains more than one priority and value for
 -- the same key, the last priority and value for the key is retained.
+{-# INLINABLE fromList #-}
 fromList :: (Ord k, Ord p) => [(k, p, v)] -> OrdPSQ k p v
 fromList = foldr (\(k, p, v) q -> insert k p v q) empty
 
@@ -258,14 +262,15 @@ toAscLists q = case tourView q of
 
 {-# INLINABLE map #-}
 map :: forall k p v w. (k -> p -> v -> w) -> OrdPSQ k p v -> OrdPSQ k p w
-map f = goPSQ
+map f =
+    goPSQ
   where
-    goElem :: Elem k p v -> Elem k p w
-    goElem (E k p x) = E k p (f k p x)
-
     goPSQ :: OrdPSQ k p v -> OrdPSQ k p w
     goPSQ Void           = Void
     goPSQ (Winner e l k) = Winner (goElem e) (goLTree l) k
+
+    goElem :: Elem k p v -> Elem k p w
+    goElem (E k p x) = E k p (f k p x)
 
     goLTree :: LTree k p v -> LTree k p w
     goLTree Start              = Start
@@ -297,11 +302,12 @@ findMin (Winner e _ _) = Just (unElem e)
 
 -- | /O(log n)/ Retrieve the binding with the least priority, and the
 -- rest of the queue stripped of that binding.
+{-# INLINABLE minView #-}
 minView :: (Ord k, Ord p) => OrdPSQ k p v -> Maybe (k, p, v, OrdPSQ k p v)
-minView Void           = Nothing
-minView (Winner e t m) = let (k,p,v) = unElem e in
-                           Just (k, p, v, secondBest t m)
+minView Void                   = Nothing
+minView (Winner (E k p v) t m) = Just (k, p, v, secondBest t m)
 
+{-# INLINABLE secondBest #-}
 secondBest :: (Ord k, Ord p) => LTree k p v -> k -> OrdPSQ k p v
 secondBest Start _                 = Void
 secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
@@ -487,13 +493,13 @@ rdoubleRight _ _ _ _ _ _ = moduleError "rdoubleRight" "malformed tree"
 -- | Take two pennants and returns a new pennant that is the union of
 -- the two with the precondition that the keys in the ﬁrst tree are
 -- strictly smaller than the keys in the second tree.
+{-# INLINABLE play #-}
 play :: (Ord p, Ord k) => OrdPSQ k p v -> OrdPSQ k p v -> OrdPSQ k p v
 Void `play` t' = t'
 t `play` Void  = t
 Winner e@(E k p v) t m `play` Winner e'@(E k' p' v') t' m'
     | (p, k) `beats` (p', k') = Winner e (rbalance k' p' v' t m t') m'
     | otherwise               = Winner e' (lbalance k p v t m t') m'
-{-# INLINE play #-}
 
 -- | When priorities are equal, the tree with the lowest key wins. This is
 -- important to have a deterministic `==`, which requires on `minView` pulling
@@ -502,9 +508,10 @@ beats :: (Ord p, Ord k) => (p, k) -> (p, k) -> Bool
 beats (p, !k) (p', !k') = p < p' || (p == p' && k <= k')
 {-# INLINE beats #-}
 
-data TourView k p v = Null
-                | Single {-# UNPACK #-} !(Elem k p v)
-                | (OrdPSQ k p v) `Play` (OrdPSQ k p v)
+data TourView k p v
+    = Null
+    | Single {-# UNPACK #-} !(Elem k p v)
+    | Play (OrdPSQ k p v) (OrdPSQ k p v)
 
 tourView :: OrdPSQ k p v -> TourView k p v
 tourView Void               = Null
