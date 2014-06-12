@@ -41,7 +41,6 @@ module Data.OrdPSQ.Internal
     , fold'
 
       -- * Tournament view
-    , TourView (..)
     , tourView
     , play
 
@@ -122,14 +121,14 @@ member k = isJust . lookup k
 -- the key is not bound.
 {-# INLINABLE lookup #-}
 lookup :: (Ord k) => k -> OrdPSQ k p v -> Maybe (p, v)
-lookup k q = case tourView q of
-    Null -> Nothing
-    Single (E k' p v)
-        | k == k'   -> Just (p, v)
-        | otherwise -> Nothing
-    tl `Play` tr
-        | k <= maxKey tl -> lookup k tl
-        | otherwise      -> lookup k tr
+lookup k q = tourView
+    Nothing
+    (\k' p v ->
+        if k == k' then Just (p, v) else Nothing)
+    (\tl tr ->
+        if k <= maxKey tl then lookup k tl else lookup k tr)
+    q
+
 
 ------------------------------------------------------------------------
 -- Construction
@@ -251,10 +250,10 @@ toAscList :: OrdPSQ k p v -> [(k, p, v)]
 toAscList q  = seqToList (toAscLists q)
 
 toAscLists :: OrdPSQ k p v -> Sequ (k, p, v)
-toAscLists q = case tourView q of
-    Null             -> emptySequ
-    Single (E k p v) -> singleSequ (k, p, v)
-    tl `Play` tr     -> toAscLists tl <> toAscLists tr
+toAscLists = tourView
+    emptySequ
+    (\k p v -> singleSequ (k, p, v))
+    (\tl tr -> toAscLists tl <> toAscLists tr)
 
 
 ------------------------------------------------------------------------
@@ -508,18 +507,31 @@ beats :: (Ord p, Ord k) => (p, k) -> (p, k) -> Bool
 beats (p, !k) (p', !k') = p < p' || (p == p' && k <= k')
 {-# INLINE beats #-}
 
-data TourView k p v
-    = Null
-    | Single {-# UNPACK #-} !(Elem k p v)
-    | Play (OrdPSQ k p v) (OrdPSQ k p v)
+-- | Obtain a "Tournament view" of the OrdPSQ. This is a tree represented by
+-- three constructors:
+--
+-- * An empty tree
+--
+-- * A singleton tree
+--
+-- * Two non-empty trees playing against each other in the tournament.
+--
+-- We use a church encoding for the constructors as an optimisation.
+tourView
+    :: r                                    -- ^ Empty constructor
+    -> (k -> p -> v -> r)                   -- ^ Singleton constructor
+    -> (OrdPSQ k p v -> OrdPSQ k p v -> r)  -- ^ Branch/play constructor
+    -> OrdPSQ k p v                         -- ^ OrdPSQ to view
+    -> r                                    -- ^ Result
+tourView void single branch q = case q of
+    Void                                -> void
+    (Winner (E k p x) Start _)       -> single k p x
+    (Winner e (RLoser _ e' tl m tr) m') ->
+        Winner e tl m `branch` Winner e' tr m'
+    (Winner e (LLoser _ e' tl m tr) m') ->
+        Winner e' tl m `branch` Winner e tr m'
+{-# INLINE tourView #-}
 
-tourView :: OrdPSQ k p v -> TourView k p v
-tourView Void               = Null
-tourView (Winner e Start _) = Single e
-tourView (Winner e (RLoser _ e' tl m tr) m') =
-    Winner e tl m `Play` Winner e' tr m'
-tourView (Winner e (LLoser _ e' tl m tr) m') =
-    Winner e' tl m `Play` Winner e tr m'
 
 ------------------------------------------------------------------------
 -- Utility functions

@@ -24,9 +24,9 @@ module Data.IntPSQ.Internal
 
       -- ** Unsafe inserts
       -- (They will be exported from an internal module only)
-    , insertNew
-    , insertLargerThanMaxPrio
-    , insertLargerThanMaxPrioView
+    , unsafeInsertNew
+    , unsafeInsertLargerThanMaxPrio
+    , unsafeInsertLargerThanMaxPrioView
 
       -- * Delete/update
     , delete
@@ -219,13 +219,13 @@ singleton = Tip
 -- most two root-to-leaf traversals, which are reallocating the nodes on their
 -- path.
 insert :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-insert k p x t0 = insertNew k p x (delete k t0)
+insert k p x t0 = unsafeInsertNew k p x (delete k t0)
 
 -- | Internal function to insert a key that is *not* present in the priority
 -- queue.
-{-# INLINABLE insertNew #-}
-insertNew :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-insertNew k p x t = case t of
+{-# INLINABLE unsafeInsertNew #-}
+unsafeInsertNew :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
+unsafeInsertNew k p x t = case t of
   Nil       -> Tip k p x
 
   Tip k' p' x'
@@ -242,12 +242,12 @@ insertNew k p x t = case t of
         if (p, k) < (p', k')
           then
             if zero k' m
-              then Bin k  p  x  m (insertNew k' p' x' l) r
-              else Bin k  p  x  m l                      (insertNew k' p' x' r)
+              then Bin k  p  x  m (unsafeInsertNew k' p' x' l) r
+              else Bin k  p  x  m l (unsafeInsertNew k' p' x' r)
           else
             if zero k m
-              then Bin k' p' x' m (insertNew k  p  x  l) r
-              else Bin k' p' x' m l                      (insertNew k  p  x  r)
+              then Bin k' p' x' m (unsafeInsertNew k  p  x  l) r
+              else Bin k' p' x' m l (unsafeInsertNew k  p  x  r)
 
 -- | Link
 link :: Key -> p -> v -> Key -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
@@ -290,7 +290,7 @@ alter f = \k t0 ->
                             Just (p, v, t0') -> (t0', Just (p, v))
     in case f mbX of
           (b, mbX') ->
-            (b, maybe t (\(p, v) -> insertNew k p v t) mbX')
+            (b, maybe t (\(p, v) -> unsafeInsertNew k p v t) mbX')
 
 {-# INLINE alterMin #-}
 alterMin :: Ord p
@@ -311,7 +311,7 @@ alterMin f t = case t of
                          (b, Just (k', p', x'))
                            | k  /= k'  -> (b, insert k' p' x' (merge m l r))
                            | p' <= p   -> (b, Bin k p' x' m l r)
-                           | otherwise -> (b, insertNew k p' x' (merge m l r))
+                           | otherwise -> (b, unsafeInsertNew k p' x' (merge m l r))
 
 -- | Smart constructor for a 'Bin' node whose left subtree could have become
 -- 'Nil'.
@@ -356,8 +356,8 @@ keys t = [k | (k, _, _) <- toList t]
 -- | Like insert, but returns the replaced element if any.
 insertView :: Ord p => Key -> p -> v -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
 insertView k p x t0 = case deleteView k t0 of
-  Nothing          -> (insertNew k p x t0, Nothing)
-  Just (p', v', t) -> (insertNew k p x t,  Just (p', v'))
+  Nothing          -> (unsafeInsertNew k p x t0, Nothing)
+  Just (p', v', t) -> (unsafeInsertNew k p x t,  Just (p', v'))
 
 -- TODO (SM): verify that it is really worth do do deletion and lookup at the
 -- same time.
@@ -462,9 +462,10 @@ merge m l r = case l of
 -- maximal priority in the heap. This is always the case when using the PSQ
 -- as the basis to implement a LRU cache, which associates a
 -- access-tick-number with every element.
-{-# INLINABLE insertLargerThanMaxPrio #-}
-insertLargerThanMaxPrio :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-insertLargerThanMaxPrio =
+{-# INLINABLE unsafeInsertLargerThanMaxPrio #-}
+unsafeInsertLargerThanMaxPrio
+    :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
+unsafeInsertLargerThanMaxPrio =
     go
   where
     go k p x t = case t of
@@ -481,9 +482,10 @@ insertLargerThanMaxPrio =
         | otherwise      -> Bin k' p' x' m l            (go k p x r)
 
 
-{-# INLINABLE insertLargerThanMaxPrioView #-}
-insertLargerThanMaxPrioView :: Ord p => Key -> p -> v -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
-insertLargerThanMaxPrioView k0 p0 v0 t0 =
+{-# INLINABLE unsafeInsertLargerThanMaxPrioView #-}
+unsafeInsertLargerThanMaxPrioView
+    :: Ord p => Key -> p -> v -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
+unsafeInsertLargerThanMaxPrioView k0 p0 v0 t0 =
   case go k0 p0 v0 t0 of
     (# t, mbPX #) -> (t, mbPX)
   where

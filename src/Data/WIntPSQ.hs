@@ -129,7 +129,7 @@ singleton k p v = WIntPSQ p 1 $ O.Tip k p v
 insert :: Ord p => Key -> p -> v -> WIntPSQ p v -> WIntPSQ p v
 insert k p x Empty = WIntPSQ p 1 $ O.Tip k p x
 insert k p x (WIntPSQ maxPrio psqSize psq)
-    | p > maxPrio = wrapInsertView p       psqSize $ O.insertLargerThanMaxPrioView k p x psq
+    | p > maxPrio = wrapInsertView p       psqSize $ O.unsafeInsertLargerThanMaxPrioView k p x psq
     | otherwise   = wrapInsertView maxPrio psqSize $ O.insertView k p x psq
 
 wrapInsertView :: Ord p => p -> Size -> (O.IntPSQ p v, Maybe (p, v)) -> WIntPSQ p v
