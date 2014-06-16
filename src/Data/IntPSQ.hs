@@ -37,6 +37,11 @@ module Data.IntPSQ
       -- * Traversal
     , map
     , fold'
+
+      -- * Unsafe manipulation
+    , unsafeInsertNew
+    , unsafeInsertLargerThanMaxPrio
+    , unsafeInsertLargerThanMaxPrioView
     ) where
 
 import           Prelude hiding (lookup, map, filter, foldr, foldl, null)

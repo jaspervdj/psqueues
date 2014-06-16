@@ -39,6 +39,9 @@ module Data.HashPSQ.Internal
       -- * Traversal
     , map
     , fold'
+
+      -- * Unsafe manipulation
+    , unsafeInsertNew
     ) where
 
 import           Control.DeepSeq (NFData (..))
@@ -131,7 +134,7 @@ empty = HashPSQ IntPSQ.empty
 
 -- | /O(1)/ Build a queue with one element.
 singleton :: (Hashable k, Ord k, Ord p) => k -> p -> v -> HashPSQ k p v
-singleton k p v = insert k p v empty
+singleton k p v = unsafeInsertNew k p v empty
 
 
 --------------------------------------------------------------------------------
@@ -139,8 +142,9 @@ singleton k p v = insert k p v empty
 --------------------------------------------------------------------------------
 
 {-# INLINABLE insert #-}
-insert :: (Ord k, Hashable k, Ord p)
-       => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
+insert
+    :: (Ord k, Hashable k, Ord p)
+    => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
 insert k p v (HashPSQ ipsq) =
     case IntPSQ.alter (\x -> ((), ins x)) (hash k) ipsq of
         ((), ipsq') -> HashPSQ ipsq'
@@ -159,7 +163,12 @@ insert k p v (HashPSQ ipsq) =
         | otherwise          =
             Just (p , B k  v  (OrdPSQ.insert k' p' v' os))
 
-
+{-# INLINABLE unsafeInsertNew #-}
+unsafeInsertNew
+    :: (Hashable k, Ord k, Ord p)
+    => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
+unsafeInsertNew k p x (HashPSQ ipsq) =
+    HashPSQ (IntPSQ.unsafeInsertNew (hash k) p (B k x OrdPSQ.empty) ipsq)
 
 
 --------------------------------------------------------------------------------
@@ -233,8 +242,8 @@ insertView
     :: (Hashable k, Ord k, Ord p)
     => k -> p -> v -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
 insertView k p x t = case deleteView k t of
-    Nothing          -> (Nothing,       insert k p x t)
-    Just (p', x', _) -> (Just (p', x'), insert k p x t)
+    Nothing          -> (Nothing,       unsafeInsertNew k p x t)
+    Just (p', x', _) -> (Just (p', x'), unsafeInsertNew k p x t)
 
 {-# INLINABLE deleteView #-}
 deleteView

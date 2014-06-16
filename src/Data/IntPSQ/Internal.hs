@@ -22,12 +22,6 @@ module Data.IntPSQ.Internal
       -- * Insertion
     , insert
 
-      -- ** Unsafe inserts
-      -- (They will be exported from an internal module only)
-    , unsafeInsertNew
-    , unsafeInsertLargerThanMaxPrio
-    , unsafeInsertLargerThanMaxPrioView
-
       -- * Delete/update
     , delete
     , alter
@@ -46,6 +40,11 @@ module Data.IntPSQ.Internal
       -- * Traversal
     , map
     , fold'
+
+      -- * Unsafe manipulation
+    , unsafeInsertNew
+    , unsafeInsertLargerThanMaxPrio
+    , unsafeInsertLargerThanMaxPrioView
 
       -- * Testing
     , valid
