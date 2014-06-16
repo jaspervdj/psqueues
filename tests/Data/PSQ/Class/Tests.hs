@@ -64,6 +64,7 @@ tests = Tagged
     , testProperty "alterMin"         (untag' prop_alterMin)
     , testProperty "toList"           (untag' prop_toList)
     , testProperty "keys"             (untag' prop_keys)
+    , testProperty "insertView"       (untag' prop_insertView)
     , testProperty "deleteView"       (untag' prop_deleteView)
     , testProperty "map"              (untag' prop_map)
     , testProperty "fmap"             (untag' prop_fmap)
@@ -341,6 +342,19 @@ prop_keys
 prop_keys = Tagged $ \t ->
     List.sort (keys (t :: psq Int Char)) ==
         List.sort [k | (k, _, _) <- toList t]
+
+prop_insertView
+    :: forall psq. (PSQ psq, TestKey (Key psq),
+                    Arbitrary (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Property)
+prop_insertView = Tagged $ \t ->
+    forAll arbitraryTestKey $ \k ->
+    forAll arbitraryInt     $ \p ->
+    forAll arbitrary        $ \x ->
+        case insertView k p x (t :: psq Int Char) of
+            (mbPx, t') ->
+                lookup k t  == mbPx && lookup k t' == Just (p, x)
 
 prop_deleteView
     :: forall psq. (PSQ psq, TestKey (Key psq),
