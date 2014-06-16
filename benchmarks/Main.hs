@@ -7,7 +7,6 @@ import           BenchmarkTypes
 
 import qualified Data.OrdPSQ.Benchmark              as OrdPSQ
 import qualified Data.IntPSQ.Benchmark              as IntPSQ
-import qualified Data.WIntPSQ.Benchmark             as WIntPSQ
 import qualified Data.HashPSQ.Benchmark             as HashPSQ
 import qualified Data.PSQueue.Benchmark             as PSQueue
 import qualified Data.FingerTree.PSQueue.Benchmark  as FingerPSQ
@@ -18,19 +17,18 @@ main = defaultMain (runBenchmark benchmarks)
     getElemsInc x = (x, x, ())
     getElemsDec x = (-x, -x, ())
 
+    size :: Int
+    size = 2 ^ (12 :: Int)
+
     benchmarks =
-      [ IntPSQ.benchmark "IntPSQ increasing" getElemsInc (2^12)
-      , IntPSQ.benchmark "IntPSQ decreasing" getElemsDec (2^12)
-      , WIntPSQ.benchmark "WIntPSQ increasing" getElemsInc (2^12)
-      , WIntPSQ.benchmark "WIntPSQ decreasing" getElemsDec (2^12)
-      , HashPSQ.benchmark "HashPSQ increasing" getElemsInc (2^12)
-      , HashPSQ.benchmark "HashPSQ decreasing" getElemsDec (2^12)
-      , OrdPSQ.benchmark "OrdPSQ increasing" getElemsInc (2^12)
-      , OrdPSQ.benchmark "OrdPSQ decreasing" getElemsDec (2^12)
-        -- from the `PSQueue` package
-      , PSQueue.benchmark "PSQueue increasing" getElemsInc (2^12)
-      , PSQueue.benchmark "PSQueue decreasing" getElemsDec (2^12)
-        -- from the `fingertree-psqueues` packagegetElemsDec (2^12)
-      , FingerPSQ.benchmark "FingerTree PSQueue increasing" getElemsInc (2^12)
-      , FingerPSQ.benchmark "FingerTree PSQueue decreasing" getElemsDec (2^12)
+      [ IntPSQ.benchmark    "IntPSQ increasing"             getElemsInc size
+      , IntPSQ.benchmark    "IntPSQ decreasing"             getElemsDec size
+      , HashPSQ.benchmark   "HashPSQ increasing"            getElemsInc size
+      , HashPSQ.benchmark   "HashPSQ decreasing"            getElemsDec size
+      , OrdPSQ.benchmark    "OrdPSQ increasing"             getElemsInc size
+      , OrdPSQ.benchmark    "OrdPSQ decreasing"             getElemsDec size
+      , PSQueue.benchmark   "PSQueue increasing"            getElemsInc size
+      , PSQueue.benchmark   "PSQueue decreasing"            getElemsDec size
+      , FingerPSQ.benchmark "FingerTree PSQueue increasing" getElemsInc size
+      , FingerPSQ.benchmark "FingerTree PSQueue decreasing" getElemsDec size
       ]

@@ -54,12 +54,12 @@ Library
         Data.HashPSQ.Internal
         Data.IntPSQ.Internal
         Data.OrdPSQ.Internal
-        Data.WIntPSQ
 
 benchmark bench
     type:           exitcode-stdio-1.0
     hs-source-dirs: src benchmarks
     main-is:        Main.hs
+    ghc-options:    -Wall
 
     build-depends:
           containers           >= 0.5
