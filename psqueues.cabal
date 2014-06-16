@@ -67,13 +67,14 @@ benchmark bench
         , criterion            >= 0.8
         , mtl                  >= 2.1
         , fingertree-psqueue   >= 0.3
+        , PSQueue              >= 1.1
+        , random               >= 1.0
 
         , base
         , deepseq
         , ghc-prim
         , hashable
         , psqueues
-        , PSQueue >= 1.1
 
 Test-suite psqueues-tests
     cpp-options:    -DTESTING -DSTRICT

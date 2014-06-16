@@ -13,8 +13,8 @@ import           Prelude hiding (lookup)
 import           BenchmarkTypes
 import           Data.Maybe (fromMaybe)
 
-benchmark :: String -> (Int -> BElem) -> Int -> BenchmarkSet
-benchmark name getElem benchmarkSize = BenchmarkSet
+benchmark :: String -> [BElem] -> BenchmarkSet
+benchmark name elems = BenchmarkSet
     { bGroupName        = name
     , bMinView          = whnf bench_minView              initialPSQ
     , bLookup           = whnf (bench_lookup keys)        initialPSQ
@@ -24,8 +24,8 @@ benchmark name getElem benchmarkSize = BenchmarkSet
     , bDelete           = nf'  (bench_delete firstKeys)   initialPSQ
     }
   where
-    (firstElems, secondElems) = splitAt (benchmarkSize `div` 2) elems
-    elems     = map getElem [0 .. benchmarkSize]
+    (firstElems, secondElems) = splitAt (numElems `div` 2) elems
+    numElems  = length elems
     keys      = map (\(x, _, _) -> x) elems
     firstKeys = map (\(x, _, _) -> x) firstElems
 

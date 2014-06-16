@@ -2,6 +2,7 @@
 module Main where
 
 import           Criterion.Main
+import           System.Random
 
 import           BenchmarkTypes
 
@@ -11,24 +12,42 @@ import qualified Data.HashPSQ.Benchmark             as HashPSQ
 import qualified Data.PSQueue.Benchmark             as PSQueue
 import qualified Data.FingerTree.PSQueue.Benchmark  as FingerPSQ
 
-main :: IO ()
-main = defaultMain (runBenchmark benchmarks)
+benchmarkSize :: Int
+benchmarkSize = 2 ^ (12 :: Int)
+
+{-# NOINLINE increasing #-}
+increasing :: [BElem]
+increasing = [(n, n, ()) | n <- [1 .. benchmarkSize]]
+
+{-# NOINLINE decreasing #-}
+decreasing :: [BElem]
+decreasing = reverse increasing
+
+{-# NOINLINE semirandom #-}
+semirandom :: [BElem]
+semirandom =
+    [ (x, y, ())
+    | (_, x, y) <- zip3 [1 .. benchmarkSize] (randoms gen1) (randoms gen2)
+    ]
   where
-    getElemsInc x = (x, x, ())
-    getElemsDec x = (-x, -x, ())
+    gen1 = mkStdGen 1234
+    gen2 = mkStdGen 5678
 
-    size :: Int
-    size = 2 ^ (12 :: Int)
-
-    benchmarks =
-      [ IntPSQ.benchmark    "IntPSQ increasing"             getElemsInc size
-      , IntPSQ.benchmark    "IntPSQ decreasing"             getElemsDec size
-      , HashPSQ.benchmark   "HashPSQ increasing"            getElemsInc size
-      , HashPSQ.benchmark   "HashPSQ decreasing"            getElemsDec size
-      , OrdPSQ.benchmark    "OrdPSQ increasing"             getElemsInc size
-      , OrdPSQ.benchmark    "OrdPSQ decreasing"             getElemsDec size
-      , PSQueue.benchmark   "PSQueue increasing"            getElemsInc size
-      , PSQueue.benchmark   "PSQueue decreasing"            getElemsDec size
-      , FingerPSQ.benchmark "FingerTree PSQueue increasing" getElemsInc size
-      , FingerPSQ.benchmark "FingerTree PSQueue decreasing" getElemsDec size
-      ]
+main :: IO ()
+main = defaultMain $ runBenchmark
+    [ IntPSQ.benchmark    "IntPSQ increasing"             increasing
+    , IntPSQ.benchmark    "IntPSQ decreasing"             decreasing
+    , IntPSQ.benchmark    "IntPSQ semirandom"             semirandom
+    , HashPSQ.benchmark   "HashPSQ increasing"            increasing
+    , HashPSQ.benchmark   "HashPSQ decreasing"            decreasing
+    , HashPSQ.benchmark   "HashPSQ semirandom"            semirandom
+    , OrdPSQ.benchmark    "OrdPSQ increasing"             increasing
+    , OrdPSQ.benchmark    "OrdPSQ decreasing"             decreasing
+    , OrdPSQ.benchmark    "OrdPSQ semirandom"             semirandom
+    , PSQueue.benchmark   "PSQueue increasing"            increasing
+    , PSQueue.benchmark   "PSQueue decreasing"            decreasing
+    , PSQueue.benchmark   "PSQueue semirandom"            semirandom
+    , FingerPSQ.benchmark "FingerTree PSQueue increasing" increasing
+    , FingerPSQ.benchmark "FingerTree PSQueue decreasing" decreasing
+    , FingerPSQ.benchmark "FingerTree PSQueue semirandom" semirandom
+    ]
