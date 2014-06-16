@@ -32,6 +32,7 @@ module Data.HashPSQ.Internal
     , keys
 
       -- * Views
+    , insertView
     , deleteView
     , minView
 
@@ -226,6 +227,14 @@ keys t = [k | (k, _, _) <- toList t]
 --------------------------------------------------------------------------------
 -- Views
 --------------------------------------------------------------------------------
+
+{-# INLINABLE insertView #-}
+insertView
+    :: (Hashable k, Ord k, Ord p)
+    => k -> p -> v -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
+insertView k p x t = case deleteView k t of
+    Nothing          -> (Nothing,       insert k p x t)
+    Just (p', x', _) -> (Just (p', x'), insert k p x t)
 
 {-# INLINABLE deleteView #-}
 deleteView

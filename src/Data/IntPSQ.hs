@@ -30,6 +30,7 @@ module Data.IntPSQ
     , keys
 
       -- * Views
+    , insertView
     , deleteView
     , minView
 

@@ -60,6 +60,8 @@ class PSQ (psq :: * -> * -> *) where
         :: Ord p => psq p v -> [Key psq]
 
     -- Views
+    insertView
+        :: Ord p => Key psq -> p -> v -> psq p v -> (Maybe (p, v), psq p v)
     deleteView
         :: Ord p => Key psq -> psq p v -> Maybe (p, v, psq p v)
     minView
@@ -87,6 +89,7 @@ instance PSQ IntPSQ.IntPSQ where
     fromList   = IntPSQ.fromList
     toList     = IntPSQ.toList
     keys       = IntPSQ.keys
+    insertView = IntPSQ.insertView
     deleteView = IntPSQ.deleteView
     minView    = IntPSQ.minView
     map        = IntPSQ.map
@@ -109,6 +112,7 @@ instance forall k. Ord k => PSQ (OrdPSQ.OrdPSQ k) where
     fromList   = OrdPSQ.fromList
     toList     = OrdPSQ.toList
     keys       = OrdPSQ.keys
+    insertView = OrdPSQ.insertView
     deleteView = OrdPSQ.deleteView
     minView    = OrdPSQ.minView
     map        = OrdPSQ.map
@@ -132,6 +136,7 @@ instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where
     fromList   = HashPSQ.fromList
     toList     = HashPSQ.toList
     keys       = HashPSQ.keys
+    insertView = HashPSQ.insertView
     deleteView = HashPSQ.deleteView
     minView    = HashPSQ.minView
     map        = HashPSQ.map

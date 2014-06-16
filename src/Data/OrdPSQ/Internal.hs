@@ -33,6 +33,7 @@ module Data.OrdPSQ.Internal
     , keys
 
       -- * Views
+    , insertView
     , deleteView
     , minView
 
@@ -174,6 +175,14 @@ deleteView k psq = case psq of
     Winner e (LLoser _ e' tl m tr) m'
         | k <= m    -> fmap (\(p,v,q) -> (p, v, q `play` (Winner e tr m'))) (deleteView k (Winner e' tl m))
         | otherwise -> fmap (\(p,v,q) -> (p, v, (Winner e' tl m) `play` q )) (deleteView k (Winner e tr m'))
+
+{-# INLINABLE insertView #-}
+insertView
+    :: (Ord k, Ord p)
+    => k -> p -> v -> OrdPSQ k p v -> (Maybe (p, v), OrdPSQ k p v)
+insertView k p x t = case deleteView k t of
+    Nothing          -> (Nothing,       insert k p x t)
+    Just (p', x', _) -> (Just (p', x'), insert k p x t)
 
 
 ------------------------------------------------------------------------

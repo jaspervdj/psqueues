@@ -27,6 +27,7 @@ module Data.HashPSQ
     , keys
 
       -- * Views
+    , insertView
     , deleteView
     , minView
 

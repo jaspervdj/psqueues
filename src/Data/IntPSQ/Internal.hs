@@ -354,10 +354,10 @@ keys t = [k | (k, _, _) <- toList t]
 ------------------------------------------------------------------------------
 
 -- | Like insert, but returns the replaced element if any.
-insertView :: Ord p => Key -> p -> v -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
+insertView :: Ord p => Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
 insertView k p x t0 = case deleteView k t0 of
-  Nothing          -> (unsafeInsertNew k p x t0, Nothing)
-  Just (p', v', t) -> (unsafeInsertNew k p x t,  Just (p', v'))
+  Nothing          -> (Nothing,       unsafeInsertNew k p x t0)
+  Just (p', v', t) -> (Just (p', v'), unsafeInsertNew k p x t)
 
 -- TODO (SM): verify that it is really worth do do deletion and lookup at the
 -- same time.
@@ -484,10 +484,10 @@ unsafeInsertLargerThanMaxPrio =
 
 {-# INLINABLE unsafeInsertLargerThanMaxPrioView #-}
 unsafeInsertLargerThanMaxPrioView
-    :: Ord p => Key -> p -> v -> IntPSQ p v -> (IntPSQ p v, Maybe (p, v))
+    :: Ord p => Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
 unsafeInsertLargerThanMaxPrioView k0 p0 v0 t0 =
   case go k0 p0 v0 t0 of
-    (# t, mbPX #) -> (t, mbPX)
+    (# t, mbPX #) -> (mbPX, t)
   where
     go k p x t = case t of
      Nil -> (# Tip k p x, Nothing #)

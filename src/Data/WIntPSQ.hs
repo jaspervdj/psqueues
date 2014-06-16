@@ -132,9 +132,9 @@ insert k p x (WIntPSQ maxPrio psqSize psq)
     | p > maxPrio = wrapInsertView p       psqSize $ O.unsafeInsertLargerThanMaxPrioView k p x psq
     | otherwise   = wrapInsertView maxPrio psqSize $ O.insertView k p x psq
 
-wrapInsertView :: Ord p => p -> Size -> (O.IntPSQ p v, Maybe (p, v)) -> WIntPSQ p v
-wrapInsertView maxPrio psqSize !(psq, Nothing) = WIntPSQ maxPrio (psqSize+1) psq
-wrapInsertView maxPrio psqSize !(psq, Just _)  = WIntPSQ maxPrio psqSize     psq
+wrapInsertView :: Ord p => p -> Size -> (Maybe (p, v), O.IntPSQ p v) -> WIntPSQ p v
+wrapInsertView maxPrio psqSize !(Nothing, psq) = WIntPSQ maxPrio (psqSize+1) psq
+wrapInsertView maxPrio psqSize !(Just _,  psq)  = WIntPSQ maxPrio psqSize     psq
 
 ------------------------------------------------------------------------------
 -- Deletion

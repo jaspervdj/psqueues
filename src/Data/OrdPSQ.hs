@@ -31,6 +31,7 @@ module Data.OrdPSQ
     , keys
 
       -- * Views
+    , insertView
     , deleteView
     , minView
 
