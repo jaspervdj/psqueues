@@ -89,11 +89,13 @@ prop_unsafeInsertWithLargerThanMaxPrio =
     forAll arbitrary    $ \x  ->
         let t      = fmap (\e -> [e]) t0 :: IntPSQ Int [Char]
             prio   = largerThanMaxPrio t
-            t'     = unsafeInsertWithLargerThanMaxPrio (++) k prio [x] t
+            f      = \newP newX oldP oldX ->
+                        (newP + (abs oldP `div` 2), newX ++ oldX)
+            t'     = unsafeInsertWithLargerThanMaxPrio f k prio [x] t
             expect = case lookup k t of
-                            Nothing     -> [x]
-                            Just (_, y) -> [x] ++ y
-        in valid t' && lookup k t' == Just (prio, expect)
+                            Nothing     -> (prio, [x])
+                            Just (p, y) -> (prio + (abs p `div` 2), [x] ++ y)
+        in valid t' && lookup k t' == Just expect
 
 prop_unsafeInsertWithLargerThanMaxPrioView :: Property
 prop_unsafeInsertWithLargerThanMaxPrioView =
@@ -102,10 +104,12 @@ prop_unsafeInsertWithLargerThanMaxPrioView =
     forAll arbitrary    $ \x  ->
         let t          = fmap (\e -> [e]) t0 :: IntPSQ Int [Char]
             prio       = largerThanMaxPrio t
-            (mbPx, t') = unsafeInsertWithLargerThanMaxPrioView (++) k prio [x] t
+            f          = \newP newX oldP oldX ->
+                            (newP + (abs oldP `div` 2), newX ++ oldX)
+            (mbPx, t') = unsafeInsertWithLargerThanMaxPrioView f k prio [x] t
             expect     = case mbPx of
-                            Nothing     -> [x]
-                            Just (_, y) -> [x] ++ y
+                            Nothing     -> (prio, [x])
+                            Just (p, y) -> (prio + (abs p `div` 2), [x] ++ y)
         in valid t' &&
-            lookup k t' == Just (prio, expect) &&
+            lookup k t' == Just expect &&
             lookup k t  == mbPx
