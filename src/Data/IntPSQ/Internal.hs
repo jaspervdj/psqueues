@@ -1,5 +1,5 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns  #-}
+{-# LANGUAGE CPP           #-}
 {-# LANGUAGE UnboxedTuples #-}
 module Data.IntPSQ.Internal
     ( -- * Type
@@ -45,6 +45,8 @@ module Data.IntPSQ.Internal
     , unsafeInsertNew
     , unsafeInsertLargerThanMaxPrio
     , unsafeInsertLargerThanMaxPrioView
+    , unsafeInsertWithLargerThanMaxPrio
+    , unsafeInsertWithLargerThanMaxPrioView
 
       -- * Testing
     , valid
@@ -355,8 +357,8 @@ keys t = [k | (k, _, _) <- toList t]
 -- | Like insert, but returns the replaced element if any.
 insertView :: Ord p => Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
 insertView k p x t0 = case deleteView k t0 of
-  Nothing          -> (Nothing,       unsafeInsertNew k p x t0)
-  Just (p', v', t) -> (Just (p', v'), unsafeInsertNew k p x t)
+    Nothing          -> (Nothing,       unsafeInsertNew k p x t0)
+    Just (p', v', t) -> (Just (p', v'), unsafeInsertNew k p x t)
 
 -- TODO (SM): verify that it is really worth do do deletion and lookup at the
 -- same time.
@@ -461,55 +463,72 @@ merge m l r = case l of
 -- maximal priority in the heap. This is always the case when using the PSQ
 -- as the basis to implement a LRU cache, which associates a
 -- access-tick-number with every element.
-{-# INLINABLE unsafeInsertLargerThanMaxPrio #-}
+{-# INLINE unsafeInsertLargerThanMaxPrio #-}
 unsafeInsertLargerThanMaxPrio
     :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
 unsafeInsertLargerThanMaxPrio =
-    go
-  where
-    go k p x t = case t of
-      Nil -> Tip k p x
+    unsafeInsertWithLargerThanMaxPrio (\new _ -> new)
 
-      Tip k' p' x'
-        | k == k'   -> Tip k p x
-        | otherwise -> link k' p' x' k  (Tip k p x) Nil
-
-      Bin k' p' x' m l r
-        | nomatch k k' m -> link k' p' x' k (Tip k p x) (merge m l r)
-        | k == k'        -> go k p x (merge m l r)
-        | zero k m       -> Bin k' p' x' m (go k p x l) r
-        | otherwise      -> Bin k' p' x' m l            (go k p x r)
-
-
-{-# INLINABLE unsafeInsertLargerThanMaxPrioView #-}
+{-# INLINE unsafeInsertLargerThanMaxPrioView #-}
 unsafeInsertLargerThanMaxPrioView
     :: Ord p => Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
-unsafeInsertLargerThanMaxPrioView k0 p0 v0 t0 =
-  case go k0 p0 v0 t0 of
-    (# t, mbPX #) -> (mbPX, t)
+unsafeInsertLargerThanMaxPrioView =
+    unsafeInsertWithLargerThanMaxPrioView (\new _ -> new)
+
+{-# INLINABLE unsafeInsertWithLargerThanMaxPrio #-}
+unsafeInsertWithLargerThanMaxPrio
+    :: Ord p => (v -> v -> v) -> Key -> p -> v -> IntPSQ p v -> IntPSQ p v
+unsafeInsertWithLargerThanMaxPrio f k p x0 t0 =
+    -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
+    go x0 t0
   where
-    go k p x t = case t of
-     Nil -> (# Tip k p x, Nothing #)
+    go !x t = case t of
+        Nil -> Tip k p x
 
-     Tip k' p' x'
-       | k == k'   -> (# Tip k p x,                        Just (p', x') #)
-       | otherwise -> (# link k' p' x' k  (Tip k p x) Nil, Nothing #)
+        Tip k' p' x'
+            | k == k'   -> Tip k p (f x x')
+            | otherwise -> link k' p' x' k  (Tip k p x) Nil
 
-     Bin k' p' x' m l r
-       | nomatch k k' m -> let t' = merge m l r
-                           in t' `seq`
-                             let t'' = link k' p' x' k (Tip k p x) t'
-                             in t'' `seq` (# t'', Nothing #)
+        Bin k' p' x' m l r
+            | nomatch k k' m -> link k' p' x' k (Tip k p x) (merge m l r)
+            | k == k'        -> go (f x x') (merge m l r)
+            | zero k m       -> Bin k' p' x' m (go x l) r
+            | otherwise      -> Bin k' p' x' m l        (go x r)
 
-       | k == k'        -> let t' = merge m l r
-                           in t' `seq` case go k p x t' of
-                               (# t'', _ #) -> t'' `seq` (# t'', Just (p', x') #)
+{-# INLINABLE unsafeInsertWithLargerThanMaxPrioView #-}
+unsafeInsertWithLargerThanMaxPrioView
+    :: Ord p
+    => (v -> v -> v) -> Key -> p -> v -> IntPSQ p v
+    -> (Maybe (p, v), IntPSQ p v)
+unsafeInsertWithLargerThanMaxPrioView f k p x0 t0 =
+    -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
+    case go x0 t0 of
+        (# t, mbPX #) -> (mbPX, t)
+  where
+    go !x t = case t of
+        Nil -> (# Tip k p x, Nothing #)
 
-       | zero k m       -> case go k p x l of
-                             (# l', mbPX #) -> l' `seq` (# Bin k' p' x' m l' r, mbPX #)
+        Tip k' p' x'
+            | k == k'   -> (# Tip k p (f x x'),                 Just (p', x') #)
+            | otherwise -> (# link k' p' x' k  (Tip k p x) Nil, Nothing #)
 
-       | otherwise      -> case go k p x r of
-                             (# r', mbPX #) -> r' `seq` (# Bin k' p' x' m l r', mbPX #)
+        Bin k' p' x' m l r
+            | nomatch k k' m ->
+                let t' = merge m l r
+                in t' `seq`
+                    let t'' = link k' p' x' k (Tip k p x) t'
+                    in t'' `seq` (# t'', Nothing #)
+
+            | k == k' ->
+                let t' = merge m l r
+                in t' `seq` case go (f x x') t' of
+                    (# t'', _ #) -> t'' `seq` (# t'', Just (p', x') #)
+
+            | zero k m -> case go x l of
+                (# l', mbPX #) -> l' `seq` (# Bin k' p' x' m l' r, mbPX #)
+
+            | otherwise -> case go x r of
+                (# r', mbPX #) -> r' `seq` (# Bin k' p' x' m l r', mbPX #)
 
 
 ------------------------------------------------------------------------------

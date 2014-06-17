@@ -1,2 +1,3 @@
 :set -fobject-code
 :set -Wall
+:set -isrc -itests

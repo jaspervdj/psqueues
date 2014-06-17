@@ -20,11 +20,16 @@ import           Data.PSQ.Class.Gen
 
 tests :: [Test]
 tests =
-    [ testCase     "hasBadNils"                 test_hasBadNils
-    , testProperty "valid"                      prop_valid
-    , testProperty "insertLargerThanMaxPrio"    prop_insertLargerThanMaxPrio
-    , testProperty "insertLargerThanMaxPrioView"
-                                                prop_insertLargerThanMaxPrioView
+    [ testCase     "hasBadNils"     test_hasBadNils
+    , testProperty "valid"          prop_valid
+    , testProperty "unsafeInsertLargerThanMaxPrio"
+                                    prop_unsafeInsertLargerThanMaxPrio
+    , testProperty "unsafeInsertLargerThanMaxPrioView"
+                                    prop_unsafeInsertLargerThanMaxPrioView
+    , testProperty "unsafeInsertWithLargerThanMaxPrio"
+                                    prop_unsafeInsertWithLargerThanMaxPrio
+    , testProperty "unsafeInsertWithLargerThanMaxPrioView"
+                                    prop_unsafeInsertWithLargerThanMaxPrioView
     ]
 
 
@@ -32,7 +37,7 @@ tests =
 -- Util
 --------------------------------------------------------------------------------
 
-largerThanMaxPrio :: IntPSQ Int Char -> Int
+largerThanMaxPrio :: IntPSQ Int v -> Int
 largerThanMaxPrio = maybe 3 (+ 1) . fold' (\_ p _ acc -> max' p acc) Nothing
   where
     max' x Nothing  = Just x
@@ -57,22 +62,50 @@ prop_valid :: Property
 prop_valid = forAll arbitraryPSQ $ \t ->
     valid (t :: IntPSQ Int Char)
 
-prop_insertLargerThanMaxPrio :: Property
-prop_insertLargerThanMaxPrio =
+prop_unsafeInsertLargerThanMaxPrio :: Property
+prop_unsafeInsertLargerThanMaxPrio =
     forAll arbitraryPSQ $ \t ->
     forAll arbitrary    $ \k ->
     forAll arbitrary    $ \x ->
-        let priority = largerThanMaxPrio t
-            t'       = unsafeInsertLargerThanMaxPrio k priority x t
-        in valid (t' :: IntPSQ Int Char) && lookup k t' == Just (priority, x)
+        let prio = largerThanMaxPrio t
+            t'   = unsafeInsertLargerThanMaxPrio k prio x t
+        in valid (t' :: IntPSQ Int Char) && lookup k t' == Just (prio, x)
 
-prop_insertLargerThanMaxPrioView :: Property
-prop_insertLargerThanMaxPrioView =
+prop_unsafeInsertLargerThanMaxPrioView :: Property
+prop_unsafeInsertLargerThanMaxPrioView =
     forAll arbitraryPSQ $ \t ->
     forAll arbitrary    $ \k ->
     forAll arbitrary    $ \x ->
-        let priority   = largerThanMaxPrio t
-            (mbPx, t') = unsafeInsertLargerThanMaxPrioView k priority x t
+        let prio       = largerThanMaxPrio t
+            (mbPx, t') = unsafeInsertLargerThanMaxPrioView k prio x t
         in valid (t' :: IntPSQ Int Char) &&
-            lookup k t' == Just (priority, x) &&
+            lookup k t' == Just (prio, x) &&
+            lookup k t  == mbPx
+
+prop_unsafeInsertWithLargerThanMaxPrio :: Property
+prop_unsafeInsertWithLargerThanMaxPrio =
+    forAll arbitraryPSQ $ \t0 ->
+    forAll arbitrary    $ \k  ->
+    forAll arbitrary    $ \x  ->
+        let t      = fmap (\e -> [e]) t0 :: IntPSQ Int [Char]
+            prio   = largerThanMaxPrio t
+            t'     = unsafeInsertWithLargerThanMaxPrio (++) k prio [x] t
+            expect = case lookup k t of
+                            Nothing     -> [x]
+                            Just (_, y) -> [x] ++ y
+        in valid t' && lookup k t' == Just (prio, expect)
+
+prop_unsafeInsertWithLargerThanMaxPrioView :: Property
+prop_unsafeInsertWithLargerThanMaxPrioView =
+    forAll arbitraryPSQ $ \t0 ->
+    forAll arbitrary    $ \k  ->
+    forAll arbitrary    $ \x  ->
+        let t          = fmap (\e -> [e]) t0 :: IntPSQ Int [Char]
+            prio       = largerThanMaxPrio t
+            (mbPx, t') = unsafeInsertWithLargerThanMaxPrioView (++) k prio [x] t
+            expect     = case mbPx of
+                            Nothing     -> [x]
+                            Just (_, y) -> [x] ++ y
+        in valid t' &&
+            lookup k t' == Just (prio, expect) &&
             lookup k t  == mbPx
