@@ -475,16 +475,22 @@ unsafeInsertLargerThanMaxPrioView
 unsafeInsertLargerThanMaxPrioView =
     unsafeInsertWithLargerThanMaxPrioView (\newP newX _ _ -> (newP, newX))
 
+-- | This name is not chosen well anymore. This function:
+--
+-- - Either inserts a value at a new key with a prio higher than the max of the
+--   entire PSQ.
+-- - Or, overrides the value at the key with a prio strictly higher than the
+--   original prio at that key (but not necessarily the max of the entire PSQ).
 {-# INLINABLE unsafeInsertWithLargerThanMaxPrio #-}
 unsafeInsertWithLargerThanMaxPrio
     :: Ord p
     => (p -> v -> p -> v -> (p, v))
     -> Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-unsafeInsertWithLargerThanMaxPrio f k p0 x0 t0 =
+unsafeInsertWithLargerThanMaxPrio f k p x0 t0 =
     -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
-    go p0 x0 t0
+    go x0 t0
   where
-    go p x t = case t of
+    go x t = case t of
         Nil -> Tip k p x
 
         Tip k' p' x'
@@ -494,21 +500,23 @@ unsafeInsertWithLargerThanMaxPrio f k p0 x0 t0 =
         Bin k' p' x' m l r
             | nomatch k k' m -> link k' p' x' k (Tip k p x) (merge m l r)
             | k == k'        -> case f p x p' x' of
-                                    (!fp, !fx) -> go fp fx (merge m l r)
-            | zero k m       -> Bin k' p' x' m (go p x l) r
-            | otherwise      -> Bin k' p' x' m l          (go p x r)
+                (!fp, !fx)
+                    | zero k m  -> merge m (unsafeInsertNew k fp fx l) r
+                    | otherwise -> merge m l (unsafeInsertNew k fp fx r)
+            | zero k m       -> Bin k' p' x' m (go x l) r
+            | otherwise      -> Bin k' p' x' m l        (go x r)
 
 {-# INLINABLE unsafeInsertWithLargerThanMaxPrioView #-}
 unsafeInsertWithLargerThanMaxPrioView
     :: Ord p
     => (p -> v -> p -> v -> (p, v))
     -> Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
-unsafeInsertWithLargerThanMaxPrioView f k p0 x0 t0 =
+unsafeInsertWithLargerThanMaxPrioView f k p x0 t0 =
     -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
-    case go p0 x0 t0 of
+    case go x0 t0 of
         (# t, mbPX #) -> (mbPX, t)
   where
-    go p x t = case t of
+    go x t = case t of
         Nil -> (# Tip k p x, Nothing #)
 
         Tip k' p' x'
@@ -523,16 +531,25 @@ unsafeInsertWithLargerThanMaxPrioView f k p0 x0 t0 =
                     let t'' = link k' p' x' k (Tip k p x) t'
                     in t'' `seq` (# t'', Nothing #)
 
-            | k == k' ->
+            | k == k' -> case f p x p' x' of
+                (!fp, !fx)
+                    | zero k m  ->
+                        let t' = merge m (unsafeInsertNew k fp fx l) r
+                        in t' `seq` (# t', Just (p', x') #)
+                    | otherwise ->
+                        let t' = merge m l (unsafeInsertNew k fp fx r)
+                        in t' `seq` (# t', Just (p', x') #)
+                {-
                 let t' = merge m l r
                 in t' `seq` case f p x p' x' of
                     (!fp, !fx) -> case go fp fx t' of
                         (# t'', _ #) -> t'' `seq` (# t'', Just (p', x') #)
+                -}
 
-            | zero k m -> case go p x l of
+            | zero k m -> case go x l of
                 (# l', mbPX #) -> l' `seq` (# Bin k' p' x' m l' r, mbPX #)
 
-            | otherwise -> case go p x r of
+            | otherwise -> case go x r of
                 (# r', mbPX #) -> r' `seq` (# Bin k' p' x' m l r', mbPX #)
 
 

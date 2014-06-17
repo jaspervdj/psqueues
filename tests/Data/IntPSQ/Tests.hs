@@ -1,6 +1,5 @@
 module Data.IntPSQ.Tests
-    ( tests
-    ) where
+    where
 
 import           Prelude hiding (lookup)
 
@@ -90,11 +89,11 @@ prop_unsafeInsertWithLargerThanMaxPrio =
         let t      = fmap (\e -> [e]) t0 :: IntPSQ Int [Char]
             prio   = largerThanMaxPrio t
             f      = \newP newX oldP oldX ->
-                        (newP + (abs oldP `div` 2), newX ++ oldX)
+                        (min newP oldP + 1, newX ++ oldX)
             t'     = unsafeInsertWithLargerThanMaxPrio f k prio [x] t
             expect = case lookup k t of
                             Nothing     -> (prio, [x])
-                            Just (p, y) -> (prio + (abs p `div` 2), [x] ++ y)
+                            Just (p, y) -> (min prio p + 1, [x] ++ y)
         in valid t' && lookup k t' == Just expect
 
 prop_unsafeInsertWithLargerThanMaxPrioView :: Property
@@ -105,11 +104,11 @@ prop_unsafeInsertWithLargerThanMaxPrioView =
         let t          = fmap (\e -> [e]) t0 :: IntPSQ Int [Char]
             prio       = largerThanMaxPrio t
             f          = \newP newX oldP oldX ->
-                            (newP + (abs oldP `div` 2), newX ++ oldX)
+                            (min newP oldP + 1, newX ++ oldX)
             (mbPx, t') = unsafeInsertWithLargerThanMaxPrioView f k prio [x] t
             expect     = case mbPx of
                             Nothing     -> (prio, [x])
-                            Just (p, y) -> (prio + (abs p `div` 2), [x] ++ y)
+                            Just (p, y) -> (min prio p + 1, [x] ++ y)
         in valid t' &&
             lookup k t' == Just expect &&
             lookup k t  == mbPx
