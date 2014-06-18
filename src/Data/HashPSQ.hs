@@ -35,6 +35,11 @@ module Data.HashPSQ
     , map
     , fold'
 
+      -- * Unsafe operations
+    , unsafeLookupIncreasePriority
+    , unsafeInsertIncreasePriority
+    , unsafeInsertIncreasePriorityView
+
       -- * Validity check
     , valid
     ) where

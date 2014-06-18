@@ -43,10 +43,11 @@ module Data.IntPSQ.Internal
 
       -- * Unsafe manipulation
     , unsafeInsertNew
-    , unsafeInsertIncreasedPriority
-    , unsafeInsertIncreasedPriorityView
-    , unsafeInsertWithIncreasedPriority
-    , unsafeInsertWithIncreasedPriorityView
+    , unsafeInsertIncreasePriority
+    , unsafeInsertIncreasePriorityView
+    , unsafeInsertWithIncreasePriority
+    , unsafeInsertWithIncreasePriorityView
+    , unsafeLookupIncreasePriority
 
       -- * Testing
     , valid
@@ -463,17 +464,17 @@ merge m l r = case l of
 -- maximal priority in the heap. This is always the case when using the PSQ
 -- as the basis to implement a LRU cache, which associates a
 -- access-tick-number with every element.
-{-# INLINE unsafeInsertIncreasedPriority #-}
-unsafeInsertIncreasedPriority
+{-# INLINE unsafeInsertIncreasePriority #-}
+unsafeInsertIncreasePriority
     :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-unsafeInsertIncreasedPriority =
-    unsafeInsertWithIncreasedPriority (\newP newX _ _ -> (newP, newX))
+unsafeInsertIncreasePriority =
+    unsafeInsertWithIncreasePriority (\newP newX _ _ -> (newP, newX))
 
-{-# INLINE unsafeInsertIncreasedPriorityView #-}
-unsafeInsertIncreasedPriorityView
+{-# INLINE unsafeInsertIncreasePriorityView #-}
+unsafeInsertIncreasePriorityView
     :: Ord p => Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
-unsafeInsertIncreasedPriorityView =
-    unsafeInsertWithIncreasedPriorityView (\newP newX _ _ -> (newP, newX))
+unsafeInsertIncreasePriorityView =
+    unsafeInsertWithIncreasePriorityView (\newP newX _ _ -> (newP, newX))
 
 -- | This name is not chosen well anymore. This function:
 --
@@ -481,16 +482,16 @@ unsafeInsertIncreasedPriorityView =
 --   entire PSQ.
 -- - Or, overrides the value at the key with a prio strictly higher than the
 --   original prio at that key (but not necessarily the max of the entire PSQ).
-{-# INLINABLE unsafeInsertWithIncreasedPriority #-}
-unsafeInsertWithIncreasedPriority
+{-# INLINABLE unsafeInsertWithIncreasePriority #-}
+unsafeInsertWithIncreasePriority
     :: Ord p
     => (p -> v -> p -> v -> (p, v))
     -> Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-unsafeInsertWithIncreasedPriority f k p x0 t0 =
+unsafeInsertWithIncreasePriority f k p x t0 =
     -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
-    go x0 t0
+    go t0
   where
-    go x t = case t of
+    go t = case t of
         Nil -> Tip k p x
 
         Tip k' p' x'
@@ -503,20 +504,20 @@ unsafeInsertWithIncreasedPriority f k p x0 t0 =
                 (!fp, !fx)
                     | zero k m  -> merge m (unsafeInsertNew k fp fx l) r
                     | otherwise -> merge m l (unsafeInsertNew k fp fx r)
-            | zero k m       -> Bin k' p' x' m (go x l) r
-            | otherwise      -> Bin k' p' x' m l        (go x r)
+            | zero k m       -> Bin k' p' x' m (go l) r
+            | otherwise      -> Bin k' p' x' m l      (go r)
 
-{-# INLINABLE unsafeInsertWithIncreasedPriorityView #-}
-unsafeInsertWithIncreasedPriorityView
+{-# INLINABLE unsafeInsertWithIncreasePriorityView #-}
+unsafeInsertWithIncreasePriorityView
     :: Ord p
     => (p -> v -> p -> v -> (p, v))
     -> Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
-unsafeInsertWithIncreasedPriorityView f k p x0 t0 =
+unsafeInsertWithIncreasePriorityView f k p x t0 =
     -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
-    case go x0 t0 of
+    case go t0 of
         (# t, mbPX #) -> (mbPX, t)
   where
-    go x t = case t of
+    go t = case t of
         Nil -> (# Tip k p x, Nothing #)
 
         Tip k' p' x'
@@ -546,11 +547,56 @@ unsafeInsertWithIncreasedPriorityView f k p x0 t0 =
                         (# t'', _ #) -> t'' `seq` (# t'', Just (p', x') #)
                 -}
 
-            | zero k m -> case go x l of
+            | zero k m -> case go l of
                 (# l', mbPX #) -> l' `seq` (# Bin k' p' x' m l' r, mbPX #)
 
-            | otherwise -> case go x r of
+            | otherwise -> case go r of
                 (# r', mbPX #) -> r' `seq` (# Bin k' p' x' m l r', mbPX #)
+
+-- | This can NOT be used to delete elements.
+{-# INLINABLE unsafeLookupIncreasePriority #-}
+unsafeLookupIncreasePriority
+    :: Ord p
+    => (p -> v -> (Maybe b, p, v))
+    -> Key
+    -> IntPSQ p v
+    -> (Maybe b, IntPSQ p v)
+unsafeLookupIncreasePriority f k t0 =
+    -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
+    case go t0 of
+        (# t, mbB #) -> (mbB, t)
+  where
+    go t = case t of
+        Nil -> (# Nil, Nothing #)
+
+        Tip k' p' x'
+            | k == k'   -> case f p' x' of
+                (!fb, !fp, !fx) -> (# Tip k fp fx, fb #)
+            | otherwise -> (# t, Nothing #)
+
+        Bin k' p' x' m l r
+            | nomatch k k' m -> (# t, Nothing #)
+
+            | k == k' -> case f p' x' of
+                (!fb, !fp, !fx)
+                    | zero k m  ->
+                        let t' = merge m (unsafeInsertNew k fp fx l) r
+                        in t' `seq` (# t', fb #)
+                    | otherwise ->
+                        let t' = merge m l (unsafeInsertNew k fp fx r)
+                        in t' `seq` (# t', fb #)
+                {-
+                let t' = merge m l r
+                in t' `seq` case f p x p' x' of
+                    (!fp, !fx) -> case go fp fx t' of
+                        (# t'', _ #) -> t'' `seq` (# t'', Just (p', x') #)
+                -}
+
+            | zero k m -> case go l of
+                (# l', mbB #) -> l' `seq` (# Bin k' p' x' m l' r, mbB #)
+
+            | otherwise -> case go r of
+                (# r', mbB #) -> r' `seq` (# Bin k' p' x' m l r', mbB #)
 
 
 ------------------------------------------------------------------------------

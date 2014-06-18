@@ -40,10 +40,11 @@ module Data.IntPSQ
 
       -- * Unsafe manipulation
     , unsafeInsertNew
-    , unsafeInsertIncreasedPriority
-    , unsafeInsertIncreasedPriorityView
-    , unsafeInsertWithIncreasedPriority
-    , unsafeInsertWithIncreasedPriorityView
+    , unsafeInsertIncreasePriority
+    , unsafeInsertIncreasePriorityView
+    , unsafeInsertWithIncreasePriority
+    , unsafeInsertWithIncreasePriorityView
+    , unsafeLookupIncreasePriority
 
       -- * Validity check
     , valid

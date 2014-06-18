@@ -41,7 +41,9 @@ module Data.HashPSQ.Internal
     , fold'
 
       -- * Unsafe operations
-    , unsafeInsertIncreasedPriorityView
+    , unsafeLookupIncreasePriority
+    , unsafeInsertIncreasePriority
+    , unsafeInsertIncreasePriorityView
 
       -- * Validity check
     , valid
@@ -309,13 +311,50 @@ fold' f acc0 (HashPSQ ipsq) = IntPSQ.fold' goBucket acc0 ipsq
 -- Unsafe operations
 --------------------------------------------------------------------------------
 
-unsafeInsertIncreasedPriorityView
-    :: (Ord k, Hashable k, Ord p)
+{-# INLINABLE unsafeLookupIncreasePriority #-}
+unsafeLookupIncreasePriority
+    :: (Hashable k, Ord k, Ord p)
+    => k -> p -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
+unsafeLookupIncreasePriority k p (HashPSQ ipsq) =
+    (mbPV, HashPSQ ipsq')
+  where
+    (!mbPV, !ipsq') = IntPSQ.unsafeLookupIncreasePriority
+        (\bp b@(B bk bx opsq) ->
+            if k == bk
+                then let (bp', b') = mkBucket k p bx opsq
+                     in (Just (bp, bx), bp', b')
+                -- TODO (jaspervdj): Still a lookup-insert here: 3 traversals?
+                else case OrdPSQ.lookup k opsq of
+                        Nothing      -> (Nothing,     bp, b)
+                        Just (p', x) ->
+                            let b' = B bk bx (OrdPSQ.insert k p x opsq)
+                            in (Just (p', x), bp, b'))
+        (hash k)
+        ipsq
+
+{-# INLINABLE unsafeInsertIncreasePriority #-}
+unsafeInsertIncreasePriority
+    :: (Hashable k, Ord k, Ord p)
+    => k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
+unsafeInsertIncreasePriority k p x (HashPSQ ipsq) = HashPSQ $
+    IntPSQ.unsafeInsertWithIncreasePriority
+        (\_ _ bp (B bk bx opsq) ->
+            if k == bk
+                then mkBucket k p x opsq
+                else (bp, B bk bx (OrdPSQ.insert k p x opsq)))
+        (hash k)
+        p
+        (B k x OrdPSQ.empty)
+        ipsq
+
+{-# INLINABLE unsafeInsertIncreasePriorityView #-}
+unsafeInsertIncreasePriorityView
+    :: (Hashable k, Ord k, Ord p)
     => k -> p -> v -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
-unsafeInsertIncreasedPriorityView k p x (HashPSQ ipsq) =
+unsafeInsertIncreasePriorityView k p x (HashPSQ ipsq) =
     (mbEvicted, HashPSQ ipsq')
   where
-    (mbBucket, ipsq') = IntPSQ.unsafeInsertWithIncreasedPriorityView
+    (mbBucket, ipsq') = IntPSQ.unsafeInsertWithIncreasePriorityView
         (\_ _ bp (B bk bx opsq) ->
             if k == bk
                 then mkBucket k p x opsq

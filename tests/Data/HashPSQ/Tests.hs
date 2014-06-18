@@ -25,8 +25,8 @@ tests :: [Test]
 tests =
     [ testCase "showBucket" test_showBucket
     , testCase "toBucket"   test_toBucket
-    , testProperty "unsafeInsertIncreasedPriorityView"
-                            prop_unsafeInsertIncreasedPriorityView
+    , testProperty "unsafeInsertIncreasePriorityView"
+                            prop_unsafeInsertIncreasePriorityView
     ]
 
 
@@ -52,13 +52,13 @@ test_toBucket =
 -- Properties
 --------------------------------------------------------------------------------
 
-prop_unsafeInsertIncreasedPriorityView :: Property
-prop_unsafeInsertIncreasedPriorityView =
+prop_unsafeInsertIncreasePriorityView :: Property
+prop_unsafeInsertIncreasePriorityView =
     forAll arbitraryPSQ $ \t ->
     forAll arbitrary    $ \k ->
     forAll arbitrary    $ \x ->
         let prio       = largerThanMaxPrio t
-            (mbPx, t') = unsafeInsertIncreasedPriorityView k prio x t
+            (mbPx, t') = unsafeInsertIncreasePriorityView k prio x t
         in valid (t' :: HashPSQ LousyHashedInt Int Char) &&
             lookup k t' == Just (prio, x) &&
             lookup k t  == mbPx
