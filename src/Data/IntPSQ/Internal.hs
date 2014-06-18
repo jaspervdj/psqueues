@@ -43,10 +43,10 @@ module Data.IntPSQ.Internal
 
       -- * Unsafe manipulation
     , unsafeInsertNew
-    , unsafeInsertLargerThanMaxPrio
-    , unsafeInsertLargerThanMaxPrioView
-    , unsafeInsertWithLargerThanMaxPrio
-    , unsafeInsertWithLargerThanMaxPrioView
+    , unsafeInsertIncreasedPriority
+    , unsafeInsertIncreasedPriorityView
+    , unsafeInsertWithIncreasedPriority
+    , unsafeInsertWithIncreasedPriorityView
 
       -- * Testing
     , valid
@@ -463,17 +463,17 @@ merge m l r = case l of
 -- maximal priority in the heap. This is always the case when using the PSQ
 -- as the basis to implement a LRU cache, which associates a
 -- access-tick-number with every element.
-{-# INLINE unsafeInsertLargerThanMaxPrio #-}
-unsafeInsertLargerThanMaxPrio
+{-# INLINE unsafeInsertIncreasedPriority #-}
+unsafeInsertIncreasedPriority
     :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-unsafeInsertLargerThanMaxPrio =
-    unsafeInsertWithLargerThanMaxPrio (\newP newX _ _ -> (newP, newX))
+unsafeInsertIncreasedPriority =
+    unsafeInsertWithIncreasedPriority (\newP newX _ _ -> (newP, newX))
 
-{-# INLINE unsafeInsertLargerThanMaxPrioView #-}
-unsafeInsertLargerThanMaxPrioView
+{-# INLINE unsafeInsertIncreasedPriorityView #-}
+unsafeInsertIncreasedPriorityView
     :: Ord p => Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
-unsafeInsertLargerThanMaxPrioView =
-    unsafeInsertWithLargerThanMaxPrioView (\newP newX _ _ -> (newP, newX))
+unsafeInsertIncreasedPriorityView =
+    unsafeInsertWithIncreasedPriorityView (\newP newX _ _ -> (newP, newX))
 
 -- | This name is not chosen well anymore. This function:
 --
@@ -481,12 +481,12 @@ unsafeInsertLargerThanMaxPrioView =
 --   entire PSQ.
 -- - Or, overrides the value at the key with a prio strictly higher than the
 --   original prio at that key (but not necessarily the max of the entire PSQ).
-{-# INLINABLE unsafeInsertWithLargerThanMaxPrio #-}
-unsafeInsertWithLargerThanMaxPrio
+{-# INLINABLE unsafeInsertWithIncreasedPriority #-}
+unsafeInsertWithIncreasedPriority
     :: Ord p
     => (p -> v -> p -> v -> (p, v))
     -> Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-unsafeInsertWithLargerThanMaxPrio f k p x0 t0 =
+unsafeInsertWithIncreasedPriority f k p x0 t0 =
     -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
     go x0 t0
   where
@@ -506,12 +506,12 @@ unsafeInsertWithLargerThanMaxPrio f k p x0 t0 =
             | zero k m       -> Bin k' p' x' m (go x l) r
             | otherwise      -> Bin k' p' x' m l        (go x r)
 
-{-# INLINABLE unsafeInsertWithLargerThanMaxPrioView #-}
-unsafeInsertWithLargerThanMaxPrioView
+{-# INLINABLE unsafeInsertWithIncreasedPriorityView #-}
+unsafeInsertWithIncreasedPriorityView
     :: Ord p
     => (p -> v -> p -> v -> (p, v))
     -> Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
-unsafeInsertWithLargerThanMaxPrioView f k p x0 t0 =
+unsafeInsertWithIncreasedPriorityView f k p x0 t0 =
     -- TODO (jaspervdj): Maybe help inliner a bit here, check core.
     case go x0 t0 of
         (# t, mbPX #) -> (mbPX, t)

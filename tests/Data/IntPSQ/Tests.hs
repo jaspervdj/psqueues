@@ -20,14 +20,14 @@ import           Data.PSQ.Class.Gen
 tests :: [Test]
 tests =
     [ testCase     "hasBadNils"     test_hasBadNils
-    , testProperty "unsafeInsertLargerThanMaxPrio"
-                                    prop_unsafeInsertLargerThanMaxPrio
-    , testProperty "unsafeInsertLargerThanMaxPrioView"
-                                    prop_unsafeInsertLargerThanMaxPrioView
-    , testProperty "unsafeInsertWithLargerThanMaxPrio"
-                                    prop_unsafeInsertWithLargerThanMaxPrio
-    , testProperty "unsafeInsertWithLargerThanMaxPrioView"
-                                    prop_unsafeInsertWithLargerThanMaxPrioView
+    , testProperty "unsafeInsertIncreasedPriority"
+                                    prop_unsafeInsertIncreasedPriority
+    , testProperty "unsafeInsertIncreasedPriorityView"
+                                    prop_unsafeInsertIncreasedPriorityView
+    , testProperty "unsafeInsertWithIncreasedPriority"
+                                    prop_unsafeInsertWithIncreasedPriority
+    , testProperty "unsafeInsertWithIncreasedPriorityView"
+                                    prop_unsafeInsertWithIncreasedPriorityView
     ]
 
 
@@ -56,28 +56,28 @@ test_hasBadNils =
 -- QuickCheck properties
 --------------------------------------------------------------------------------
 
-prop_unsafeInsertLargerThanMaxPrio :: Property
-prop_unsafeInsertLargerThanMaxPrio =
+prop_unsafeInsertIncreasedPriority :: Property
+prop_unsafeInsertIncreasedPriority =
     forAll arbitraryPSQ $ \t ->
     forAll arbitrary    $ \k ->
     forAll arbitrary    $ \x ->
         let prio = largerThanMaxPrio t
-            t'   = unsafeInsertLargerThanMaxPrio k prio x t
+            t'   = unsafeInsertIncreasedPriority k prio x t
         in valid (t' :: IntPSQ Int Char) && lookup k t' == Just (prio, x)
 
-prop_unsafeInsertLargerThanMaxPrioView :: Property
-prop_unsafeInsertLargerThanMaxPrioView =
+prop_unsafeInsertIncreasedPriorityView :: Property
+prop_unsafeInsertIncreasedPriorityView =
     forAll arbitraryPSQ $ \t ->
     forAll arbitrary    $ \k ->
     forAll arbitrary    $ \x ->
         let prio       = largerThanMaxPrio t
-            (mbPx, t') = unsafeInsertLargerThanMaxPrioView k prio x t
+            (mbPx, t') = unsafeInsertIncreasedPriorityView k prio x t
         in valid (t' :: IntPSQ Int Char) &&
             lookup k t' == Just (prio, x) &&
             lookup k t  == mbPx
 
-prop_unsafeInsertWithLargerThanMaxPrio :: Property
-prop_unsafeInsertWithLargerThanMaxPrio =
+prop_unsafeInsertWithIncreasedPriority :: Property
+prop_unsafeInsertWithIncreasedPriority =
     forAll arbitraryPSQ $ \t0 ->
     forAll arbitrary    $ \k  ->
     forAll arbitrary    $ \x  ->
@@ -85,14 +85,14 @@ prop_unsafeInsertWithLargerThanMaxPrio =
             prio   = largerThanMaxPrio t
             f      = \newP newX oldP oldX ->
                         (min newP oldP + 1, newX ++ oldX)
-            t'     = unsafeInsertWithLargerThanMaxPrio f k prio [x] t
+            t'     = unsafeInsertWithIncreasedPriority f k prio [x] t
             expect = case lookup k t of
                             Nothing     -> (prio, [x])
                             Just (p, y) -> (min prio p + 1, [x] ++ y)
         in valid t' && lookup k t' == Just expect
 
-prop_unsafeInsertWithLargerThanMaxPrioView :: Property
-prop_unsafeInsertWithLargerThanMaxPrioView =
+prop_unsafeInsertWithIncreasedPriorityView :: Property
+prop_unsafeInsertWithIncreasedPriorityView =
     forAll arbitraryPSQ $ \t0 ->
     forAll arbitrary    $ \k  ->
     forAll arbitrary    $ \x  ->
@@ -100,7 +100,7 @@ prop_unsafeInsertWithLargerThanMaxPrioView =
             prio       = largerThanMaxPrio t
             f          = \newP newX oldP oldX ->
                             (min newP oldP + 1, newX ++ oldX)
-            (mbPx, t') = unsafeInsertWithLargerThanMaxPrioView f k prio [x] t
+            (mbPx, t') = unsafeInsertWithIncreasedPriorityView f k prio [x] t
             expect     = case mbPx of
                             Nothing     -> (prio, [x])
                             Just (p, y) -> (min prio p + 1, [x] ++ y)
