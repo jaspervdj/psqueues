@@ -221,9 +221,9 @@ prop_singleton
                     Eq (psq Int Char))
     => Tagged psq Property
 prop_singleton = Tagged $
-    forAll arbitraryTestKey $ \k ->
-    forAll arbitraryInt     $ \p ->
-    forAll arbitrary        $ \x ->
+    forAll arbitraryTestKey  $ \k ->
+    forAll arbitraryPriority $ \p ->
+    forAll arbitrary         $ \x ->
         insert k p x empty == (singleton k p x :: psq Int Char)
 
 prop_memberLookup
@@ -243,9 +243,9 @@ prop_insertLookup
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_insertLookup = Tagged $ \t ->
-    forAll arbitraryTestKey $ \k ->
-    forAll arbitraryInt     $ \p ->
-    forAll arbitrary        $ \c ->
+    forAll arbitraryTestKey  $ \k ->
+    forAll arbitraryPriority $ \p ->
+    forAll arbitrary         $ \c ->
         lookup k (insert k p c (t :: psq Int Char)) == Just (p, c)
 
 prop_insertDelete
@@ -255,9 +255,9 @@ prop_insertDelete
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_insertDelete = Tagged $ \t ->
-    forAll arbitraryTestKey $ \k ->
-    forAll arbitraryInt     $ \p ->
-    forAll arbitrary        $ \c ->
+    forAll arbitraryTestKey  $ \k ->
+    forAll arbitraryPriority $ \p ->
+    forAll arbitrary         $ \c ->
         (lookup k t == Nothing) ==>
             (delete k (insert k p c t) == (t :: psq Int Char))
 
@@ -268,9 +268,9 @@ prop_insertDeleteView
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_insertDeleteView = Tagged $ \t ->
-    forAll arbitraryTestKey $ \k ->
-    forAll arbitraryInt     $ \p ->
-    forAll arbitrary        $ \c ->
+    forAll arbitraryTestKey  $ \k ->
+    forAll arbitraryPriority $ \p ->
+    forAll arbitrary         $ \c ->
         case deleteView k (insert k p c (t :: psq Int Char)) of
             Nothing           -> False
             Just (p', c', t')
@@ -350,9 +350,9 @@ prop_insertView
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Property)
 prop_insertView = Tagged $ \t ->
-    forAll arbitraryTestKey $ \k ->
-    forAll arbitraryInt     $ \p ->
-    forAll arbitrary        $ \x ->
+    forAll arbitraryTestKey  $ \k ->
+    forAll arbitraryPriority $ \p ->
+    forAll arbitrary         $ \x ->
         case insertView k p x (t :: psq Int Char) of
             (mbPx, t') ->
                 lookup k t  == mbPx && lookup k t' == Just (p, x)

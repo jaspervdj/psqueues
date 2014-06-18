@@ -4,6 +4,7 @@ module Data.PSQ.Tests.Util
     ( LousyHashedInt (..)
     , TestKey (..)
     , arbitraryInt
+    , arbitraryPriority
     , arbitraryTestKey
     , coverShowInstance
     , assertErrorCall
@@ -13,7 +14,7 @@ import           Control.Applicative ((<$>))
 import           Data.Hashable       (Hashable (..))
 import           Control.Exception   (ErrorCall (..), fromException, handle)
 import           Test.HUnit          (Assertion, assertFailure)
-import           Test.QuickCheck     (Arbitrary (..), Gen, arbitrary)
+import           Test.QuickCheck     (Arbitrary (..), Gen, arbitrary, choose)
 import           Control.DeepSeq     (NFData)
 
 -- | A type we used a key in the PSQs in the tests. It intentionally has a
@@ -40,6 +41,11 @@ instance TestKey Int where
 
 arbitraryInt :: Gen Int
 arbitraryInt = arbitrary
+
+-- | Makes sure the priorities are taken from a small set so we have some
+-- collisions.
+arbitraryPriority :: Gen Int
+arbitraryPriority = choose (-10, 10)
 
 arbitraryTestKey :: TestKey a => Gen a
 arbitraryTestKey = toEnum <$> arbitraryInt

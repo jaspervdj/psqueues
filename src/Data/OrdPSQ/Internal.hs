@@ -516,7 +516,7 @@ Winner e@(E k p v) t m `play` Winner e'@(E k' p' v') t' m'
 -- important to have a deterministic `==`, which requires on `minView` pulling
 -- out the elements in the right order.
 beats :: (Ord p, Ord k) => (p, k) -> (p, k) -> Bool
-beats (p, !k) (p', !k') = p < p' || (p == p' && k <= k')
+beats (p, !k) (p', !k') = p < p' || (p == p' && k < k')
 {-# INLINE beats #-}
 
 -- | Obtain a "Tournament view" of the OrdPSQ. This is a tree represented by

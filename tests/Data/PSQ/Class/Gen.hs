@@ -16,6 +16,7 @@ import           Control.Monad       (foldM, replicateM)
 import           Data.Hashable       (Hashable)
 
 import           Data.PSQ.Class      (PSQ (..))
+import           Data.PSQ.Tests.Util
 import qualified Data.OrdPSQ         as OrdPSQ
 import qualified Data.IntPSQ         as IntPSQ
 import qualified Data.HashPSQ        as HashPSQ
@@ -27,15 +28,16 @@ data Action k p v
     deriving (Show, Eq)
 
 arbitraryAction
-    :: (Arbitrary k, Arbitrary p, Arbitrary v)
-    => Gen (Action k p v)
+    :: (Arbitrary k, Arbitrary v)
+    => Gen (Action k Int v)
 arbitraryAction = frequency
-    [ (10, Insert <$> arbitrary <*> arbitrary <*> arbitrary)
+    [ (10, Insert <$> arbitrary <*> arbitraryPriority <*> arbitrary)
     , (2,  pure DeleteRandomMember)
     , (2,  pure DeleteMin)
     ]
 
-apply :: (PSQ psq, Ord p) => Action (Key psq) p v -> psq p v -> Gen (psq p v)
+apply
+    :: PSQ psq => Action (Key psq) Int v -> psq Int v -> Gen (psq Int v)
 apply (Insert k p x)     t = return $ insert k p x t
 apply DeleteRandomMember t = do
     key <- elements (keys t)
@@ -45,32 +47,29 @@ apply DeleteMin          t = return $ case minView t of
     Just (_, _, _, t') -> t'
 
 arbitraryPSQ
-    :: forall psq p v. (Arbitrary (Key psq), Arbitrary p, Arbitrary v,
-                        Ord p, PSQ psq)
-    => Gen (psq p v)
+    :: forall psq v. (Arbitrary (Key psq), Arbitrary v, PSQ psq)
+    => Gen (psq Int v)
 arbitraryPSQ = do
     numActions <- choose (0, 100)
     actions    <- replicateM numActions arbitraryAction
-    foldM (\t a -> apply a t) (empty :: psq p v) actions
+    foldM (\t a -> apply a t) (empty :: psq Int v) actions
 
 shrinkPSQ
-    :: forall psq p v. (Arbitrary (Key psq), Arbitrary p, Arbitrary v,
-                        Ord p, PSQ psq)
+    :: forall psq p v. (Ord p, PSQ psq)
     => psq p v -> [psq p v]
 shrinkPSQ t = [delete k t | k <- keys t]
 
-instance forall k p v. (Arbitrary k, Arbitrary p, Arbitrary v, Ord k, Ord p) =>
-            Arbitrary (OrdPSQ.OrdPSQ k p v) where
+instance forall k v. (Arbitrary k, Arbitrary v, Ord k) =>
+            Arbitrary (OrdPSQ.OrdPSQ k Int v) where
     arbitrary = arbitraryPSQ
     shrink    = shrinkPSQ
 
-instance forall p v. (Arbitrary p, Arbitrary v, Ord p) =>
-            Arbitrary (IntPSQ.IntPSQ p v) where
+instance forall v. (Arbitrary v) => Arbitrary (IntPSQ.IntPSQ Int v) where
     arbitrary = arbitraryPSQ
     shrink    = shrinkPSQ
 
-instance forall k p v. (Arbitrary k, Arbitrary p, Arbitrary v,
-                        Hashable k, Ord k, Ord p) =>
-            Arbitrary (HashPSQ.HashPSQ k p v) where
+instance forall k v. (Arbitrary k, Arbitrary v,
+                      Hashable k, Ord k) =>
+            Arbitrary (HashPSQ.HashPSQ k Int v) where
     arbitrary = arbitraryPSQ
     shrink    = shrinkPSQ
