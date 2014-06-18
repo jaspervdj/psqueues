@@ -42,6 +42,7 @@ module Data.OrdPSQ.Internal
     , fold'
 
       -- * Tournament view
+    , TourView (..)
     , tourView
     , play
 
@@ -66,6 +67,11 @@ import           Prelude         hiding (map, lookup, null, foldr)
 import           Control.DeepSeq (NFData(rnf))
 import           Data.Maybe      (isJust)
 import           Data.Foldable   (Foldable (foldr))
+import qualified Data.List       as List
+
+--------------------------------------------------------------------------------
+-- Types
+--------------------------------------------------------------------------------
 
 -- | @E k p v@ binds the key @k@ to the value @v@ with priority @p@.
 data Elem k p v = E !k !p !v
@@ -74,13 +80,7 @@ data Elem k p v = E !k !p !v
 instance (NFData k, NFData p, NFData v) => NFData (Elem k p v) where
     rnf (E k p v) = rnf k `seq` rnf p `seq` rnf v
 
-unElem :: Elem k p v -> (k, p, v)
-unElem (E k p v) = (k, p, v)
-
-
-------------------------------------------------------------------------
 -- | A mapping from keys @k@ to priorites @p@.
-
 data OrdPSQ k p v
     = Void
     | Winner !(Elem k p v)
@@ -107,6 +107,37 @@ instance Foldable (OrdPSQ k p) where
 instance Functor (OrdPSQ k p) where
     fmap f = map (\_ _ v -> f v)
 
+type Size = Int
+
+data LTree k p v
+    = Start
+    | LLoser {-# UNPACK #-} !Size
+             {-# UNPACK #-} !(Elem k p v)
+                            !(LTree k p v)
+                            !k              -- split key
+                            !(LTree k p v)
+    | RLoser {-# UNPACK #-} !Size
+             {-# UNPACK #-} !(Elem k p v)
+                            !(LTree k p v)
+                            !k              -- split key
+                            !(LTree k p v)
+    deriving (Show)
+
+instance (NFData k, NFData p, NFData v) => NFData (LTree k p v) where
+    rnf Start              = ()
+    rnf (LLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
+    rnf (RLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
+
+instance Foldable (LTree k p) where
+    foldr _ z Start                      = z
+    foldr f z (LLoser _ (E _ _ x) l _ r) = f x (foldr f (foldr f z r) l)
+    foldr f z (RLoser _ (E _ _ x) l _ r) = f x (foldr f (foldr f z r) l)
+
+
+--------------------------------------------------------------------------------
+-- Query
+--------------------------------------------------------------------------------
+
 -- | /O(1)/ True if the queue is empty.
 null :: OrdPSQ k p v -> Bool
 null Void           = True
@@ -125,17 +156,24 @@ member k = isJust . lookup k
 -- the key is not bound.
 {-# INLINABLE lookup #-}
 lookup :: (Ord k) => k -> OrdPSQ k p v -> Maybe (p, v)
-lookup k q = tourView
-    Nothing
-    (\k' p v ->
-        if k == k' then Just (p, v) else Nothing)
-    (\tl tr ->
-        if k <= maxKey tl then lookup k tl else lookup k tr)
-    q
+lookup k t = case tourView t of
+    Null                 -> Nothing
+    Single (E k' p v)
+        | k == k'        -> Just (p, v)
+        | otherwise      -> Nothing
+    Play tl tr
+        | k <= maxKey tl -> lookup k tl
+        | otherwise      -> lookup k tr
+
+-- | /O(1)/ The element with the lowest priority.
+findMin :: OrdPSQ k p v -> Maybe (k, p, v)
+findMin Void                   = Nothing
+findMin (Winner (E k p v) _ _) = Just (k, p, v)
 
 
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Construction
+--------------------------------------------------------------------------------
 
 empty :: OrdPSQ k p v
 empty = Void
@@ -144,8 +182,10 @@ empty = Void
 singleton :: k -> p -> v -> OrdPSQ k p v
 singleton k p v = Winner (E k p v) Start k
 
-------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
 -- Insertion
+--------------------------------------------------------------------------------
 
 -- | /O(log n)/ Insert a new key, priority and value in the queue.  If
 -- the key is already present in the queue, the associated priority
@@ -165,31 +205,10 @@ insert k p v q = case q of
         | k <= m    -> insert k p v (Winner e' tl m) `play` (Winner e tr m')
         | otherwise -> (Winner e' tl m) `play` insert k p v (Winner e tr m')
 
-{-# INLINABLE deleteView #-}
-deleteView :: (Ord k, Ord p) => k -> OrdPSQ k p v -> Maybe (p, v, OrdPSQ k p v)
-deleteView k psq = case psq of
-    Void            -> Nothing
-    Winner (E k' p v) Start _
-        | k == k'   -> Just (p, v, empty)
-        | otherwise -> Nothing
-    Winner e (RLoser _ e' tl m tr) m'
-        | k <= m    -> fmap (\(p,v,q) -> (p, v,  q `play` (Winner e' tr m'))) (deleteView k (Winner e tl m))
-        | otherwise -> fmap (\(p,v,q) -> (p, v,  (Winner e tl m) `play` q  )) (deleteView k (Winner e' tr m'))
-    Winner e (LLoser _ e' tl m tr) m'
-        | k <= m    -> fmap (\(p,v,q) -> (p, v, q `play` (Winner e tr m'))) (deleteView k (Winner e' tl m))
-        | otherwise -> fmap (\(p,v,q) -> (p, v, (Winner e' tl m) `play` q )) (deleteView k (Winner e tr m'))
 
-{-# INLINABLE insertView #-}
-insertView
-    :: (Ord k, Ord p)
-    => k -> p -> v -> OrdPSQ k p v -> (Maybe (p, v), OrdPSQ k p v)
-insertView k p x t = case deleteView k t of
-    Nothing          -> (Nothing,       insert k p x t)
-    Just (p', x', _) -> (Just (p', x'), insert k p x t)
-
-
-------------------------------------------------------------------------
--- Delete/Update
+--------------------------------------------------------------------------------
+-- Delete/update
+--------------------------------------------------------------------------------
 
 -- | /O(log n)/ Delete a key and its priority and value from the
 -- queue.  When the key is not a member of the queue, the original
@@ -238,8 +257,10 @@ alterMin f psq0 =
     insertMay Nothing          psq = psq
     insertMay (Just (k, p, v)) psq = insert k p v psq
 
-------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
 -- Conversion
+--------------------------------------------------------------------------------
 
 -- | /O(n*log n)/ Build a queue from a list of key/priority/value
 -- tuples.  If the list contains more than one priority and value for
@@ -262,14 +283,55 @@ toAscList :: OrdPSQ k p v -> [(k, p, v)]
 toAscList q  = seqToList (toAscLists q)
 
 toAscLists :: OrdPSQ k p v -> Sequ (k, p, v)
-toAscLists = tourView
-    emptySequ
-    (\k p v -> singleSequ (k, p, v))
-    (\tl tr -> toAscLists tl <> toAscLists tr)
+toAscLists t = case tourView t of
+    Null             -> emptySequ
+    Single (E k p v) -> singleSequ (k, p, v)
+    Play tl tr       -> toAscLists tl <> toAscLists tr
 
 
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Views
+--------------------------------------------------------------------------------
+
+{-# INLINABLE insertView #-}
+insertView
+    :: (Ord k, Ord p)
+    => k -> p -> v -> OrdPSQ k p v -> (Maybe (p, v), OrdPSQ k p v)
+insertView k p x t = case deleteView k t of
+    Nothing          -> (Nothing,       insert k p x t)
+    Just (p', x', _) -> (Just (p', x'), insert k p x t)
+
+{-# INLINABLE deleteView #-}
+deleteView :: (Ord k, Ord p) => k -> OrdPSQ k p v -> Maybe (p, v, OrdPSQ k p v)
+deleteView k psq = case psq of
+    Void            -> Nothing
+    Winner (E k' p v) Start _
+        | k == k'   -> Just (p, v, empty)
+        | otherwise -> Nothing
+    Winner e (RLoser _ e' tl m tr) m'
+        | k <= m    -> fmap (\(p,v,q) -> (p, v,  q `play` (Winner e' tr m'))) (deleteView k (Winner e tl m))
+        | otherwise -> fmap (\(p,v,q) -> (p, v,  (Winner e tl m) `play` q  )) (deleteView k (Winner e' tr m'))
+    Winner e (LLoser _ e' tl m tr) m'
+        | k <= m    -> fmap (\(p,v,q) -> (p, v, q `play` (Winner e tr m'))) (deleteView k (Winner e' tl m))
+        | otherwise -> fmap (\(p,v,q) -> (p, v, (Winner e' tl m) `play` q )) (deleteView k (Winner e tr m'))
+
+-- | /O(log n)/ Retrieve the binding with the least priority, and the
+-- rest of the queue stripped of that binding.
+{-# INLINABLE minView #-}
+minView :: (Ord k, Ord p) => OrdPSQ k p v -> Maybe (k, p, v, OrdPSQ k p v)
+minView Void                   = Nothing
+minView (Winner (E k p v) t m) = Just (k, p, v, secondBest t m)
+
+{-# INLINABLE secondBest #-}
+secondBest :: (Ord k, Ord p) => LTree k p v -> k -> OrdPSQ k p v
+secondBest Start _                 = Void
+secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
+secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
+
+
+--------------------------------------------------------------------------------
 -- Traversals
+--------------------------------------------------------------------------------
 
 {-# INLINABLE map #-}
 map :: forall k p v w. (k -> p -> v -> w) -> OrdPSQ k p v -> OrdPSQ k p w
@@ -303,56 +365,49 @@ fold' f =
     go !acc (RLoser _ (E k p v) lt _ rt) = go (f k p v (go acc lt)) rt
 
 
-------------------------------------------------------------------------
--- Min
+--------------------------------------------------------------------------------
+-- Tournament view
+--------------------------------------------------------------------------------
 
--- | /O(1)/ The element with the lowest priority.
-findMin :: OrdPSQ k p v -> Maybe (k, p, v)
-findMin Void           = Nothing
-findMin (Winner e _ _) = Just (unElem e)
+data TourView k p v
+    = Null
+    | Single {-# UNPACK #-} !(Elem k p v)
+    | Play (OrdPSQ k p v) (OrdPSQ k p v)
 
--- | /O(log n)/ Retrieve the binding with the least priority, and the
--- rest of the queue stripped of that binding.
-{-# INLINABLE minView #-}
-minView :: (Ord k, Ord p) => OrdPSQ k p v -> Maybe (k, p, v, OrdPSQ k p v)
-minView Void                   = Nothing
-minView (Winner (E k p v) t m) = Just (k, p, v, secondBest t m)
+tourView :: OrdPSQ k p v -> TourView k p v
+tourView Void               = Null
+tourView (Winner e Start _) = Single e
+tourView (Winner e (RLoser _ e' tl m tr) m') =
+    Winner e tl m `Play` Winner e' tr m'
+tourView (Winner e (LLoser _ e' tl m tr) m') =
+    Winner e' tl m `Play` Winner e tr m'
 
-{-# INLINABLE secondBest #-}
-secondBest :: (Ord k, Ord p) => LTree k p v -> k -> OrdPSQ k p v
-secondBest Start _                 = Void
-secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
-secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
+-- | Take two pennants and returns a new pennant that is the union of
+-- the two with the precondition that the keys in the first tree are
+-- strictly smaller than the keys in the second tree.
+{-# INLINABLE play #-}
+play :: (Ord p, Ord k) => OrdPSQ k p v -> OrdPSQ k p v -> OrdPSQ k p v
+Void `play` t' = t'
+t `play` Void  = t
+Winner e@(E k p v) t m `play` Winner e'@(E k' p' v') t' m'
+    | (p, k) `beats` (p', k') = Winner e (rbalance k' p' v' t m t') m'
+    | otherwise               = Winner e' (lbalance k p v t m t') m'
+
+-- | When priorities are equal, the tree with the lowest key wins. This is
+-- important to have a deterministic `==`, which requires on `minView` pulling
+-- out the elements in the right order.
+beats :: (Ord p, Ord k) => (p, k) -> (p, k) -> Bool
+beats (p, !k) (p', !k') = p < p' || (p == p' && k < k')
+{-# INLINE beats #-}
 
 
-------------------------------------------------------------------------
--- Loser tree
+--------------------------------------------------------------------------------
+-- Balancing internals
+--------------------------------------------------------------------------------
 
-type Size = Int
-
-data LTree k p v
-    = Start
-    | LLoser {-# UNPACK #-} !Size
-             {-# UNPACK #-} !(Elem k p v)
-                            !(LTree k p v)
-                            !k              -- split key
-                            !(LTree k p v)
-    | RLoser {-# UNPACK #-} !Size
-             {-# UNPACK #-} !(Elem k p v)
-                            !(LTree k p v)
-                            !k              -- split key
-                            !(LTree k p v)
-    deriving (Show)
-
-instance (NFData k, NFData p, NFData v) => NFData (LTree k p v) where
-    rnf Start              = ()
-    rnf (LLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
-    rnf (RLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
-
-instance Foldable (LTree k p) where
-    foldr _ z Start                      = z
-    foldr f z (LLoser _ (E _ _ x) l _ r) = f x (foldr f (foldr f z r) l)
-    foldr f z (RLoser _ (E _ _ x) l _ r) = f x (foldr f (foldr f z r) l)
+-- | Balance factor
+omega :: Int
+omega = 4  -- Has to be greater than 3.75 because Hinze's paper said so.
 
 size' :: LTree k p v -> Size
 size' Start              = 0
@@ -376,13 +431,6 @@ maxKey (Winner _ _ m) = m
 lloser, rloser :: k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lloser k p v tl m tr = LLoser (1 + size' tl + size' tr) (E k p v) tl m tr
 rloser k p v tl m tr = RLoser (1 + size' tl + size' tr) (E k p v) tl m tr
-
-------------------------------------------------------------------------
--- Balancing
-
--- | Balance factor
-omega :: Int
-omega = 4  -- Has to be greater than 3.75 because Hinze's paper said so.
 
 lbalance, rbalance
     :: (Ord k, Ord p)
@@ -501,60 +549,69 @@ rdoubleRight k1 p1 v1 (RLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
     rsingleRight k1 p1 v1 (rsingleLeft k2 p2 v2 t1 m1 t2) m2 t3
 rdoubleRight _ _ _ _ _ _ = moduleError "rdoubleRight" "malformed tree"
 
--- | Take two pennants and returns a new pennant that is the union of
--- the two with the precondition that the keys in the ﬁrst tree are
--- strictly smaller than the keys in the second tree.
-{-# INLINABLE play #-}
-play :: (Ord p, Ord k) => OrdPSQ k p v -> OrdPSQ k p v -> OrdPSQ k p v
-Void `play` t' = t'
-t `play` Void  = t
-Winner e@(E k p v) t m `play` Winner e'@(E k' p' v') t' m'
-    | (p, k) `beats` (p', k') = Winner e (rbalance k' p' v' t m t') m'
-    | otherwise               = Winner e' (lbalance k p v t m t') m'
 
--- | When priorities are equal, the tree with the lowest key wins. This is
--- important to have a deterministic `==`, which requires on `minView` pulling
--- out the elements in the right order.
-beats :: (Ord p, Ord k) => (p, k) -> (p, k) -> Bool
-beats (p, !k) (p', !k') = p < p' || (p == p' && k < k')
-{-# INLINE beats #-}
+--------------------------------------------------------------------------------
+-- Validity check
+--------------------------------------------------------------------------------
 
--- | Obtain a "Tournament view" of the OrdPSQ. This is a tree represented by
--- three constructors:
---
--- * An empty tree
---
--- * A singleton tree
---
--- * Two non-empty trees playing against each other in the tournament.
---
--- We use a church encoding for the constructors as an optimisation.
-tourView
-    :: r                                    -- ^ Empty constructor
-    -> (k -> p -> v -> r)                   -- ^ Singleton constructor
-    -> (OrdPSQ k p v -> OrdPSQ k p v -> r)  -- ^ Branch/play constructor
-    -> OrdPSQ k p v                         -- ^ OrdPSQ to view
-    -> r                                    -- ^ Result
-tourView void single branch q = case q of
-    Void                                -> void
-    (Winner (E k p x) Start _)       -> single k p x
-    (Winner e (RLoser _ e' tl m tr) m') ->
-        Winner e tl m `branch` Winner e' tr m'
-    (Winner e (LLoser _ e' tl m tr) m') ->
-        Winner e' tl m `branch` Winner e tr m'
-{-# INLINE tourView #-}
+valid :: (Ord k, Ord p) => OrdPSQ k p v -> Bool
+valid t =
+    not (hasDuplicateKeys t)      &&
+    hasMinHeapProperty t          &&
+    hasBinarySearchTreeProperty t &&
+    hasCorrectSizeAnnotations t
+
+hasDuplicateKeys :: Ord k => OrdPSQ k p v -> Bool
+hasDuplicateKeys = any (> 1) . List.map length . List.group . List.sort . keys
+
+hasMinHeapProperty :: forall k p v. (Ord k, Ord p) => OrdPSQ k p v -> Bool
+hasMinHeapProperty Void                      = True
+hasMinHeapProperty (Winner (E k0 p0 _) t0 _) = go k0 p0 t0
+  where
+    go :: k -> p -> LTree k p v -> Bool
+    go _ _ Start                        = True
+    go k p (LLoser _ (E k' p' _) l _ r) =
+        (p, k) < (p', k') && go k' p' l && go k  p  r
+    go k p (RLoser _ (E k' p' _) l _ r) =
+        (p, k) < (p', k') && go k  p  l && go k' p' r
+
+hasBinarySearchTreeProperty
+    :: forall k p v. (Ord k, Ord p) => OrdPSQ k p v -> Bool
+hasBinarySearchTreeProperty t = case tourView t of
+    Null      -> True
+    Single _  -> True
+    Play l r  ->
+        all (<= k) (keys l)           &&
+        all (>= k) (keys r)           &&
+        hasBinarySearchTreeProperty l &&
+        hasBinarySearchTreeProperty r
+      where
+        k = maxKey l
+
+hasCorrectSizeAnnotations :: OrdPSQ k p v -> Bool
+hasCorrectSizeAnnotations Void            = True
+hasCorrectSizeAnnotations (Winner _ t0 _) = go t0
+  where
+    go :: LTree k p v -> Bool
+    go t@Start              = calculateSize t == 0
+    go t@(LLoser s _ l _ r) = calculateSize t == s && go l && go r
+    go t@(RLoser s _ l _ r) = calculateSize t == s && go l && go r
+
+    calculateSize :: LTree k p v -> Int
+    calculateSize Start              = 0
+    calculateSize (LLoser _ _ l _ r) = 1 + calculateSize l + calculateSize r
+    calculateSize (RLoser _ _ l _ r) = 1 + calculateSize l + calculateSize r
 
 
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Utility functions
+--------------------------------------------------------------------------------
 
 moduleError :: String -> String -> a
 moduleError fun msg = error ("Data.OrdPSQ.Internal." ++ fun ++ ':' : ' ' : msg)
 {-# NOINLINE moduleError #-}
 
-------------------------------------------------------------------------
--- Hughes's efficient sequence type
-
+-- | Hughes's efficient sequence type
 newtype Sequ a = Sequ ([a] -> [a])
 
 emptySequ :: Sequ a
@@ -569,11 +626,3 @@ infixr 5 <>
 
 seqToList :: Sequ a -> [a]
 seqToList (Sequ x) = x []
-
-
---------------------------------------------------------------------------------
--- Validity check
---------------------------------------------------------------------------------
-
-valid :: OrdPSQ k p v -> Bool
-valid _ = True

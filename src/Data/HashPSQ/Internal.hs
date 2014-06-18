@@ -316,7 +316,7 @@ hasDuplicateKeys = any (> 1) . List.map length . List.group . List.sort . keys
 
 validBucket :: (Hashable k, Ord k, Ord p) => Int -> p -> Bucket k p v -> Bool
 validBucket h p (B k x opsq) =
+    OrdPSQ.valid opsq &&
     -- Check that the first element of the bucket has lower priority than all
     -- the other elements.
     and [(p, k) < (p', k') && hash k' == h | (k', p', _) <- OrdPSQ.toList opsq]
-    -- TODO (jaspervdj): OrdPSQ.valid opsq
