@@ -72,6 +72,10 @@ class PSQ (psq :: * -> * -> *) where
     fold'
         :: Ord p => (Key psq -> p -> v -> a -> a) -> a -> psq p v -> a
 
+    -- Validity check
+    valid
+        :: Ord p => psq p v -> Bool
+
 instance PSQ IntPSQ.IntPSQ where
     type Key IntPSQ.IntPSQ = Int
 
@@ -94,6 +98,7 @@ instance PSQ IntPSQ.IntPSQ where
     minView    = IntPSQ.minView
     map        = IntPSQ.map
     fold'      = IntPSQ.fold'
+    valid      = IntPSQ.valid
 
 instance forall k. Ord k => PSQ (OrdPSQ.OrdPSQ k) where
     type Key (OrdPSQ.OrdPSQ k) = k
@@ -117,7 +122,7 @@ instance forall k. Ord k => PSQ (OrdPSQ.OrdPSQ k) where
     minView    = OrdPSQ.minView
     map        = OrdPSQ.map
     fold'      = OrdPSQ.fold'
-
+    valid      = OrdPSQ.valid
 
 instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where
     type Key (HashPSQ.HashPSQ k) = k
@@ -141,3 +146,4 @@ instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where
     minView    = HashPSQ.minView
     map        = HashPSQ.map
     fold'      = HashPSQ.fold'
+    valid      = HashPSQ.valid

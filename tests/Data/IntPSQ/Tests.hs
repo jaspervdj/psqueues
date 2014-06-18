@@ -20,7 +20,6 @@ import           Data.PSQ.Class.Gen
 tests :: [Test]
 tests =
     [ testCase     "hasBadNils"     test_hasBadNils
-    , testProperty "valid"          prop_valid
     , testProperty "unsafeInsertLargerThanMaxPrio"
                                     prop_unsafeInsertLargerThanMaxPrio
     , testProperty "unsafeInsertLargerThanMaxPrioView"
@@ -56,10 +55,6 @@ test_hasBadNils =
 --------------------------------------------------------------------------------
 -- QuickCheck properties
 --------------------------------------------------------------------------------
-
-prop_valid :: Property
-prop_valid = forAll arbitraryPSQ $ \t ->
-    valid (t :: IntPSQ Int Char)
 
 prop_unsafeInsertLargerThanMaxPrio :: Property
 prop_unsafeInsertLargerThanMaxPrio =

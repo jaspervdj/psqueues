@@ -57,6 +57,9 @@ module Data.OrdPSQ.Internal
     , rdoubleLeft
     , ldoubleRight
     , rdoubleRight
+
+      -- * Validity check
+    , valid
     ) where
 
 import           Prelude         hiding (map, lookup, null, foldr)
@@ -566,3 +569,11 @@ infixr 5 <>
 
 seqToList :: Sequ a -> [a]
 seqToList (Sequ x) = x []
+
+
+--------------------------------------------------------------------------------
+-- Validity check
+--------------------------------------------------------------------------------
+
+valid :: OrdPSQ k p v -> Bool
+valid _ = True

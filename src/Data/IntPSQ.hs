@@ -42,6 +42,9 @@ module Data.IntPSQ
     , unsafeInsertNew
     , unsafeInsertLargerThanMaxPrio
     , unsafeInsertLargerThanMaxPrioView
+
+      -- * Validity check
+    , valid
     ) where
 
 import           Prelude hiding (lookup, map, filter, foldr, foldl, null)

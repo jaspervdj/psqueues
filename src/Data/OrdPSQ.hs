@@ -38,6 +38,9 @@ module Data.OrdPSQ
       -- * Traversals
     , map
     , fold'
+
+      -- * Validity check
+    , valid
     ) where
 
 import           Prelude hiding (map, lookup, null, foldr)

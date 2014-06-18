@@ -34,6 +34,9 @@ module Data.HashPSQ
       -- * Traversal
     , map
     , fold'
+
+      -- * Validity check
+    , valid
     ) where
 
 import           Prelude               hiding (foldr, lookup, map, null)

@@ -70,6 +70,7 @@ tests = Tagged
     , testProperty "fmap"             (untag' prop_fmap)
     , testProperty "fold'"            (untag' prop_fold')
     , testProperty "foldr"            (untag' prop_foldr)
+    , testProperty "valid"            (untag' prop_valid)
     ]
   where
     untag' :: Tagged psq test -> test
@@ -414,3 +415,10 @@ prop_foldr = Tagged $ \t ->
         List.foldr (\(_, _, x) acc -> f x acc) 0 (toList t)
   where
     f x acc = acc + ord x
+
+prop_valid
+    :: forall psq. (PSQ psq,
+                    Arbitrary (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_valid = Tagged valid

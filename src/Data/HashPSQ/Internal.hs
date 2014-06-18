@@ -39,6 +39,9 @@ module Data.HashPSQ.Internal
       -- * Traversal
     , map
     , fold'
+
+      -- * Validity check
+    , valid
     ) where
 
 import           Control.DeepSeq (NFData (..))
@@ -146,18 +149,18 @@ insert k p v (HashPSQ ipsq) =
     case IntPSQ.alter (\x -> ((), ins x)) (hash k) ipsq of
         ((), ipsq') -> HashPSQ ipsq'
   where
-    ins Nothing              = Just (p,  B k  v  (OrdPSQ.empty))
+    ins Nothing                         = Just (p,  B k  v  (OrdPSQ.empty))
     ins (Just (p', B k' v' os))
-        | k' == k            =
+        | k' == k                       =
             -- Tricky: p might have less priority than an item in 'os'.
             toBucket (OrdPSQ.insert k p v os)
-        | p' <= p            =
+        | p' < p || (p == p' && k' < k) =
             Just (p', B k' v' (OrdPSQ.insert k  p  v  os))
-        | OrdPSQ.member k os =
+        | OrdPSQ.member k os            =
             -- This is a bit tricky: k might already be present in 'os' and we
             -- don't want to end up with duplicate keys.
             Just (p,  B k  v  (OrdPSQ.insert k' p' v' (OrdPSQ.delete k os)))
-        | otherwise          =
+        | otherwise                     =
             Just (p , B k  v  (OrdPSQ.insert k' p' v' os))
 
 
@@ -231,9 +234,11 @@ keys t = [k | (k, _, _) <- toList t]
 insertView
     :: (Hashable k, Ord k, Ord p)
     => k -> p -> v -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
-insertView k p x t = case deleteView k t of
-    Nothing          -> (Nothing,       insert k p x t)
-    Just (p', x', _) -> (Just (p', x'), insert k p x t)
+insertView k p x t =
+    -- TODO (jaspervdj): Can be optimized easily
+    case deleteView k t of
+        Nothing          -> (Nothing,       insert k p x t)
+        Just (p', x', _) -> (Just (p', x'), insert k p x t)
 
 {-# INLINABLE deleteView #-}
 deleteView
@@ -288,3 +293,30 @@ fold' f acc0 (HashPSQ ipsq) = IntPSQ.fold' goBucket acc0 ipsq
         let !acc1 = f k p v acc
             !acc2 = OrdPSQ.fold' f acc1 opsq
         in acc2
+
+unsafeInsertLargerThanMaxPrioView
+    :: (Ord k, Hashable k, Ord p)
+    => k -> p -> v -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
+unsafeInsertLargerThanMaxPrioView k p x (HashPSQ ipsq) =
+    undefined
+    -- let (mbOpsq, ipsq') = unsafeInsertWithLargerThanMaxPrioView f (hash k) p
+
+
+--------------------------------------------------------------------------------
+-- Validity check
+--------------------------------------------------------------------------------
+
+valid :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Bool
+valid t@(HashPSQ ipsq) =
+    not (hasDuplicateKeys t) &&
+    and [validBucket k p bucket | (k, p, bucket) <- IntPSQ.toList ipsq]
+
+hasDuplicateKeys :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Bool
+hasDuplicateKeys = any (> 1) . List.map length . List.group . List.sort . keys
+
+validBucket :: (Hashable k, Ord k, Ord p) => Int -> p -> Bucket k p v -> Bool
+validBucket h p (B k x opsq) =
+    -- Check that the first element of the bucket has lower priority than all
+    -- the other elements.
+    and [(p, k) < (p', k') && hash k' == h | (k', p', _) <- OrdPSQ.toList opsq]
+    -- TODO (jaspervdj): OrdPSQ.valid opsq
