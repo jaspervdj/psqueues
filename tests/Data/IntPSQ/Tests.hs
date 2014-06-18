@@ -12,6 +12,7 @@ import           Test.HUnit                           (Assertion, assert)
 
 import           Data.IntPSQ.Internal
 import           Data.PSQ.Class.Gen
+import           Data.PSQ.Class.Util
 
 --------------------------------------------------------------------------------
 -- Index of tests
@@ -29,17 +30,6 @@ tests =
     , testProperty "unsafeInsertWithIncreasedPriorityView"
                                     prop_unsafeInsertWithIncreasedPriorityView
     ]
-
-
---------------------------------------------------------------------------------
--- Util
---------------------------------------------------------------------------------
-
-largerThanMaxPrio :: IntPSQ Int v -> Int
-largerThanMaxPrio = maybe 3 (+ 1) . fold' (\_ p _ acc -> max' p acc) Nothing
-  where
-    max' x Nothing  = Just x
-    max' x (Just y) = Just (max x y)
 
 
 --------------------------------------------------------------------------------

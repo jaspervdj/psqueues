@@ -4,7 +4,7 @@
 module Data.HashPSQ.Internal
     ( -- * Type
       Bucket (..)
-    , toBucket
+    , mkBucket
     , HashPSQ (..)
 
       -- * Query
@@ -40,6 +40,9 @@ module Data.HashPSQ.Internal
     , map
     , fold'
 
+      -- * Unsafe operations
+    , unsafeInsertIncreasedPriorityView
+
       -- * Validity check
     , valid
     ) where
@@ -61,11 +64,18 @@ import qualified Data.OrdPSQ     as OrdPSQ
 data Bucket k p v = B !k !v !(OrdPSQ.OrdPSQ k p v)
     deriving (Show)
 
-{-# INLINABLE toBucket #-}
-toBucket :: (Ord k, Ord p) => OrdPSQ.OrdPSQ k p v -> Maybe (p, Bucket k p v)
-toBucket opsq = case OrdPSQ.minView opsq of
-    Nothing               -> Nothing
-    Just (k, p, x, opsq') -> Just (p, B k x opsq')
+-- | Smart constructor which takes care of placing the minimum element directly
+-- in the 'Bucket'.
+{-# INLINABLE mkBucket #-}
+mkBucket
+    :: (Ord k, Ord p)
+    => k -> p -> v -> OrdPSQ.OrdPSQ k p v -> (p, Bucket k p v)
+mkBucket k p x opsq =
+    -- TODO (jaspervdj): We could do an 'unsafeInsertNew' here for all call
+    -- sites.
+    case OrdPSQ.minView (OrdPSQ.insert k p x opsq) of
+        Just (k', p', x', opsq') -> (p', B k' x' opsq')
+        Nothing                  -> error $ "mkBucket: internal error"
 
 instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
     rnf (B k v x) = rnf k `seq` rnf v `seq` rnf x
@@ -153,7 +163,7 @@ insert k p v (HashPSQ ipsq) =
     ins (Just (p', B k' v' os))
         | k' == k                       =
             -- Tricky: p might have less priority than an item in 'os'.
-            toBucket (OrdPSQ.insert k p v os)
+            Just (mkBucket k p v os)
         | p' < p || (p == p' && k' < k) =
             Just (p', B k' v' (OrdPSQ.insert k  p  v  os))
         | OrdPSQ.member k os            =
@@ -294,12 +304,32 @@ fold' f acc0 (HashPSQ ipsq) = IntPSQ.fold' goBucket acc0 ipsq
             !acc2 = OrdPSQ.fold' f acc1 opsq
         in acc2
 
-unsafeInsertLargerThanMaxPrioView
+
+--------------------------------------------------------------------------------
+-- Unsafe operations
+--------------------------------------------------------------------------------
+
+unsafeInsertIncreasedPriorityView
     :: (Ord k, Hashable k, Ord p)
     => k -> p -> v -> HashPSQ k p v -> (Maybe (p, v), HashPSQ k p v)
-unsafeInsertLargerThanMaxPrioView k p x (HashPSQ ipsq) =
-    undefined
-    -- let (mbOpsq, ipsq') = unsafeInsertWithLargerThanMaxPrioView f (hash k) p
+unsafeInsertIncreasedPriorityView k p x (HashPSQ ipsq) =
+    (mbEvicted, HashPSQ ipsq')
+  where
+    (mbBucket, ipsq') = IntPSQ.unsafeInsertWithIncreasedPriorityView
+        (\_ _ bp (B bk bx opsq) ->
+            if k == bk
+                then mkBucket k p x opsq
+                else (bp, B bk bx (OrdPSQ.insert k p x opsq)))
+        (hash k)
+        p
+        (B k x OrdPSQ.empty)
+        ipsq
+
+    mbEvicted = case mbBucket of
+        Nothing         -> Nothing
+        Just (bp, B bk bv opsq)
+            | k == bk   -> Just (bp, bv)
+            | otherwise -> OrdPSQ.lookup k opsq
 
 
 --------------------------------------------------------------------------------
@@ -315,7 +345,7 @@ hasDuplicateKeys :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Bool
 hasDuplicateKeys = any (> 1) . List.map length . List.group . List.sort . keys
 
 validBucket :: (Hashable k, Ord k, Ord p) => Int -> p -> Bucket k p v -> Bool
-validBucket h p (B k x opsq) =
+validBucket h p (B k _ opsq) =
     OrdPSQ.valid opsq &&
     -- Check that the first element of the bucket has lower priority than all
     -- the other elements.

@@ -23,7 +23,8 @@ import           Test.Framework.Providers.QuickCheck2 (testProperty)
 
 import           Data.PSQ.Class
 import           Data.PSQ.Class.Gen
-import           Data.PSQ.Tests.Util
+import           Data.PSQ.Class.Util
+
 
 --------------------------------------------------------------------------------
 -- Index of tests

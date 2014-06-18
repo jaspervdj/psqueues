@@ -12,7 +12,7 @@ coverage:
 	    --exclude=Data.PSQ.Class        \
 	    --exclude=Data.PSQ.Class.Gen    \
 	    --exclude=Data.PSQ.Class.Tests  \
-	    --exclude=Data.PSQ.Tests.Util   \
+	    --exclude=Data.PSQ.Class.Util   \
 	    --exclude=Main                  \
 	    Main
 	rm -f Main.tix

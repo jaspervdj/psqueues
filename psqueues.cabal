@@ -87,6 +87,7 @@ Test-suite psqueues-tests
         Data.PSQ.Class
         Data.PSQ.Class.Gen
         Data.PSQ.Class.Tests
+        Data.PSQ.Class.Util
         Data.HashPSQ.Tests
         Data.IntPSQ.Tests
         Data.OrdPSQ.Tests

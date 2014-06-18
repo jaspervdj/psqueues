@@ -1,6 +1,6 @@
 -- | Various test utilities
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Data.PSQ.Tests.Util
+module Data.PSQ.Class.Util
     ( LousyHashedInt (..)
     , TestKey (..)
     , arbitraryInt
@@ -8,6 +8,7 @@ module Data.PSQ.Tests.Util
     , arbitraryTestKey
     , coverShowInstance
     , assertErrorCall
+    , largerThanMaxPrio
     ) where
 
 import           Control.Applicative ((<$>))
@@ -16,6 +17,8 @@ import           Control.Exception   (ErrorCall (..), fromException, handle)
 import           Test.HUnit          (Assertion, assertFailure)
 import           Test.QuickCheck     (Arbitrary (..), Gen, arbitrary, choose)
 import           Control.DeepSeq     (NFData)
+
+import           Data.PSQ.Class
 
 -- | A type we used a key in the PSQs in the tests. It intentionally has a
 -- really bad 'Hashable' instance so we get lots of collisions.
@@ -69,3 +72,9 @@ assertErrorCall handler x = handle
                 "assertErrorCall: expected `error` but got: " ++ show e)
     (x `seq` assertFailure
         "assertErrorCall: evaluated to WHNF and no exception was thrown")
+
+largerThanMaxPrio :: PSQ psq => psq Int v -> Int
+largerThanMaxPrio = maybe 3 (+ 1) . fold' (\_ p _ acc -> max' p acc) Nothing
+  where
+    max' x Nothing  = Just x
+    max' x (Just y) = Just (max x y)

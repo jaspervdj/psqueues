@@ -16,7 +16,7 @@ import           Control.Monad       (foldM, replicateM)
 import           Data.Hashable       (Hashable)
 
 import           Data.PSQ.Class      (PSQ (..))
-import           Data.PSQ.Tests.Util
+import           Data.PSQ.Class.Util
 import qualified Data.OrdPSQ         as OrdPSQ
 import qualified Data.IntPSQ         as IntPSQ
 import qualified Data.HashPSQ        as HashPSQ

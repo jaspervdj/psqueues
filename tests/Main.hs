@@ -9,7 +9,7 @@ import qualified Data.IntPSQ.Tests
 import qualified Data.OrdPSQ          as OrdPSQ
 import qualified Data.OrdPSQ.Tests
 import qualified Data.PSQ.Class.Tests
-import           Data.PSQ.Tests.Util
+import           Data.PSQ.Class.Util
 
 main :: IO ()
 main = defaultMain
