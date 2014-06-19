@@ -184,18 +184,20 @@ member :: Key -> IntPSQ p v -> Bool
 member k = isJust . lookup k
 
 lookup :: Key -> IntPSQ p v -> Maybe (p, v)
-lookup k t = case t of
-    Nil                -> Nothing
+lookup k = go
+  where
+    go t = case t of
+        Nil                -> Nothing
 
-    Tip k' p' x'
-      | k == k'        -> Just (p', x')
-      | otherwise      -> Nothing
+        Tip k' p' x'
+          | k == k'        -> Just (p', x')
+          | otherwise      -> Nothing
 
-    Bin k' p' x' m l r
-      | nomatch k k' m -> Nothing
-      | k == k'        -> Just (p', x')
-      | zero k m       -> lookup k l
-      | otherwise      -> lookup k r
+        Bin k' p' x' m l r
+          | nomatch k k' m -> Nothing
+          | k == k'        -> Just (p', x')
+          | zero k m       -> go l
+          | otherwise      -> go r
 
 findMin :: Ord p => IntPSQ p v -> Maybe (Int, p, v)
 findMin t = case minView t of
@@ -227,29 +229,31 @@ insert k p x t0 = unsafeInsertNew k p x (delete k t0)
 -- queue.
 {-# INLINABLE unsafeInsertNew #-}
 unsafeInsertNew :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
-unsafeInsertNew k p x t = case t of
-  Nil       -> Tip k p x
+unsafeInsertNew k p x = go
+  where
+    go t = case t of
+      Nil       -> Tip k p x
 
-  Tip k' p' x'
-    | (p, k) < (p', k') -> link k  p  x  k' t           Nil
-    | otherwise         -> link k' p' x' k  (Tip k p x) Nil
+      Tip k' p' x'
+        | (p, k) < (p', k') -> link k  p  x  k' t           Nil
+        | otherwise         -> link k' p' x' k  (Tip k p x) Nil
 
-  Bin k' p' x' m l r
-    | nomatch k k' m ->
-        if (p, k) < (p', k')
-          then link k  p  x  k' t           Nil
-          else link k' p' x' k  (Tip k p x) (merge m l r)
+      Bin k' p' x' m l r
+        | nomatch k k' m ->
+            if (p, k) < (p', k')
+              then link k  p  x  k' t           Nil
+              else link k' p' x' k  (Tip k p x) (merge m l r)
 
-    | otherwise ->
-        if (p, k) < (p', k')
-          then
-            if zero k' m
-              then Bin k  p  x  m (unsafeInsertNew k' p' x' l) r
-              else Bin k  p  x  m l (unsafeInsertNew k' p' x' r)
-          else
-            if zero k m
-              then Bin k' p' x' m (unsafeInsertNew k  p  x  l) r
-              else Bin k' p' x' m l (unsafeInsertNew k  p  x  r)
+        | otherwise ->
+            if (p, k) < (p', k')
+              then
+                if zero k' m
+                  then Bin k  p  x  m (unsafeInsertNew k' p' x' l) r
+                  else Bin k  p  x  m l (unsafeInsertNew k' p' x' r)
+              else
+                if zero k m
+                  then Bin k' p' x' m (unsafeInsertNew k  p  x  l) r
+                  else Bin k' p' x' m l (unsafeInsertNew k  p  x  r)
 
 -- | Link
 link :: Key -> p -> v -> Key -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
@@ -266,18 +270,20 @@ link k p x k' k't otherTree
 
 {-# INLINABLE delete #-}
 delete :: Ord p => Key -> IntPSQ p v -> IntPSQ p v
-delete k t = case t of
-    Nil           -> Nil
+delete k = go
+  where
+    go t = case t of
+        Nil           -> Nil
 
-    Tip k' _ _
-      | k == k'   -> Nil
-      | otherwise -> t
+        Tip k' _ _
+          | k == k'   -> Nil
+          | otherwise -> t
 
-    Bin k' p' x' m l r
-      | nomatch k k' m -> t
-      | k == k'        -> merge m l r
-      | zero k m       -> binShrinkL k' p' x' m (delete k l) r
-      | otherwise      -> binShrinkR k' p' x' m l            (delete k r)
+        Bin k' p' x' m l r
+          | nomatch k k' m -> t
+          | k == k'        -> merge m l r
+          | zero k m       -> binShrinkL k' p' x' m (go l) r
+          | otherwise      -> binShrinkR k' p' x' m l      (go r)
 
 {-# INLINE alter #-}
 alter

@@ -154,16 +154,17 @@ member k = isJust . lookup k
 
 -- | /O(log n)/ The priority and value of a given key, or Nothing if
 -- the key is not bound.
-{-# INLINABLE lookup #-}
 lookup :: (Ord k) => k -> OrdPSQ k p v -> Maybe (p, v)
-lookup k t = case tourView t of
-    Null                 -> Nothing
-    Single (E k' p v)
-        | k == k'        -> Just (p, v)
-        | otherwise      -> Nothing
-    Play tl tr
-        | k <= maxKey tl -> lookup k tl
-        | otherwise      -> lookup k tr
+lookup k = go
+  where
+    go t = case tourView t of
+        Null                 -> Nothing
+        Single (E k' p v)
+            | k == k'        -> Just (p, v)
+            | otherwise      -> Nothing
+        Play tl tr
+            | k <= maxKey tl -> go tl
+            | otherwise      -> go tr
 
 -- | /O(1)/ The element with the lowest priority.
 findMin :: OrdPSQ k p v -> Maybe (k, p, v)
@@ -192,18 +193,20 @@ singleton k p v = Winner (E k p v) Start k
 -- and value are replaced with the supplied priority and value.
 {-# INLINABLE insert #-}
 insert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
-insert k p v q = case q of
-    Void -> singleton k p v
-    Winner (E k' p' v') Start _ -> case compare k k' of
-        LT -> singleton k  p  v  `play` singleton k' p' v'
-        EQ -> singleton k  p  v
-        GT -> singleton k' p' v' `play` singleton k  p  v
-    Winner e (RLoser _ e' tl m tr) m'
-        | k <= m    -> insert k p v (Winner e tl m) `play` (Winner e' tr m')
-        | otherwise -> (Winner e tl m) `play` insert k p v (Winner e' tr m')
-    Winner e (LLoser _ e' tl m tr) m'
-        | k <= m    -> insert k p v (Winner e' tl m) `play` (Winner e tr m')
-        | otherwise -> (Winner e' tl m) `play` insert k p v (Winner e tr m')
+insert k p v = go
+  where
+    go t = case t of
+        Void -> singleton k p v
+        Winner (E k' p' v') Start _ -> case compare k k' of
+            LT -> singleton k  p  v  `play` singleton k' p' v'
+            EQ -> singleton k  p  v
+            GT -> singleton k' p' v' `play` singleton k  p  v
+        Winner e (RLoser _ e' tl m tr) m'
+            | k <= m    -> go (Winner e tl m) `play` (Winner e' tr m')
+            | otherwise -> (Winner e tl m) `play` go (Winner e' tr m')
+        Winner e (LLoser _ e' tl m tr) m'
+            | k <= m    -> go (Winner e' tl m) `play` (Winner e tr m')
+            | otherwise -> (Winner e' tl m) `play` go (Winner e tr m')
 
 
 --------------------------------------------------------------------------------
@@ -215,17 +218,19 @@ insert k p v q = case q of
 -- queue is returned.
 {-# INLINABLE delete #-}
 delete :: (Ord k, Ord p) => k -> OrdPSQ k p v -> OrdPSQ k p v
-delete k q = case q of
-    Void -> empty
-    Winner (E k' p v) Start _
-        | k == k'   -> empty
-        | otherwise -> singleton k' p v
-    Winner e (RLoser _ e' tl m tr) m'
-        | k <= m    -> delete k (Winner e tl m) `play` (Winner e' tr m')
-        | otherwise -> (Winner e tl m) `play` delete k (Winner e' tr m')
-    Winner e (LLoser _ e' tl m tr) m'
-        | k <= m    -> delete k (Winner e' tl m) `play` (Winner e tr m')
-        | otherwise -> (Winner e' tl m) `play` delete k (Winner e tr m')
+delete k = go
+  where
+    go t = case t of
+        Void -> empty
+        Winner (E k' p v) Start _
+            | k == k'   -> empty
+            | otherwise -> singleton k' p v
+        Winner e (RLoser _ e' tl m tr) m'
+            | k <= m    -> go (Winner e tl m) `play` (Winner e' tr m')
+            | otherwise -> (Winner e tl m) `play` go (Winner e' tr m')
+        Winner e (LLoser _ e' tl m tr) m'
+            | k <= m    -> go (Winner e' tl m) `play` (Winner e tr m')
+            | otherwise -> (Winner e' tl m) `play` go (Winner e tr m')
 
 {-# INLINE alter #-}
 alter :: (Ord k, Ord p)
