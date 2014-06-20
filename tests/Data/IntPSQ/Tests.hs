@@ -29,6 +29,8 @@ tests =
                                     prop_unsafeInsertWithIncreasePriority
     , testProperty "unsafeInsertWithIncreasePriorityView"
                                     prop_unsafeInsertWithIncreasePriorityView
+    , testProperty "unsafeLookupIncreasePriority"
+                                    prop_unsafeLookupIncreasePriority
     ]
 
 
@@ -96,4 +98,19 @@ prop_unsafeInsertWithIncreasePriorityView =
                             Just (p, y) -> (min prio p + 1, [x] ++ y)
         in valid t' &&
             lookup k t' == Just expect &&
+            lookup k t  == mbPx
+
+prop_unsafeLookupIncreasePriority :: Property
+prop_unsafeLookupIncreasePriority =
+    forAll arbitraryPSQ $ \t0 ->
+    forAll arbitrary    $ \k  ->
+        let t          = fmap (\e -> [e]) t0 :: IntPSQ Int [Char]
+            f          = \oldP oldX ->
+                            (Just (oldP, oldX), oldP + 1, oldX ++ "k")
+            (mbPx, t') = unsafeLookupIncreasePriority f k t
+            expect     = case mbPx of
+                Nothing     -> Nothing
+                Just (p, x) -> Just (p + 1, x ++ "k")
+        in valid t' &&
+            lookup k t' == expect &&
             lookup k t  == mbPx

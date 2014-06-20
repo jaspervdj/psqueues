@@ -23,10 +23,14 @@ import           Data.PSQ.Class.Util
 
 tests :: [Test]
 tests =
-    [ testCase "showBucket" test_showBucket
-    , testCase "toBucket"   test_toBucket
+    [ testCase      "showBucket"    test_showBucket
+    , testCase      "toBucket"      test_toBucket
+    , testProperty "unsafeLookupIncreasePriority"
+                                    prop_unsafeLookupIncreasePriority
+    , testProperty "unsafeInsertIncreasePriority"
+                                    prop_unsafeInsertIncreasePriority
     , testProperty "unsafeInsertIncreasePriorityView"
-                            prop_unsafeInsertIncreasePriorityView
+                                    prop_unsafeInsertIncreasePriorityView
     ]
 
 
@@ -51,6 +55,29 @@ test_toBucket =
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
+
+prop_unsafeLookupIncreasePriority :: Property
+prop_unsafeLookupIncreasePriority =
+    forAll arbitraryPSQ $ \t ->
+    forAll arbitrary    $ \k  ->
+        let newP       = maybe 0 ((+ 1) . fst) (lookup k t)
+            (mbPx, t') = unsafeLookupIncreasePriority k newP t
+            expect     = case mbPx of
+                Nothing     -> Nothing
+                Just (p, x) -> Just (p + 1, x)
+        in valid (t' :: HashPSQ LousyHashedInt Int Char) &&
+            lookup k t' == expect &&
+            lookup k t  == mbPx
+
+prop_unsafeInsertIncreasePriority :: Property
+prop_unsafeInsertIncreasePriority =
+    forAll arbitraryPSQ $ \t ->
+    forAll arbitrary    $ \k ->
+    forAll arbitrary    $ \x ->
+        let prio = largerThanMaxPrio t
+            t'   = unsafeInsertIncreasePriority k prio x t
+        in valid (t' :: HashPSQ LousyHashedInt Int Char) &&
+            lookup k t' == Just (prio, x)
 
 prop_unsafeInsertIncreasePriorityView :: Property
 prop_unsafeInsertIncreasePriorityView =
