@@ -2,8 +2,8 @@ name: psqueues
 version: 0.1.0.0
 license: BSD3
 license-file: LICENSE
-maintainer: iridcode@gmail.com
-bug-reports: https://github.com/meiersi/psqueues/issues
+maintainer: haskell@better.com
+bug-reports: https://github.com/bttr/psqueues/issues
 synopsis: Pure priority search queues
 category: Data Structures
 description:
@@ -33,7 +33,7 @@ extra-source-files:
 
 source-repository head
     type:     git
-    location: http://github.com/meiersi/psqueues.git
+    location: http://github.com/bttr/psqueues.git
 
 Library
     ghc-options:    -O2 -Wall
