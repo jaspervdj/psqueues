@@ -54,10 +54,10 @@ import           Data.Foldable   (Foldable (foldr))
 import           Data.Hashable
 import           Data.Maybe      (isJust)
 import           Prelude         hiding (foldr, lookup, map, null)
-
-import qualified Data.IntPSQ     as IntPSQ
 import qualified Data.List       as List
-import qualified Data.OrdPSQ     as OrdPSQ
+
+import qualified Data.IntPSQ.Internal as IntPSQ
+import qualified Data.OrdPSQ          as OrdPSQ
 
 ------------------------------------------------------------------------------
 -- Types
@@ -82,6 +82,8 @@ mkBucket k p x opsq =
 instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
     rnf (B k v x) = rnf k `seq` rnf v `seq` rnf x
 
+-- | A priority search queue with keys of type @k@ and priorities of type @p@
+-- and values of type @v@. It is strict in keys, priorities and values.
 newtype HashPSQ k p v = HashPSQ (IntPSQ.IntPSQ p (Bucket k p v))
     deriving (NFData, Show)
 
@@ -108,10 +110,12 @@ instance Functor (HashPSQ k p) where
 -- Query
 ------------------------------------------------------------------------------
 
+-- | /O(1)/ True if the queue is empty.
 {-# INLINABLE null #-}
 null :: HashPSQ k p v -> Bool
 null (HashPSQ ipsq) = IntPSQ.null ipsq
 
+-- | /O(n)/ The number of elements stored in the PSQ.
 {-# INLINABLE size #-}
 size :: (Hashable k, Ord p) => HashPSQ k p v -> Int
 size (HashPSQ ipsq) = IntPSQ.fold'
@@ -119,10 +123,13 @@ size (HashPSQ ipsq) = IntPSQ.fold'
     0
     ipsq
 
+-- | /O(min(n,W))/ Check if a key is present in the the queue.
 {-# INLINABLE member #-}
 member :: (Hashable k, Ord k, Ord p) => k -> HashPSQ k p v -> Bool
 member k = isJust . lookup k
 
+-- | /O(min(n,W))/ The priority and value of a given key, or 'Nothing' if the
+-- key is not bound.
 {-# INLINABLE lookup #-}
 lookup :: (Ord k, Hashable k, Ord p) => k -> HashPSQ k p v -> Maybe (p, v)
 lookup k (HashPSQ ipsq) = do
@@ -131,16 +138,18 @@ lookup k (HashPSQ ipsq) = do
         then return (p0, v0)
         else OrdPSQ.lookup k os
 
+-- | /O(1)/ The element with the lowest priority.
 findMin :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Maybe (k, p, v)
-findMin t = case minView t of
-    Nothing           -> Nothing
-    Just (k, p, v, _) -> Just (k, p, v)
+findMin (HashPSQ ipsq) = case IntPSQ.findMin ipsq of
+    Nothing              -> Nothing
+    Just (_, p, B k x _) -> Just (k, p, x)
 
 
 --------------------------------------------------------------------------------
 -- Construction
 --------------------------------------------------------------------------------
 
+-- | /O(1)/ The empty queue.
 empty :: HashPSQ k p v
 empty = HashPSQ IntPSQ.empty
 
@@ -153,6 +162,9 @@ singleton k p v = insert k p v empty
 -- Insertion
 --------------------------------------------------------------------------------
 
+-- | /O(min(n,W))/ Insert a new key, priority and value in the queue. If the key
+-- is already present in the queue, the associated priority and value are
+-- replaced with the supplied priority and value.
 {-# INLINABLE insert #-}
 insert
     :: (Ord k, Hashable k, Ord p)
@@ -180,6 +192,8 @@ insert k p v (HashPSQ ipsq) =
 -- Delete/update
 --------------------------------------------------------------------------------
 
+-- | /O(min(n,W))/ Delete a key and its priority and value from the queue. When
+-- the key is not a member of the queue, the original queue is returned.
 {-# INLINE delete #-}
 delete
     :: (Hashable k, Ord k, Ord p) => k -> HashPSQ k p v -> HashPSQ k p v
@@ -187,6 +201,9 @@ delete k t = case deleteView k t of
     Nothing         -> t
     Just (_, _, t') -> t'
 
+-- | /O(min(n,W))/ The expression @alter f k map@ alters the value @x@ at @k@,
+-- or absence thereof. 'alter' can be used to insert, delete, or update a value
+-- in a queue. It also allows you to calculate an additional value @b@.
 {-# INLINE alter #-}
 alter :: (Hashable k, Ord k, Ord p)
       => (Maybe (p, v) -> (b, Maybe (p, v)))
@@ -201,6 +218,9 @@ alter f k t0 =
         (b, mbX') ->
             (b, maybe t (\(p, x) -> insert k p x t) mbX')
 
+-- | /O(min(n,W))/ A variant of 'alter' which works on the element with the
+-- minimum priority. Unlike 'alter', this variant also allows you to change the
+-- key of the element.
 {-# INLINABLE alterMin #-}
 alterMin
     :: (Hashable k, Ord k, Ord p)
@@ -220,11 +240,15 @@ alterMin f t0 =
 -- Lists
 --------------------------------------------------------------------------------
 
+-- | /O(n*min(n,W))/ Build a queue from a list of (key, priority, value) tuples.
+-- If the list contains more than one priority and value for the same key, the
+-- last priority and value for the key is retained.
 {-# INLINABLE fromList #-}
 fromList :: (Hashable k, Ord k, Ord p) => [(k, p, v)] -> HashPSQ k p v
 fromList = List.foldl' (\psq (k, p, x) -> insert k p x psq) empty
 
-
+-- | /O(n)/ Convert a queue to a list of (key, priority, value) tuples. The
+-- order of the list is not specified.
 {-# INLINABLE toList #-}
 toList :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> [(k, p, v)]
 toList (HashPSQ ipsq) =
@@ -233,6 +257,7 @@ toList (HashPSQ ipsq) =
     , (k', p', x')         <- (k, p, x) : OrdPSQ.toList opsq
     ]
 
+-- | /O(n)/ Obtain the list of present keys in the queue.
 {-# INLINABLE keys #-}
 keys :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> [k]
 keys t = [k | (k, _, _) <- toList t]
@@ -242,6 +267,9 @@ keys t = [k | (k, _, _) <- toList t]
 -- Views
 --------------------------------------------------------------------------------
 
+-- | /O(min(n,W))/ Insert a new key, priority and value in the queue. If the key
+-- is already present in the queue, then the evicted priority and value can be
+-- found the first element of the returned tuple.
 {-# INLINABLE insertView #-}
 insertView
     :: (Hashable k, Ord k, Ord p)
@@ -252,6 +280,9 @@ insertView k p x t =
         Nothing          -> (Nothing,       insert k p x t)
         Just (p', x', _) -> (Just (p', x'), insert k p x t)
 
+-- | /O(min(n,W))/ Delete a key and its priority and value from the queue. If
+-- the key was present, the associated priority and value are returned in
+-- addition to the updated queue.
 {-# INLINABLE deleteView #-}
 deleteView
     :: forall k p v. (Hashable k, Ord k, Ord p)
@@ -270,6 +301,8 @@ deleteView k (HashPSQ ipsq) = case IntPSQ.alter f (hash k) ipsq of
             Nothing              -> (Nothing,       Nothing)
             Just (p', x', opsq') -> (Just (p', x'), Just (p, B bk bx opsq'))
 
+-- | /O(min(n,W))/ Retrieve the binding with the least priority, and the
+-- rest of the queue stripped of that binding.
 {-# INLINABLE minView #-}
 minView
     :: (Hashable k, Ord k, Ord p)
@@ -291,12 +324,15 @@ minView (HashPSQ ipsq ) =
 -- Traversals
 --------------------------------------------------------------------------------
 
+-- | /O(n)/ Modify every value in the queueu.
 {-# INLINABLE map #-}
 map :: (k -> p -> v -> w) -> HashPSQ k p v -> HashPSQ k p w
 map f (HashPSQ ipsq) = HashPSQ (IntPSQ.map (\_ p v -> mapBucket p v) ipsq)
   where
     mapBucket p (B k v opsq) = B k (f k p v) (OrdPSQ.map f opsq)
 
+-- | /O(n)/ Strict fold over every key, priority and value in the map. The order
+-- in which the fold is performed is not specified.
 {-# INLINABLE fold' #-}
 fold' :: (k -> p -> v -> a -> a) -> a -> HashPSQ k p v -> a
 fold' f acc0 (HashPSQ ipsq) = IntPSQ.fold' goBucket acc0 ipsq
@@ -375,6 +411,8 @@ unsafeInsertIncreasePriorityView k p x (HashPSQ ipsq) =
 -- Validity check
 --------------------------------------------------------------------------------
 
+-- | /O(n^2)/ Internal function to check if the 'OrdPSQ' is valid, i.e. if all
+-- invariants hold. This should always be the case.
 valid :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Bool
 valid t@(HashPSQ ipsq) =
     not (hasDuplicateKeys t) &&

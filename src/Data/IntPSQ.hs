@@ -1,5 +1,11 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE BangPatterns #-}
+-- | 'IntPSQ' fixes the key type to 'Int'. It is generally much faster than
+-- an 'OrdPSQ'.
+--
+-- Many operations have a worst-case complexity of O(min(n,W)). This means that
+-- the operation can -- become linear in the number of elements with a maximum
+-- of W -- the number of bits in an Int (32 or 64).
+{-# LANGUAGE CPP           #-}
+{-# LANGUAGE BangPatterns  #-}
 {-# LANGUAGE UnboxedTuples #-}
 module Data.IntPSQ
     ( -- * Type
@@ -37,14 +43,6 @@ module Data.IntPSQ
       -- * Traversal
     , map
     , fold'
-
-      -- * Unsafe manipulation
-    , unsafeInsertNew
-    , unsafeInsertIncreasePriority
-    , unsafeInsertIncreasePriorityView
-    , unsafeInsertWithIncreasePriority
-    , unsafeInsertWithIncreasePriorityView
-    , unsafeLookupIncreasePriority
 
       -- * Validity check
     , valid

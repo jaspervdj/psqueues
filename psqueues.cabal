@@ -1,5 +1,5 @@
 name: psqueues
-version: 0.1.0
+version: 0.1.0.0
 license: BSD3
 license-file: LICENSE
 maintainer: iridcode@gmail.com
@@ -7,20 +7,22 @@ bug-reports: https://github.com/meiersi/psqueues/issues
 synopsis: Pure priority search queues
 category: Data Structures
 description:
-    A priority search queue manages a set of triples of the form 
-    `(key, priority, value)` and allows for efficient lookup by key, and
-    efficient lookup and removal of the element with minimal priority.
-    This package contains three, performant implementations of priority search
+    A priority search queue manages a set of triples of the form
+    @(key, priority, value)@ and allows for efficient lookup by key, and
+    efficient lookup and removal of the element with minimal priority. This
+    package contains three, performant implementations of priority search
     queues, which differ in the requirements on the type of keys.
     .
-    - `IntPSQ`s are the most efficient structure, but require the keys to be
-      of type `Int`.
-    - `OrdPSQ`s just require the key to implement the `Ord` typeclass, but are
+    * 'IntPSQ's are the most efficient structure, but require the keys to be
+      of type 'Int'.
+    .
+    * 'OrdPSQ's just require the key to implement the `Ord` typeclass, but are
       the slowest structures of the three.
-    - `HashPSQ`s require the key to implement both the `Ord` and `Hashable`
-      typeclasses. They use an `IntMap` over the hash of the keys combined
-      with a `OrdPSQ` to manage collisions. Except for keys with a very fast
-      comparison and small smaps `HashPSQ`s are faster than `OrdPSQ`s.
+    .
+    * 'HashPSQ's require the key to implement both the 'Ord' and 'Hashable'
+      typeclasses. They use an 'IntMap' over the hash of the keys combined
+      with a 'OrdPSQ' to manage collisions. Except for keys with a very fast
+      comparison and small smaps 'HashPSQ's are faster than 'OrdPSQ's.
     .
     Typical use cases for priority search queues are LRU caches, where the
     priority is the time of the last access, and timeout management, where the

@@ -91,7 +91,6 @@ type Nat = Word
 
 type Key = Int
 
-
 -- | We store masks as the index of the bit that determines the branching.
 type Mask = Int
 
@@ -102,10 +101,6 @@ data IntPSQ p v
     | Tip {-# UNPACK #-} !Key !p !v
     | Nil
     deriving (Show)
-
-
--- instances
-------------
 
 instance (NFData p, NFData v) => NFData (IntPSQ p v) where
     rnf (Bin _k p v _m l r) = rnf p `seq` rnf v `seq` rnf l `seq` rnf r
@@ -169,21 +164,25 @@ branchMask k1 k2 =
 -- Query
 ------------------------------------------------------------------------------
 
+-- | /O(1)/ True if the queue is empty.
 null :: IntPSQ p v -> Bool
 null Nil = True
 null _   = False
 
--- | /O(n)/. The number of elements stored in the PSQ.
+-- | /O(n)/ The number of elements stored in the PSQ.
 size :: IntPSQ p v -> Int
 size Nil               = 0
 size (Tip _ _ _)       = 1
 size (Bin _ _ _ _ l r) = 1 + size l + size r
 -- TODO (SM): benchmark this against a tail-recursive variant
 
-member :: Key -> IntPSQ p v -> Bool
+-- | /O(min(n,W))/ Check if a key is present in the the queue.
+member :: Int -> IntPSQ p v -> Bool
 member k = isJust . lookup k
 
-lookup :: Key -> IntPSQ p v -> Maybe (p, v)
+-- | /O(min(n,W))/ The priority and value of a given key, or 'Nothing' if the
+-- key is not bound.
+lookup :: Int -> IntPSQ p v -> Maybe (p, v)
 lookup k = go
   where
     go t = case t of
@@ -199,30 +198,35 @@ lookup k = go
           | zero k m       -> go l
           | otherwise      -> go r
 
+-- | /O(1)/ The element with the lowest priority.
 findMin :: Ord p => IntPSQ p v -> Maybe (Int, p, v)
-findMin t = case minView t of
-    Nothing           -> Nothing
-    Just (k, p, v, _) -> Just (k, p, v)
-    -- TODO (jaspervdj): More efficient implementations are possible.
+findMin t = case t of
+    Nil              -> Nothing
+    Tip k p x        -> Just (k, p, x)
+    Bin k p x _ _ _  -> Just (k, p, x)
+
 
 ------------------------------------------------------------------------------
 --- Construction
 ------------------------------------------------------------------------------
 
+-- | /O(1)/ The empty queue.
 empty :: IntPSQ p v
 empty = Nil
 
-singleton :: Ord p => Key -> p -> v -> IntPSQ p v
+-- | /O(1)/ Build a queue with one element.
+singleton :: Ord p => Int -> p -> v -> IntPSQ p v
 singleton = Tip
+
 
 ------------------------------------------------------------------------------
 -- Insertion
 ------------------------------------------------------------------------------
 
--- | This variant of insert has the most consistent performance. It does at
--- most two root-to-leaf traversals, which are reallocating the nodes on their
--- path.
-insert :: Ord p => Key -> p -> v -> IntPSQ p v -> IntPSQ p v
+-- | /O(min(n,W))/ Insert a new key, priority and value in the queue. If the key
+-- is already present in the queue, the associated priority and value are
+-- replaced with the supplied priority and value.
+insert :: Ord p => Int -> p -> v -> IntPSQ p v -> IntPSQ p v
 insert k p x t0 = unsafeInsertNew k p x (delete k t0)
 
 -- | Internal function to insert a key that is *not* present in the priority
@@ -268,8 +272,10 @@ link k p x k' k't otherTree
 -- Delete/Alter
 ------------------------------------------------------------------------------
 
+-- | /O(min(n,W))/ Delete a key and its priority and value from the queue. When
+-- the key is not a member of the queue, the original queue is returned.
 {-# INLINABLE delete #-}
-delete :: Ord p => Key -> IntPSQ p v -> IntPSQ p v
+delete :: Ord p => Int -> IntPSQ p v -> IntPSQ p v
 delete k = go
   where
     go t = case t of
@@ -285,11 +291,14 @@ delete k = go
           | zero k m       -> binShrinkL k' p' x' m (go l) r
           | otherwise      -> binShrinkR k' p' x' m l      (go r)
 
+-- | /O(min(n,W))/ The expression @alter f k map@ alters the value @x@ at @k@,
+-- or absence thereof. 'alter' can be used to insert, delete, or update a value
+-- in a queue. It also allows you to calculate an additional value @b@.
 {-# INLINE alter #-}
 alter
     :: Ord p
     => (Maybe (p, v) -> (b, Maybe (p, v)))
-    -> Key
+    -> Int
     -> IntPSQ p v
     -> (b, IntPSQ p v)
 alter f = \k t0 ->
@@ -300,9 +309,12 @@ alter f = \k t0 ->
           (b, mbX') ->
             (b, maybe t (\(p, v) -> unsafeInsertNew k p v t) mbX')
 
+-- | /O(min(n,W))/ A variant of 'alter' which works on the element with the
+-- minimum priority. Unlike 'alter', this variant also allows you to change the
+-- key of the element.
 {-# INLINE alterMin #-}
 alterMin :: Ord p
-         => (Maybe (Key, p, v) -> (b, Maybe (Key, p, v)))
+         => (Maybe (Int, p, v) -> (b, Maybe (Int, p, v)))
          -> IntPSQ p v
          -> (b, IntPSQ p v)
 alterMin f t = case t of
@@ -340,10 +352,15 @@ binShrinkR k p x m l r   = Bin k p x m l r
 -- Lists
 ------------------------------------------------------------------------------
 
+-- | /O(n*min(n,W))/ Build a queue from a list of (key, priority, value) tuples.
+-- If the list contains more than one priority and value for the same key, the
+-- last priority and value for the key is retained.
 {-# INLINABLE fromList #-}
-fromList :: Ord p => [(Key, p, v)] -> IntPSQ p v
+fromList :: Ord p => [(Int, p, v)] -> IntPSQ p v
 fromList = foldl' (\im (k, p, x) -> insert k p x im) empty
 
+-- | /O(n)/ Convert a queue to a list of (key, priority, value) tuples. The
+-- order of the list is not specified.
 toList :: IntPSQ p v -> [(Int, p, v)]
 toList =
     go []
@@ -352,6 +369,7 @@ toList =
     go acc (Tip k' p' x')        = (k', p', x') : acc
     go acc (Bin k' p' x' _m l r) = (k', p', x') : go (go acc r) l
 
+-- | /O(n)/ Obtain the list of present keys in the queue.
 keys :: IntPSQ p v -> [Int]
 keys t = [k | (k, _, _) <- toList t]
 -- TODO (jaspervdj): More efficient implementations possible
@@ -361,16 +379,19 @@ keys t = [k | (k, _, _) <- toList t]
 -- Views
 ------------------------------------------------------------------------------
 
--- | Like insert, but returns the replaced element if any.
-insertView :: Ord p => Key -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
+-- | /O(min(n,W))/ Insert a new key, priority and value in the queue. If the key
+-- is already present in the queue, then the evicted priority and value can be
+-- found the first element of the returned tuple.
+insertView :: Ord p => Int -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
 insertView k p x t0 = case deleteView k t0 of
     Nothing          -> (Nothing,       unsafeInsertNew k p x t0)
     Just (p', v', t) -> (Just (p', v'), unsafeInsertNew k p x t)
 
--- TODO (SM): verify that it is really worth do do deletion and lookup at the
--- same time.
+-- | /O(min(n,W))/ Delete a key and its priority and value from the queue. If
+-- the key was present, the associated priority and value are returned in
+-- addition to the updated queue.
 {-# INLINABLE deleteView #-}
-deleteView :: Ord p => Key -> IntPSQ p v -> Maybe (p, v, IntPSQ p v)
+deleteView :: Ord p => Int -> IntPSQ p v -> Maybe (p, v, IntPSQ p v)
 deleteView k t0 =
     case delFrom t0 of
       (# _, Nothing     #) -> Nothing
@@ -396,6 +417,8 @@ deleteView k t0 =
                          (# r', mbPX #) -> let t' = binShrinkR k' p' x' m l  r'
                                            in  t' `seq` (# t', mbPX #)
 
+-- | /O(min(n,W))/ Retrieve the binding with the least priority, and the
+-- rest of the queue stripped of that binding.
 {-# INLINE minView #-}
 minView :: Ord p => IntPSQ p v -> Maybe (Int, p, v, IntPSQ p v)
 minView t = case t of
@@ -408,6 +431,7 @@ minView t = case t of
 -- Traversal
 ------------------------------------------------------------------------------
 
+-- | /O(n)/ Modify every value in the queueu.
 {-# INLINABLE map #-}
 map :: (Int -> p -> v -> w) -> IntPSQ p v -> IntPSQ p w
 map f =
@@ -418,6 +442,8 @@ map f =
         Tip k p x       -> Tip k p (f k p x)
         Bin k p x m l r -> Bin k p (f k p x) m (go l) (go r)
 
+-- | /O(n)/ Strict fold over every key, priority and value in the map. The order
+-- in which the fold is performed is not specified.
 {-# INLINABLE fold' #-}
 fold' :: (Int -> p -> v -> a -> a) -> a -> IntPSQ p v -> a
 fold' f = go
@@ -546,12 +572,6 @@ unsafeInsertWithIncreasePriorityView f k p x t0 =
                     | otherwise ->
                         let t' = merge m l (unsafeInsertNew k fp fx r)
                         in t' `seq` (# t', Just (p', x') #)
-                {-
-                let t' = merge m l r
-                in t' `seq` case f p x p' x' of
-                    (!fp, !fx) -> case go fp fx t' of
-                        (# t'', _ #) -> t'' `seq` (# t'', Just (p', x') #)
-                -}
 
             | zero k m -> case go l of
                 (# l', mbPX #) -> l' `seq` (# Bin k' p' x' m l' r, mbPX #)
@@ -591,12 +611,6 @@ unsafeLookupIncreasePriority f k t0 =
                     | otherwise ->
                         let t' = merge m l (unsafeInsertNew k fp fx r)
                         in t' `seq` (# t', fb #)
-                {-
-                let t' = merge m l r
-                in t' `seq` case f p x p' x' of
-                    (!fp, !fx) -> case go fp fx t' of
-                        (# t'', _ #) -> t'' `seq` (# t'', Just (p', x') #)
-                -}
 
             | zero k m -> case go l of
                 (# l', mbB #) -> l' `seq` (# Bin k' p' x' m l' r, mbB #)
@@ -609,8 +623,8 @@ unsafeLookupIncreasePriority f k t0 =
 -- Validity checks for the datastructure invariants
 ------------------------------------------------------------------------------
 
-
--- check validity of the data structure
+-- | /O(n^2)/ Internal function to check if the 'OrdPSQ' is valid, i.e. if all
+-- invariants hold. This should always be the case.
 valid :: Ord p => IntPSQ p v -> Bool
 valid psq =
     not (hasBadNils psq) &&

@@ -1,3 +1,9 @@
+-- | A 'HashPSQ' offers very similar performance to 'IntPSQ'. In case of
+-- collisions, it uses an 'OrdPSQ' locally to solve those.
+--
+-- This means worst case complexity is usually given by /O(min(n,W), log n)/,
+-- where /W/ is the number of bits in an 'Int'. This simplifies to /O(min(n,W))/
+-- since /log n/ is always smaller than /W/ on current machines.
 module Data.HashPSQ
     ( -- * Type
       HashPSQ
@@ -34,11 +40,6 @@ module Data.HashPSQ
       -- * Traversal
     , map
     , fold'
-
-      -- * Unsafe operations
-    , unsafeLookupIncreasePriority
-    , unsafeInsertIncreasePriority
-    , unsafeInsertIncreasePriorityView
 
       -- * Validity check
     , valid

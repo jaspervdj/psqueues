@@ -80,7 +80,8 @@ data Elem k p v = E !k !p !v
 instance (NFData k, NFData p, NFData v) => NFData (Elem k p v) where
     rnf (E k p v) = rnf k `seq` rnf p `seq` rnf v
 
--- | A mapping from keys @k@ to priorites @p@.
+-- | A mapping from keys @k@ to priorites @p@ and values @v@. It is strict in
+-- keys, priorities and values.
 data OrdPSQ k p v
     = Void
     | Winner !(Elem k p v)
@@ -152,8 +153,8 @@ size (Winner _ lt _) = 1 + size' lt
 member :: Ord k => k -> OrdPSQ k p v -> Bool
 member k = isJust . lookup k
 
--- | /O(log n)/ The priority and value of a given key, or Nothing if
--- the key is not bound.
+-- | /O(log n)/ The priority and value of a given key, or 'Nothing' if the key
+-- is not bound.
 lookup :: (Ord k) => k -> OrdPSQ k p v -> Maybe (p, v)
 lookup k = go
   where
@@ -176,6 +177,7 @@ findMin (Winner (E k p v) _ _) = Just (k, p, v)
 -- Construction
 --------------------------------------------------------------------------------
 
+-- | /O(1)/ The empty queue.
 empty :: OrdPSQ k p v
 empty = Void
 
@@ -188,9 +190,9 @@ singleton k p v = Winner (E k p v) Start k
 -- Insertion
 --------------------------------------------------------------------------------
 
--- | /O(log n)/ Insert a new key, priority and value in the queue.  If
--- the key is already present in the queue, the associated priority
--- and value are replaced with the supplied priority and value.
+-- | /O(log n)/ Insert a new key, priority and value in the queue. If the key is
+-- already present in the queue, the associated priority and value are replaced
+-- with the supplied priority and value.
 {-# INLINABLE insert #-}
 insert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
 insert k p v = go
@@ -213,9 +215,8 @@ insert k p v = go
 -- Delete/update
 --------------------------------------------------------------------------------
 
--- | /O(log n)/ Delete a key and its priority and value from the
--- queue.  When the key is not a member of the queue, the original
--- queue is returned.
+-- | /O(log n)/ Delete a key and its priority and value from the queue. When the
+-- key is not a member of the queue, the original queue is returned.
 {-# INLINABLE delete #-}
 delete :: (Ord k, Ord p) => k -> OrdPSQ k p v -> OrdPSQ k p v
 delete k = go
@@ -232,12 +233,16 @@ delete k = go
             | k <= m    -> go (Winner e' tl m) `play` (Winner e tr m')
             | otherwise -> (Winner e' tl m) `play` go (Winner e tr m')
 
+-- | /O(log n)/ The expression @alter f k map@ alters the value @x@ at @k@, or
+-- absence thereof. 'alter' can be used to insert, delete, or update a value
+-- in a queue. It also allows you to calculate an additional value @b@.
 {-# INLINE alter #-}
-alter :: (Ord k, Ord p)
-      => (Maybe (p, v) -> (b, Maybe (p, v)))
-      -> k
-      -> OrdPSQ k p v
-      -> (b, OrdPSQ k p v)
+alter
+    :: (Ord k, Ord p)
+    => (Maybe (p, v) -> (b, Maybe (p, v)))
+    -> k
+    -> OrdPSQ k p v
+    -> (b, OrdPSQ k p v)
 alter f k psq0 =
     let (psq1, mbPV) = case deleteView k psq0 of
                          Nothing          -> (psq0, Nothing)
@@ -247,6 +252,9 @@ alter f k psq0 =
          Nothing     -> (b, psq1)
          Just (p, v) -> (b, insert k p v psq1)
 
+-- | /O(log n)/ A variant of 'alter' which works on the element with the minimum
+-- priority. Unlike 'alter', this variant also allows you to change the key of
+-- the element.
 {-# INLINE alterMin #-}
 alterMin :: (Ord k, Ord p)
          => (Maybe (k, p, v) -> (b, Maybe (k, p, v)))
@@ -267,14 +275,15 @@ alterMin f psq0 =
 -- Conversion
 --------------------------------------------------------------------------------
 
--- | /O(n*log n)/ Build a queue from a list of key/priority/value
--- tuples.  If the list contains more than one priority and value for
--- the same key, the last priority and value for the key is retained.
+-- | /O(n*log n)/ Build a queue from a list of (key, priority, value) tuples.
+-- If the list contains more than one priority and value for the same key, the
+-- last priority and value for the key is retained.
 {-# INLINABLE fromList #-}
 fromList :: (Ord k, Ord p) => [(k, p, v)] -> OrdPSQ k p v
 fromList = foldr (\(k, p, v) q -> insert k p v q) empty
 
--- | /O(n)/ Convert to a list of key/priority/value tuples.
+-- | /O(n)/ Convert a queue to a list of (key, priority, value) tuples. The
+-- order of the list is not specified.
 toList :: OrdPSQ k p v -> [(k, p, v)]
 toList = toAscList
 
@@ -286,18 +295,21 @@ keys t = [k | (k, _, _) <- toList t]
 -- | /O(n)/ Convert to an ascending list.
 toAscList :: OrdPSQ k p v -> [(k, p, v)]
 toAscList q  = seqToList (toAscLists q)
-
-toAscLists :: OrdPSQ k p v -> Sequ (k, p, v)
-toAscLists t = case tourView t of
-    Null             -> emptySequ
-    Single (E k p v) -> singleSequ (k, p, v)
-    Play tl tr       -> toAscLists tl <> toAscLists tr
+  where
+    toAscLists :: OrdPSQ k p v -> Sequ (k, p, v)
+    toAscLists t = case tourView t of
+        Null             -> emptySequ
+        Single (E k p v) -> singleSequ (k, p, v)
+        Play tl tr       -> toAscLists tl <> toAscLists tr
 
 
 --------------------------------------------------------------------------------
 -- Views
 --------------------------------------------------------------------------------
 
+-- | /O(log n)/ Insert a new key, priority and value in the queue. If the key is
+-- already present in the queue, then the evicted priority and value can be
+-- found the first element of the returned tuple.
 {-# INLINABLE insertView #-}
 insertView
     :: (Ord k, Ord p)
@@ -306,6 +318,9 @@ insertView k p x t = case deleteView k t of
     Nothing          -> (Nothing,       insert k p x t)
     Just (p', x', _) -> (Just (p', x'), insert k p x t)
 
+-- | /O(log n)/ Delete a key and its priority and value from the queue. If the
+-- key was present, the associated priority and value are returned in addition
+-- to the updated queue.
 {-# INLINABLE deleteView #-}
 deleteView :: (Ord k, Ord p) => k -> OrdPSQ k p v -> Maybe (p, v, OrdPSQ k p v)
 deleteView k psq = case psq of
@@ -327,7 +342,6 @@ minView :: (Ord k, Ord p) => OrdPSQ k p v -> Maybe (k, p, v, OrdPSQ k p v)
 minView Void                   = Nothing
 minView (Winner (E k p v) t m) = Just (k, p, v, secondBest t m)
 
-{-# INLINABLE secondBest #-}
 secondBest :: (Ord k, Ord p) => LTree k p v -> k -> OrdPSQ k p v
 secondBest Start _                 = Void
 secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
@@ -338,6 +352,7 @@ secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
 -- Traversals
 --------------------------------------------------------------------------------
 
+-- | /O(n)/ Modify every value in the queueu.
 {-# INLINABLE map #-}
 map :: forall k p v w. (k -> p -> v -> w) -> OrdPSQ k p v -> OrdPSQ k p w
 map f =
@@ -356,6 +371,8 @@ map f =
     goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
 
 
+-- | /O(n)/ Strict fold over every key, priority and value in the map. The order
+-- in which the fold is performed is not specified.
 {-# INLINE fold' #-}
 fold' :: (k -> p -> v -> a -> a) -> a -> OrdPSQ k p v -> a
 fold' f =
@@ -559,6 +576,8 @@ rdoubleRight _ _ _ _ _ _ = moduleError "rdoubleRight" "malformed tree"
 -- Validity check
 --------------------------------------------------------------------------------
 
+-- | /O(n^2)/ Internal function to check if the 'OrdPSQ' is valid, i.e. if all
+-- invariants hold. This should always be the case.
 valid :: (Ord k, Ord p) => OrdPSQ k p v -> Bool
 valid t =
     not (hasDuplicateKeys t)      &&
