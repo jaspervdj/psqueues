@@ -57,7 +57,7 @@ Library
         Data.IntPSQ.Internal
         Data.OrdPSQ.Internal
 
-benchmark bench
+benchmark psqueues-benchmarks
     type:           exitcode-stdio-1.0
     hs-source-dirs: src benchmarks
     main-is:        Main.hs
