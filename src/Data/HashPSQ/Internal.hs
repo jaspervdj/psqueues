@@ -75,9 +75,14 @@ mkBucket
 mkBucket k p x opsq =
     -- TODO (jaspervdj): We could do an 'unsafeInsertNew' here for all call
     -- sites.
-    case OrdPSQ.minView (OrdPSQ.insert k p x opsq) of
-        Just (k', p', x', opsq') -> (p', B k' x' opsq')
-        Nothing                  -> error $ "mkBucket: internal error"
+    case toBucket (OrdPSQ.insert k p x opsq) of
+        Just bucket -> bucket
+        Nothing     -> error $ "mkBucket: internal error"
+
+toBucket :: (Ord k, Ord p) => OrdPSQ.OrdPSQ k p v -> Maybe (p, Bucket k p v)
+toBucket opsq = case OrdPSQ.minView opsq of
+    Just (k, p, x, opsq') -> Just (p, B k x opsq')
+    Nothing               -> Nothing
 
 instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
     rnf (B k v x) = rnf k `seq` rnf v `seq` rnf x
@@ -204,19 +209,30 @@ delete k t = case deleteView k t of
 -- | /O(min(n,W))/ The expression @alter f k map@ alters the value @x@ at @k@,
 -- or absence thereof. 'alter' can be used to insert, delete, or update a value
 -- in a queue. It also allows you to calculate an additional value @b@.
-{-# INLINE alter #-}
+{-# INLINABLE alter #-}
 alter :: (Hashable k, Ord k, Ord p)
       => (Maybe (p, v) -> (b, Maybe (p, v)))
       -> k -> HashPSQ k p v -> (b, HashPSQ k p v)
-alter f k t0 =
-    -- TODO (jaspervdj): Both 'deleteView' and 'insert' act on the same bucket
-    -- so there should be a much faster way to do this.
-    let (t, mbX) = case deleteView k t0 of
-                            Nothing          -> (t0, Nothing)
-                            Just (p, x, t0') -> (t0', Just (p, x))
-    in case f mbX of
-        (b, mbX') ->
-            (b, maybe t (\(p, x) -> insert k p x t) mbX')
+alter f k (HashPSQ ipsq) = case IntPSQ.deleteView h ipsq of
+    Nothing -> case f Nothing of
+        (b, Nothing)     -> (b, HashPSQ ipsq)
+        (b, Just (p, x)) ->
+            (b, HashPSQ $ IntPSQ.unsafeInsertNew h p (B k x OrdPSQ.empty) ipsq)
+    Just (bp, B bk bx opsq, ipsq')
+        | k == bk   -> case f (Just (bp, bx)) of
+            (b, Nothing) -> case toBucket opsq of
+                Nothing             -> (b, HashPSQ ipsq')
+                Just (bp', bucket') ->
+                    (b, HashPSQ $ IntPSQ.unsafeInsertNew h bp' bucket' ipsq')
+            (b, Just (p, x)) -> case mkBucket k p x opsq of
+                (bp', bucket') ->
+                    (b, HashPSQ $ IntPSQ.unsafeInsertNew h bp' bucket' ipsq')
+        | otherwise -> case OrdPSQ.alter f k opsq of
+            (b, opsq') -> case mkBucket bk bp bx opsq' of
+                (bp', bucket') ->
+                    (b, HashPSQ $ IntPSQ.unsafeInsertNew h bp' bucket' ipsq')
+  where
+    h = hash k
 
 -- | /O(min(n,W))/ A variant of 'alter' which works on the element with the
 -- minimum priority. Unlike 'alter', this variant also allows you to change the
