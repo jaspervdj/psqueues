@@ -1,0 +1,5 @@
+- 0.1.0.1
+    * Extend cabal description, include CHANGELOG
+
+- 0.1.0.0
+    * First release: <https://medium.com/@bttr/announcing-psqueues-8a0fe9fe939>
