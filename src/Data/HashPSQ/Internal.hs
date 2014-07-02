@@ -122,7 +122,7 @@ null (HashPSQ ipsq) = IntPSQ.null ipsq
 
 -- | /O(n)/ The number of elements stored in the PSQ.
 {-# INLINABLE size #-}
-size :: (Hashable k, Ord p) => HashPSQ k p v -> Int
+size :: HashPSQ k p v -> Int
 size (HashPSQ ipsq) = IntPSQ.fold'
     (\_ _ (B _ _ opsq) acc -> 1 + OrdPSQ.size opsq + acc)
     0

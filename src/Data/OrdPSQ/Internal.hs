@@ -145,7 +145,7 @@ null Void           = True
 null (Winner _ _ _) = False
 
 -- | /O(1)/ The number of elements in a queue.
-size :: (Ord p) => OrdPSQ k p v -> Int
+size :: OrdPSQ k p v -> Int
 size Void            = 0
 size (Winner _ lt _) = 1 + size' lt
 
