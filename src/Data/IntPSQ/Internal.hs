@@ -431,7 +431,7 @@ minView t = case t of
 -- Traversal
 ------------------------------------------------------------------------------
 
--- | /O(n)/ Modify every value in the queueu.
+-- | /O(n)/ Modify every value in the queue.
 {-# INLINABLE map #-}
 map :: (Int -> p -> v -> w) -> IntPSQ p v -> IntPSQ p w
 map f =

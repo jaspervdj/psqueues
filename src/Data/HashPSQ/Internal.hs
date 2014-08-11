@@ -340,7 +340,7 @@ minView (HashPSQ ipsq ) =
 -- Traversals
 --------------------------------------------------------------------------------
 
--- | /O(n)/ Modify every value in the queueu.
+-- | /O(n)/ Modify every value in the queue.
 {-# INLINABLE map #-}
 map :: (k -> p -> v -> w) -> HashPSQ k p v -> HashPSQ k p w
 map f (HashPSQ ipsq) = HashPSQ (IntPSQ.map (\_ p v -> mapBucket p v) ipsq)

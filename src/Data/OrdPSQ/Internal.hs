@@ -352,7 +352,7 @@ secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
 -- Traversals
 --------------------------------------------------------------------------------
 
--- | /O(n)/ Modify every value in the queueu.
+-- | /O(n)/ Modify every value in the queue.
 {-# INLINABLE map #-}
 map :: forall k p v w. (k -> p -> v -> w) -> OrdPSQ k p v -> OrdPSQ k p w
 map f =
