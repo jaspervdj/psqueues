@@ -1,3 +1,7 @@
+- 0.2.0.0
+    * Add convenience `deleteMin` function
+    * Bump `deepseq` dependency to 1.4
+
 - 0.1.1.0
     * Remove constraints from `size`
 

@@ -27,6 +27,7 @@ module Data.IntPSQ
 
       -- * Delete/update
     , delete
+    , deleteMin
     , alter
     , alterMin
 

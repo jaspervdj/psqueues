@@ -61,6 +61,7 @@ tests = Tagged
     , testProperty "insertDelete"     (untag' prop_insertDelete)
     , testProperty "insertDeleteView" (untag' prop_insertDeleteView)
     , testProperty "deleteNonMember"  (untag' prop_deleteNonMember)
+    , testProperty "deleteMin"        (untag' prop_deleteMin)
     , testProperty "alter"            (untag' prop_alter)
     , testProperty "alterMin"         (untag' prop_alterMin)
     , testProperty "toList"           (untag' prop_toList)
@@ -287,6 +288,21 @@ prop_deleteNonMember
 prop_deleteNonMember = Tagged $ \t ->
     forAll arbitraryTestKey $ \k ->
         (lookup k t == Nothing) ==> (delete k t == (t :: psq Int Char))
+
+prop_deleteMin
+    :: forall psq. (PSQ psq, TestKey (Key psq),
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_deleteMin = Tagged $ \t ->
+    let t' = deleteMin t
+    in if null t
+        then t' == t
+        else case findMin t of
+                Nothing        -> False
+                Just (k, _, _) ->
+                    size t' == size t - 1 && member k t && not (member k t')
 
 prop_alter
     :: forall psq. (PSQ psq, TestKey (Key psq),

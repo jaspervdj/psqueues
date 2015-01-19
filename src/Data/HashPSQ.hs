@@ -24,6 +24,7 @@ module Data.HashPSQ
 
       -- * Delete/update
     , delete
+    , deleteMin
     , alter
     , alterMin
 

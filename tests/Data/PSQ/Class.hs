@@ -42,6 +42,8 @@ class PSQ (psq :: * -> * -> *) where
     -- Delete/update
     delete
         :: Ord p => Key psq -> psq p v -> psq p v
+    deleteMin
+        :: Ord p => psq p v -> psq p v
     alter
         :: Ord p
         => (Maybe (p, v) -> (b, Maybe (p, v)))
@@ -88,6 +90,7 @@ instance PSQ IntPSQ.IntPSQ where
     singleton  = IntPSQ.singleton
     insert     = IntPSQ.insert
     delete     = IntPSQ.delete
+    deleteMin  = IntPSQ.deleteMin
     alter      = IntPSQ.alter
     alterMin   = IntPSQ.alterMin
     fromList   = IntPSQ.fromList
@@ -112,6 +115,7 @@ instance forall k. Ord k => PSQ (OrdPSQ.OrdPSQ k) where
     singleton  = OrdPSQ.singleton
     insert     = OrdPSQ.insert
     delete     = OrdPSQ.delete
+    deleteMin  = OrdPSQ.deleteMin
     alter      = OrdPSQ.alter
     alterMin   = OrdPSQ.alterMin
     fromList   = OrdPSQ.fromList
@@ -136,6 +140,7 @@ instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where
     singleton  = HashPSQ.singleton
     insert     = HashPSQ.insert
     delete     = HashPSQ.delete
+    deleteMin  = HashPSQ.deleteMin
     alter      = HashPSQ.alter
     alterMin   = HashPSQ.alterMin
     fromList   = HashPSQ.fromList

@@ -23,6 +23,7 @@ module Data.OrdPSQ.Internal
 
       -- * Delete/Update
     , delete
+    , deleteMin
     , alter
     , alterMin
 
@@ -232,6 +233,16 @@ delete k = go
         Winner e (LLoser _ e' tl m tr) m'
             | k <= m    -> go (Winner e' tl m) `play` (Winner e tr m')
             | otherwise -> (Winner e' tl m) `play` go (Winner e tr m')
+
+-- | /O(log n)/ Delete the binding with the least priority, and return
+-- rest of the queue stripped of that binding. In case the queue is empty, the
+-- empty queue is returned again.
+{-# INLINE deleteMin #-}
+deleteMin
+    :: (Ord k, Ord p) => OrdPSQ k p v -> OrdPSQ k p v
+deleteMin t = case minView t of
+    Nothing            -> t
+    Just (_, _, _, t') -> t'
 
 -- | /O(log n)/ The expression @alter f k map@ alters the value @x@ at @k@, or
 -- absence thereof. 'alter' can be used to insert, delete, or update a value

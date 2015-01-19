@@ -34,6 +34,7 @@ module Data.OrdPSQ
 
       -- * Delete/Update
     , delete
+    , deleteMin
     , alter
     , alterMin
 

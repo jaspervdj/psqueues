@@ -23,6 +23,7 @@ module Data.HashPSQ.Internal
 
       -- * Delete/update
     , delete
+    , deleteMin
     , alter
     , alterMin
 
@@ -205,6 +206,16 @@ delete
 delete k t = case deleteView k t of
     Nothing         -> t
     Just (_, _, t') -> t'
+
+-- | /O(min(n,W))/ Delete the binding with the least priority, and return
+-- rest of the queue stripped of that binding. In case the queue is empty, the
+-- empty queue is returned again.
+{-# INLINE deleteMin #-}
+deleteMin
+    :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> HashPSQ k p v
+deleteMin t = case minView t of
+    Nothing            -> t
+    Just (_, _, _, t') -> t'
 
 -- | /O(min(n,W))/ The expression @alter f k map@ alters the value @x@ at @k@,
 -- or absence thereof. 'alter' can be used to insert, delete, or update a value

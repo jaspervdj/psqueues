@@ -24,6 +24,7 @@ module Data.IntPSQ.Internal
 
       -- * Delete/update
     , delete
+    , deleteMin
     , alter
     , alterMin
 
@@ -290,6 +291,15 @@ delete k = go
           | k == k'        -> merge m l r
           | zero k m       -> binShrinkL k' p' x' m (go l) r
           | otherwise      -> binShrinkR k' p' x' m l      (go r)
+
+-- | /O(min(n,W))/ Delete the binding with the least priority, and return
+-- rest of the queue stripped of that binding. In case the queue is empty, the
+-- empty queue is returned again.
+{-# INLINE deleteMin #-}
+deleteMin :: Ord p => IntPSQ p v -> IntPSQ p v
+deleteMin t = case minView t of
+    Nothing            -> t
+    Just (_, _, _, t') -> t'
 
 -- | /O(min(n,W))/ The expression @alter f k map@ alters the value @x@ at @k@,
 -- or absence thereof. 'alter' can be used to insert, delete, or update a value
