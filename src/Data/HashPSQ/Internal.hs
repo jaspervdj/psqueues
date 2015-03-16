@@ -168,7 +168,7 @@ singleton k p v = insert k p v empty
 -- Insertion
 --------------------------------------------------------------------------------
 
--- | /O(min(n,W))/ Insert a new key, priority and value in the queue. If the key
+-- | /O(min(n,W))/ Insert a new key, priority and value into the queue. If the key
 -- is already present in the queue, the associated priority and value are
 -- replaced with the supplied priority and value.
 {-# INLINABLE insert #-}
@@ -207,7 +207,7 @@ delete k t = case deleteView k t of
     Nothing         -> t
     Just (_, _, t') -> t'
 
--- | /O(min(n,W))/ Delete the binding with the least priority, and return
+-- | /O(min(n,W))/ Delete the binding with the least priority, and return the
 -- rest of the queue stripped of that binding. In case the queue is empty, the
 -- empty queue is returned again.
 {-# INLINE deleteMin #-}
@@ -217,7 +217,7 @@ deleteMin t = case minView t of
     Nothing            -> t
     Just (_, _, _, t') -> t'
 
--- | /O(min(n,W))/ The expression @alter f k map@ alters the value @x@ at @k@,
+-- | /O(min(n,W))/ The expression @alter f k queue@ alters the value @x@ at @k@,
 -- or absence thereof. 'alter' can be used to insert, delete, or update a value
 -- in a queue. It also allows you to calculate an additional value @b@.
 {-# INLINABLE alter #-}
@@ -294,7 +294,7 @@ keys t = [k | (k, _, _) <- toList t]
 -- Views
 --------------------------------------------------------------------------------
 
--- | /O(min(n,W))/ Insert a new key, priority and value in the queue. If the key
+-- | /O(min(n,W))/ Insert a new key, priority and value into the queue. If the key
 -- is already present in the queue, then the evicted priority and value can be
 -- found the first element of the returned tuple.
 {-# INLINABLE insertView #-}
@@ -358,7 +358,7 @@ map f (HashPSQ ipsq) = HashPSQ (IntPSQ.map (\_ p v -> mapBucket p v) ipsq)
   where
     mapBucket p (B k v opsq) = B k (f k p v) (OrdPSQ.map f opsq)
 
--- | /O(n)/ Strict fold over every key, priority and value in the map. The order
+-- | /O(n)/ Strict fold over every key, priority and value in the queue. The order
 -- in which the fold is performed is not specified.
 {-# INLINABLE fold' #-}
 fold' :: (k -> p -> v -> a -> a) -> a -> HashPSQ k p v -> a
@@ -438,7 +438,7 @@ unsafeInsertIncreasePriorityView k p x (HashPSQ ipsq) =
 -- Validity check
 --------------------------------------------------------------------------------
 
--- | /O(n^2)/ Internal function to check if the 'OrdPSQ' is valid, i.e. if all
+-- | /O(n^2)/ Internal function to check if the 'HashPSQ' is valid, i.e. if all
 -- invariants hold. This should always be the case.
 valid :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Bool
 valid t@(HashPSQ ipsq) =

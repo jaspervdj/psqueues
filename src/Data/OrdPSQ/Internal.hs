@@ -191,7 +191,7 @@ singleton k p v = Winner (E k p v) Start k
 -- Insertion
 --------------------------------------------------------------------------------
 
--- | /O(log n)/ Insert a new key, priority and value in the queue. If the key is
+-- | /O(log n)/ Insert a new key, priority and value into the queue. If the key is
 -- already present in the queue, the associated priority and value are replaced
 -- with the supplied priority and value.
 {-# INLINABLE insert #-}
@@ -234,7 +234,7 @@ delete k = go
             | k <= m    -> go (Winner e' tl m) `play` (Winner e tr m')
             | otherwise -> (Winner e' tl m) `play` go (Winner e tr m')
 
--- | /O(log n)/ Delete the binding with the least priority, and return
+-- | /O(log n)/ Delete the binding with the least priority, and return the
 -- rest of the queue stripped of that binding. In case the queue is empty, the
 -- empty queue is returned again.
 {-# INLINE deleteMin #-}
@@ -244,7 +244,7 @@ deleteMin t = case minView t of
     Nothing            -> t
     Just (_, _, _, t') -> t'
 
--- | /O(log n)/ The expression @alter f k map@ alters the value @x@ at @k@, or
+-- | /O(log n)/ The expression @alter f k queue@ alters the value @x@ at @k@, or
 -- absence thereof. 'alter' can be used to insert, delete, or update a value
 -- in a queue. It also allows you to calculate an additional value @b@.
 {-# INLINE alter #-}
@@ -318,7 +318,7 @@ toAscList q  = seqToList (toAscLists q)
 -- Views
 --------------------------------------------------------------------------------
 
--- | /O(log n)/ Insert a new key, priority and value in the queue. If the key is
+-- | /O(log n)/ Insert a new key, priority and value into the queue. If the key is
 -- already present in the queue, then the evicted priority and value can be
 -- found the first element of the returned tuple.
 {-# INLINABLE insertView #-}
@@ -382,7 +382,7 @@ map f =
     goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
 
 
--- | /O(n)/ Strict fold over every key, priority and value in the map. The order
+-- | /O(n)/ Strict fold over every key, priority and value in the queue. The order
 -- in which the fold is performed is not specified.
 {-# INLINE fold' #-}
 fold' :: (k -> p -> v -> a -> a) -> a -> OrdPSQ k p v -> a
