@@ -170,7 +170,7 @@ null :: IntPSQ p v -> Bool
 null Nil = True
 null _   = False
 
--- | /O(n)/ The number of elements stored in the PSQ.
+-- | /O(n)/ The number of elements stored in the queue.
 size :: IntPSQ p v -> Int
 size Nil               = 0
 size (Tip _ _ _)       = 1
@@ -224,7 +224,7 @@ singleton = Tip
 -- Insertion
 ------------------------------------------------------------------------------
 
--- | /O(min(n,W))/ Insert a new key, priority and value in the queue. If the key
+-- | /O(min(n,W))/ Insert a new key, priority and value into the queue. If the key
 -- is already present in the queue, the associated priority and value are
 -- replaced with the supplied priority and value.
 insert :: Ord p => Int -> p -> v -> IntPSQ p v -> IntPSQ p v
@@ -292,7 +292,7 @@ delete k = go
           | zero k m       -> binShrinkL k' p' x' m (go l) r
           | otherwise      -> binShrinkR k' p' x' m l      (go r)
 
--- | /O(min(n,W))/ Delete the binding with the least priority, and return
+-- | /O(min(n,W))/ Delete the binding with the least priority, and return the
 -- rest of the queue stripped of that binding. In case the queue is empty, the
 -- empty queue is returned again.
 {-# INLINE deleteMin #-}
@@ -301,7 +301,7 @@ deleteMin t = case minView t of
     Nothing            -> t
     Just (_, _, _, t') -> t'
 
--- | /O(min(n,W))/ The expression @alter f k map@ alters the value @x@ at @k@,
+-- | /O(min(n,W))/ The expression @alter f k queue@ alters the value @x@ at @k@,
 -- or absence thereof. 'alter' can be used to insert, delete, or update a value
 -- in a queue. It also allows you to calculate an additional value @b@.
 {-# INLINE alter #-}
@@ -389,7 +389,7 @@ keys t = [k | (k, _, _) <- toList t]
 -- Views
 ------------------------------------------------------------------------------
 
--- | /O(min(n,W))/ Insert a new key, priority and value in the queue. If the key
+-- | /O(min(n,W))/ Insert a new key, priority and value into the queue. If the key
 -- is already present in the queue, then the evicted priority and value can be
 -- found the first element of the returned tuple.
 insertView :: Ord p => Int -> p -> v -> IntPSQ p v -> (Maybe (p, v), IntPSQ p v)
@@ -452,7 +452,7 @@ map f =
         Tip k p x       -> Tip k p (f k p x)
         Bin k p x m l r -> Bin k p (f k p x) m (go l) (go r)
 
--- | /O(n)/ Strict fold over every key, priority and value in the map. The order
+-- | /O(n)/ Strict fold over every key, priority and value in the queue. The order
 -- in which the fold is performed is not specified.
 {-# INLINABLE fold' #-}
 fold' :: (Int -> p -> v -> a -> a) -> a -> IntPSQ p v -> a
@@ -633,7 +633,7 @@ unsafeLookupIncreasePriority f k t0 =
 -- Validity checks for the datastructure invariants
 ------------------------------------------------------------------------------
 
--- | /O(n^2)/ Internal function to check if the 'OrdPSQ' is valid, i.e. if all
+-- | /O(n^2)/ Internal function to check if the 'IntPSQ' is valid, i.e. if all
 -- invariants hold. This should always be the case.
 valid :: Ord p => IntPSQ p v -> Bool
 valid psq =
