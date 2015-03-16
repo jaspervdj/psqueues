@@ -1,12 +1,15 @@
-name: psqueues
-version: 0.2.0.0
-license: BSD3
-license-file: LICENSE
-maintainer: haskell@better.com
-bug-reports: https://github.com/bttr/psqueues/issues
-synopsis: Pure priority search queues
-category: Data Structures
-description:
+Name:          psqueues
+Version:       0.2.0.1
+License:       BSD3
+License-file:  LICENSE
+Maintainer:    Jasper Van der Jeugt <jaspervdj@gmail.com>
+Bug-reports:   https://github.com/bttr/psqueues/issues
+Synopsis:      Pure priority search queues
+Category:      Data Structures
+Build-type:    Simple
+Cabal-version: >=1.8
+
+Description:
     The psqueues package provides
     <http://en.wikipedia.org/wiki/Priority_queue Priority Search Queues> in
     three different flavors.
@@ -19,8 +22,8 @@ description:
     considerably faster and provides a slightly different API.
     .
     * @IntPSQ p v@ is a far more efficient implementation. It fixes the key type
-   to @Int@ and uses a <http://en.wikipedia.org/wiki/Radix_tree radix tree>
-   (like @IntMap@) with an additional min-heap property.
+    to @Int@ and uses a <http://en.wikipedia.org/wiki/Radix_tree radix tree>
+    (like @IntMap@) with an additional min-heap property.
     .
     * @HashPSQ k p v@ is a fairly straightforward extension of @IntPSQ@: it
     simply uses the keys' hashes as indices in the @IntPSQ@. If there are any
@@ -48,44 +51,43 @@ description:
     * Schedulers;
     .
     * Pathfinding algorithms, such as Dijkstra's and A*.
-build-type: Simple
-cabal-version:  >=1.8
-extra-source-files:
+
+Extra-source-files:
     CHANGELOG
 
-source-repository head
+Source-repository head
     type:     git
     location: http://github.com/bttr/psqueues.git
 
 Library
-    ghc-options:    -O2 -Wall
-    hs-source-dirs: src
+    Ghc-options:    -O2 -Wall
+    Hs-source-dirs: src
 
-    build-depends:
+    Build-depends:
           base     >= 4.2   && < 5
         , deepseq  >= 1.2   && < 1.5
         , hashable >= 1.2.1 && < 1.3
 
     if impl(ghc>=6.10)
-        build-depends: ghc-prim
+        Build-depends: ghc-prim
 
-    exposed-modules:
+    Exposed-modules:
         Data.HashPSQ
         Data.IntPSQ
         Data.OrdPSQ
-    other-modules:
+    Other-modules:
         Data.BitUtil
         Data.HashPSQ.Internal
         Data.IntPSQ.Internal
         Data.OrdPSQ.Internal
 
-benchmark psqueues-benchmarks
-    type:           exitcode-stdio-1.0
-    hs-source-dirs: src benchmarks
-    main-is:        Main.hs
-    ghc-options:    -Wall
+Benchmark psqueues-benchmarks
+    Type:           exitcode-stdio-1.0
+    Hs-source-dirs: src benchmarks
+    Main-is:        Main.hs
+    Ghc-options:    -Wall
 
-    build-depends:
+    Build-depends:
           containers           >= 0.5
         , unordered-containers >= 0.2.4
         , criterion            >= 0.8
@@ -101,13 +103,13 @@ benchmark psqueues-benchmarks
         , psqueues
 
 Test-suite psqueues-tests
-    cpp-options:    -DTESTING -DSTRICT
-    ghc-options:    -Wall
-    hs-source-dirs: src tests
-    main-is:        Main.hs
-    type:           exitcode-stdio-1.0
+    Cpp-options:    -DTESTING -DSTRICT
+    Ghc-options:    -Wall
+    Hs-source-dirs: src tests
+    Main-is:        Main.hs
+    Type:           exitcode-stdio-1.0
 
-    other-modules:
+    Other-modules:
         Data.PSQ.Class
         Data.PSQ.Class.Gen
         Data.PSQ.Class.Tests
@@ -116,7 +118,7 @@ Test-suite psqueues-tests
         Data.IntPSQ.Tests
         Data.OrdPSQ.Tests
 
-    build-depends:
+    Build-depends:
           HUnit                      >= 1.2 && < 1.3
         , QuickCheck                 >= 2.7 && < 2.8
         , test-framework             >= 0.8 && < 0.9

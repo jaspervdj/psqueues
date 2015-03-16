@@ -1,3 +1,6 @@
+- 0.2.0.1
+    * Minor documentation fixes
+
 - 0.2.0.0
     * Add convenience `deleteMin` function
     * Bump `deepseq` dependency to 1.4
