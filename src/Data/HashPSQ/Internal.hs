@@ -1,5 +1,7 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 module Data.HashPSQ.Internal
     ( -- * Type
@@ -56,6 +58,8 @@ import           Data.Hashable
 import           Data.Maybe      (isJust)
 import           Prelude         hiding (foldr, lookup, map, null)
 import qualified Data.List       as List
+import           Data.Typeable   (Typeable)
+import           GHC.Generics    (Generic)
 
 import qualified Data.IntPSQ.Internal as IntPSQ
 import qualified Data.OrdPSQ          as OrdPSQ
@@ -65,7 +69,7 @@ import qualified Data.OrdPSQ          as OrdPSQ
 ------------------------------------------------------------------------------
 
 data Bucket k p v = B !k !v !(OrdPSQ.OrdPSQ k p v)
-    deriving (Show)
+    deriving (Show,Typeable,Generic)
 
 -- | Smart constructor which takes care of placing the minimum element directly
 -- in the 'Bucket'.
@@ -91,7 +95,7 @@ instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
 -- | A priority search queue with keys of type @k@ and priorities of type @p@
 -- and values of type @v@. It is strict in keys, priorities and values.
 newtype HashPSQ k p v = HashPSQ (IntPSQ.IntPSQ p (Bucket k p v))
-    deriving (NFData, Show)
+    deriving (NFData,Show,Typeable,Generic)
 
 instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
             Eq (HashPSQ k p v) where

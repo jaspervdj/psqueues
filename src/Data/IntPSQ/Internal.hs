@@ -1,6 +1,8 @@
-{-# LANGUAGE BangPatterns  #-}
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE BangPatterns       #-}
+{-# LANGUAGE CPP                #-}
+{-# LANGUAGE UnboxedTuples      #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 module Data.IntPSQ.Internal
     ( -- * Type
       Nat
@@ -67,6 +69,8 @@ import           Data.List (foldl')
 import           Data.Maybe (isJust)
 import           Data.Word (Word)
 import           Data.Foldable (Foldable (foldr))
+import           Data.Typeable   (Typeable)
+import           GHC.Generics    (Generic)
 
 import qualified Data.List as List
 
@@ -101,7 +105,7 @@ data IntPSQ p v
     = Bin {-# UNPACK #-} !Key !p !v {-# UNPACK #-} !Mask !(IntPSQ p v) !(IntPSQ p v)
     | Tip {-# UNPACK #-} !Key !p !v
     | Nil
-    deriving (Show)
+    deriving (Show,Typeable,Generic)
 
 instance (NFData p, NFData v) => NFData (IntPSQ p v) where
     rnf (Bin _k p v _m l r) = rnf p `seq` rnf v `seq` rnf l `seq` rnf r

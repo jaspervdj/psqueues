@@ -1,6 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy         #-}
 {-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE DeriveGeneric       #-}
 module Data.OrdPSQ.Internal
     ( -- * Type
       OrdPSQ (..)
@@ -69,6 +71,8 @@ import           Control.DeepSeq (NFData(rnf))
 import           Data.Maybe      (isJust)
 import           Data.Foldable   (Foldable (foldr))
 import qualified Data.List       as List
+import           Data.Typeable   (Typeable)
+import           GHC.Generics    (Generic)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -76,7 +80,7 @@ import qualified Data.List       as List
 
 -- | @E k p v@ binds the key @k@ to the value @v@ with priority @p@.
 data Elem k p v = E !k !p !v
-    deriving (Show)
+    deriving (Show,Typeable,Generic)
 
 instance (NFData k, NFData p, NFData v) => NFData (Elem k p v) where
     rnf (E k p v) = rnf k `seq` rnf p `seq` rnf v
@@ -88,7 +92,7 @@ data OrdPSQ k p v
     | Winner !(Elem k p v)
              !(LTree k p v)
              !k
-    deriving (Show)
+    deriving (Show,Typeable,Generic)
 
 instance (NFData k, NFData p, NFData v) => NFData (OrdPSQ k p v) where
     rnf Void           = ()
@@ -123,7 +127,7 @@ data LTree k p v
                             !(LTree k p v)
                             !k              -- split key
                             !(LTree k p v)
-    deriving (Show)
+    deriving (Show,Typeable,Generic)
 
 instance (NFData k, NFData p, NFData v) => NFData (LTree k p v) where
     rnf Start              = ()
