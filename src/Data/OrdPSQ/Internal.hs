@@ -23,6 +23,7 @@ module Data.OrdPSQ.Internal
 
       -- * Insertion
     , insert
+    , insertWith
 
       -- * Delete/Update
     , delete
@@ -207,13 +208,21 @@ singleton k p v = Winner (E k p v) Start k
 -- with the supplied priority and value.
 {-# INLINABLE insert #-}
 insert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
-insert k p v = go
+insert = insertWith (\ _ new old -> new)
+
+-- | /O(log n)/ Insert a new key, priority and value into the queue. If the key is
+-- already present in the queue, the associated priority and value are replaced
+-- with the supplied priority and value.
+{-# INLINABLE insertWith #-}
+insertWith :: (Ord k, Ord p)
+  => (k -> (p,v) -> (p,v) -> (p,v)) -> k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
+insertWith combine k p v = go
   where
     go t = case t of
         Void -> singleton k p v
         Winner (E k' p' v') Start _ -> case compare k k' of
             LT -> singleton k  p  v  `play` singleton k' p' v'
-            EQ -> singleton k  p  v
+            EQ -> uncurry (singleton k) $ combine k (p,v) (p',v')
             GT -> singleton k' p' v' `play` singleton k  p  v
         Winner e (RLoser _ e' tl m tr) m'
             | k <= m    -> go (Winner e tl m) `play` (Winner e' tr m')

@@ -32,6 +32,7 @@ module Data.OrdPSQ
 
       -- * Insertion
     , insert
+    , insertWith
 
       -- * Delete/Update
     , delete
