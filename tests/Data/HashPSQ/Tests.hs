@@ -8,7 +8,8 @@ import           Test.Framework                       (Test)
 import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
 import           Test.QuickCheck                      (Property, arbitrary,
-                                                       forAll)
+                                                       forAll,
+                                                       NonNegative(NonNegative))
 import           Test.HUnit                           (Assertion, assert)
 
 import           Data.HashPSQ.Internal
@@ -23,14 +24,16 @@ import           Data.PSQ.Class.Util
 
 tests :: [Test]
 tests =
-    [ testCase      "showBucket"    test_showBucket
-    , testCase      "toBucket"      test_toBucket
+    [ testCase      "showBucket"        test_showBucket
+    , testCase      "toBucket"          test_toBucket
     , testProperty "unsafeLookupIncreasePriority"
-                                    prop_unsafeLookupIncreasePriority
+                                        prop_unsafeLookupIncreasePriority
     , testProperty "unsafeInsertIncreasePriority"
-                                    prop_unsafeInsertIncreasePriority
+                                        prop_unsafeInsertIncreasePriority
     , testProperty "unsafeInsertIncreasePriorityView"
-                                    prop_unsafeInsertIncreasePriorityView
+                                        prop_unsafeInsertIncreasePriorityView
+    , testProperty "takeMin_length"     prop_takeMin_length
+    , testProperty "takeMin_increasing" prop_takeMin_increasing
     ]
 
 
@@ -89,3 +92,13 @@ prop_unsafeInsertIncreasePriorityView =
         in valid (t' :: HashPSQ LousyHashedInt Int Char) &&
             lookup k t' == Just (prio, x) &&
             lookup k t  == mbPx
+
+prop_takeMin_length :: NonNegative Int -> HashPSQ Int Int Char -> Bool
+prop_takeMin_length (NonNegative n) t = length (takeMin n t) <= n
+
+prop_takeMin_increasing :: NonNegative Int -> HashPSQ Int Int Char -> Bool
+prop_takeMin_increasing (NonNegative n) t = isSorted [p | (_, p, _) <- takeMin n t]
+  where
+    isSorted (x : y : zs) = x <= y && isSorted (y : zs)
+    isSorted [_]          = True
+    isSorted []           = True

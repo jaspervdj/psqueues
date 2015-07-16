@@ -7,6 +7,7 @@ import           Test.Framework                       (Test)
 import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
 import           Test.HUnit                           (Assertion, assert)
+import           Test.QuickCheck                      (NonNegative(NonNegative))
 
 import           Data.OrdPSQ.Internal
 import           Data.PSQ.Class.Gen                   ()
@@ -18,11 +19,13 @@ import           Data.PSQ.Class.Util
 
 tests :: [Test]
 tests =
-    [ testCase     "showElem"      test_showElem
-    , testCase     "showLTree"     test_showLTree
-    , testCase     "invalidLTree"  test_invalidLTree
-    , testCase     "balanceErrors" test_balanceErrors
-    , testProperty "toAscList"     prop_toAscList
+    [ testCase     "showElem"           test_showElem
+    , testCase     "showLTree"          test_showLTree
+    , testCase     "invalidLTree"       test_invalidLTree
+    , testCase     "balanceErrors"      test_balanceErrors
+    , testProperty "toAscList"          prop_toAscList
+    , testProperty "takeMin_length"     prop_takeMin_length
+    , testProperty "takeMin_increasing" prop_takeMin_increasing
     ]
 
 
@@ -87,3 +90,13 @@ prop_toAscList t = isUniqueSorted [k | (k, _, _) <- toAscList t]
     isUniqueSorted (x : y : zs) = x < y && isUniqueSorted (y : zs)
     isUniqueSorted [_]          = True
     isUniqueSorted []           = True
+
+prop_takeMin_length :: NonNegative Int -> OrdPSQ Int Int Char -> Bool
+prop_takeMin_length (NonNegative n) t = length (takeMin n t) <= n
+
+prop_takeMin_increasing :: NonNegative Int -> OrdPSQ Int Int Char -> Bool
+prop_takeMin_increasing (NonNegative n) t = isSorted [p | (_, p, _) <- takeMin n t]
+  where
+    isSorted (x : y : zs) = x <= y && isSorted (y : zs)
+    isSorted [_]          = True
+    isSorted []           = True
