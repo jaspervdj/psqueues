@@ -23,6 +23,7 @@ module Data.HashPSQ.Internal
 
       -- * Insertion
     , insert
+    , insertWith
 
       -- * Delete/update
     , delete
@@ -205,6 +206,15 @@ insert k p v (HashPSQ ipsq) =
         | otherwise                     =
             Just (p , B k  v  (OrdPSQ.insert k' p' v' os))
 
+-- | /O(log n)/ Insert a new key, priority and value into the queue. If the key is
+-- already present in the queue, the new priority and value are combined with the
+-- existing priority and value using the supplied function.
+{-# INLINABLE insertWith #-}
+insertWith :: (Ord k, Hashable k, Ord p)
+  => (k -> (p,v) -> (p,v) -> (p,v)) -> k -> p -> v -> HashPSQ k p v -> HashPSQ k p v
+insertWith combine k p v = snd . alter ((,) () . change) k where
+  change Nothing   = Just (p,v)
+  change (Just t') = Just $ combine k (p,v) t'
 
 --------------------------------------------------------------------------------
 -- Delete/update

@@ -24,6 +24,7 @@ module Data.IntPSQ.Internal
 
       -- * Insertion
     , insert
+    , insertWith
 
       -- * Delete/update
     , delete
@@ -241,6 +242,16 @@ singleton = Tip
 -- replaced with the supplied priority and value.
 insert :: Ord p => Int -> p -> v -> IntPSQ p v -> IntPSQ p v
 insert k p x t0 = unsafeInsertNew k p x (delete k t0)
+
+-- | /O(min(n,W))/ Insert a new key, priority and value into the queue. If the key is
+-- already present in the queue, the new priority and value are combined with the
+-- existing priority and value using the supplied function.
+{-# INLINABLE insertWith #-}
+insertWith :: (Ord p)
+  => (Int -> (p,v) -> (p,v) -> (p,v)) -> Int -> p -> v -> IntPSQ p v -> IntPSQ p v
+insertWith combine k p x = snd . alter ((,) () . change) k where
+  change Nothing   = Just (p,x)
+  change (Just t') = Just $ combine k (p,x) t'
 
 -- | Internal function to insert a key that is *not* present in the priority
 -- queue.

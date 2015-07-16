@@ -22,6 +22,7 @@ module Data.HashPSQ
 
       -- * Insertion
     , insert
+    , insertWith
 
       -- * Delete/update
     , delete

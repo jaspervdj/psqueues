@@ -25,6 +25,7 @@ module Data.IntPSQ
 
       -- * Insertion
     , insert
+    , insertWith
 
       -- * Delete/update
     , delete
