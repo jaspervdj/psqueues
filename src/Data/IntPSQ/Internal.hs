@@ -16,6 +16,7 @@ module Data.IntPSQ.Internal
     , member
     , lookup
     , findMin
+    , takeMin
 
       -- * Construction
     , empty
@@ -209,6 +210,13 @@ findMin t = case t of
     Nil              -> Nothing
     Tip k p x        -> Just (k, p, x)
     Bin k p x _ _ _  -> Just (k, p, x)
+
+-- | The /k/ elements with the lowest priority.
+takeMin :: Ord p => Int -> IntPSQ p v -> [(Int,p,v)]
+takeMin 0 _   = []
+takeMin n psq = case minView psq of
+  Nothing           -> []
+  Just (k,p,v,psq') -> (k,p,v) : takeMin (pred n) psq'
 
 
 ------------------------------------------------------------------------------

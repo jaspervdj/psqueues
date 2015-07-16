@@ -14,6 +14,7 @@ module Data.HashPSQ
     , member
     , lookup
     , findMin
+    , takeMin
 
       -- * Construction
     , empty

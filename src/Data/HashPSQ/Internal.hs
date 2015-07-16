@@ -15,6 +15,7 @@ module Data.HashPSQ.Internal
     , member
     , lookup
     , findMin
+    , takeMin
 
       -- * Construction
     , empty
@@ -153,6 +154,13 @@ findMin :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Maybe (k, p, v)
 findMin (HashPSQ ipsq) = case IntPSQ.findMin ipsq of
     Nothing              -> Nothing
     Just (_, p, B k x _) -> Just (k, p, x)
+
+-- | The /k/ elements with the lowest priority.
+takeMin :: (Hashable k, Ord k, Ord p) => Int -> HashPSQ k p v -> [(k,p,v)]
+takeMin 0 _   = []
+takeMin n psq = case minView psq of
+  Nothing           -> []
+  Just (k,p,v,psq') -> (k,p,v) : takeMin (pred n) psq'
 
 
 --------------------------------------------------------------------------------

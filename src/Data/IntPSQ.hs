@@ -17,6 +17,7 @@ module Data.IntPSQ
     , member
     , lookup
     , findMin
+    , takeMin
 
       -- * Construction
     , empty
