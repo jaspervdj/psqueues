@@ -211,8 +211,8 @@ insert :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
 insert = insertWith (\ _ new old -> new)
 
 -- | /O(log n)/ Insert a new key, priority and value into the queue. If the key is
--- already present in the queue, the associated priority and value are replaced
--- with the supplied priority and value.
+-- already present in the queue, the new priority and value are combined with the
+-- existing priority and value using the supplied function.
 {-# INLINABLE insertWith #-}
 insertWith :: (Ord k, Ord p)
   => (k -> (p,v) -> (p,v) -> (p,v)) -> k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
