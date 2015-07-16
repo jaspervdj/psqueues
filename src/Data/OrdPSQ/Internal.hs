@@ -15,6 +15,7 @@ module Data.OrdPSQ.Internal
     , member
     , lookup
     , findMin
+    , takeMin
 
       -- * Construction
     , empty
@@ -177,6 +178,12 @@ findMin :: OrdPSQ k p v -> Maybe (k, p, v)
 findMin Void                   = Nothing
 findMin (Winner (E k p v) _ _) = Just (k, p, v)
 
+-- | The /k/ elements with the lowest priority.
+takeMin :: (Ord k,Ord p) => Int -> OrdPSQ k p v -> [(k,p,v)]
+takeMin 0 _   = []
+takeMin n psq = case minView psq of
+  Nothing           -> []
+  Just (k,p,v,psq') -> (k,p,v) : takeMin (pred n) psq'
 
 --------------------------------------------------------------------------------
 -- Construction
