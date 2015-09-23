@@ -119,7 +119,7 @@ Test-suite psqueues-tests
         Data.OrdPSQ.Tests
 
     Build-depends:
-          HUnit                      >= 1.2 && < 1.3
+          HUnit                      >= 1.2 && < 1.4
         , QuickCheck                 >= 2.7 && < 2.9
         , test-framework             >= 0.8 && < 0.9
         , test-framework-hunit       >= 0.3 && < 0.4
