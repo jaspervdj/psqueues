@@ -1,3 +1,9 @@
+- 0.2.0.3
+    * Bump HUnit dependency bounds
+
+- 0.2.0.2
+    * Bump QuickCheck dependency bounds
+
 - 0.2.0.1
     * Minor documentation fixes
 
