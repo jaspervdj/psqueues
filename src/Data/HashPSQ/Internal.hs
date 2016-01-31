@@ -1,4 +1,7 @@
 {-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 module Data.HashPSQ.Internal
@@ -50,12 +53,12 @@ module Data.HashPSQ.Internal
     , valid
     ) where
 
-import           Control.DeepSeq (NFData (..))
-import           Data.Foldable   (Foldable (foldr))
+import           Control.DeepSeq      (NFData (..))
+import           Data.Foldable        (Foldable (foldr))
 import           Data.Hashable
-import           Data.Maybe      (isJust)
-import           Prelude         hiding (foldr, lookup, map, null)
-import qualified Data.List       as List
+import qualified Data.List            as List
+import           Data.Maybe           (isJust)
+import           Prelude              hiding (foldr, lookup, map, null)
 
 import qualified Data.IntPSQ.Internal as IntPSQ
 import qualified Data.OrdPSQ          as OrdPSQ
@@ -65,7 +68,7 @@ import qualified Data.OrdPSQ          as OrdPSQ
 ------------------------------------------------------------------------------
 
 data Bucket k p v = B !k !v !(OrdPSQ.OrdPSQ k p v)
-    deriving (Show)
+    deriving (Foldable, Functor, Show, Traversable)
 
 -- | Smart constructor which takes care of placing the minimum element directly
 -- in the 'Bucket'.
@@ -91,7 +94,7 @@ instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
 -- | A priority search queue with keys of type @k@ and priorities of type @p@
 -- and values of type @v@. It is strict in keys, priorities and values.
 newtype HashPSQ k p v = HashPSQ (IntPSQ.IntPSQ p (Bucket k p v))
-    deriving (NFData, Show)
+    deriving (Foldable, Functor, NFData, Show, Traversable)
 
 instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
             Eq (HashPSQ k p v) where
@@ -101,15 +104,6 @@ instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
             xk == yk && xp == yp && xv == yv && x' == y'
         (Just _               , Nothing                ) -> False
         (Nothing              , Just _                 ) -> False
-
-instance Foldable (HashPSQ k p) where
-    foldr f z0 (HashPSQ ipsq) =
-        foldr f' z0 ipsq
-      where
-        f' (B _ x opsq) z = f x (foldr f z opsq)
-
-instance Functor (HashPSQ k p) where
-    fmap f = map (\_ _ v -> f v)
 
 
 ------------------------------------------------------------------------------

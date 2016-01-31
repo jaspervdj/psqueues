@@ -1,3 +1,6 @@
+- 0.2.1.0
+    * Add Traversable instances
+
 - 0.2.0.3
     * Bump HUnit dependency bounds
 

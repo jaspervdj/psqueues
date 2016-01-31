@@ -1,6 +1,9 @@
+{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DeriveFoldable      #-}
+{-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE DeriveTraversable   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy         #-}
-{-# LANGUAGE BangPatterns        #-}
 module Data.OrdPSQ.Internal
     ( -- * Type
       OrdPSQ (..)
@@ -64,11 +67,11 @@ module Data.OrdPSQ.Internal
     , valid
     ) where
 
-import           Prelude         hiding (map, lookup, null, foldr)
-import           Control.DeepSeq (NFData(rnf))
-import           Data.Maybe      (isJust)
+import           Control.DeepSeq (NFData (rnf))
 import           Data.Foldable   (Foldable (foldr))
 import qualified Data.List       as List
+import           Data.Maybe      (isJust)
+import           Prelude         hiding (foldr, lookup, map, null)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -76,7 +79,7 @@ import qualified Data.List       as List
 
 -- | @E k p v@ binds the key @k@ to the value @v@ with priority @p@.
 data Elem k p v = E !k !p !v
-    deriving (Show)
+    deriving (Foldable, Functor, Show, Traversable)
 
 instance (NFData k, NFData p, NFData v) => NFData (Elem k p v) where
     rnf (E k p v) = rnf k `seq` rnf p `seq` rnf v
@@ -88,7 +91,7 @@ data OrdPSQ k p v
     | Winner !(Elem k p v)
              !(LTree k p v)
              !k
-    deriving (Show)
+    deriving (Foldable, Functor, Show, Traversable)
 
 instance (NFData k, NFData p, NFData v) => NFData (OrdPSQ k p v) where
     rnf Void           = ()
@@ -101,13 +104,6 @@ instance (Ord k, Ord p, Eq v) => Eq (OrdPSQ k p v) where
             xk == yk && xp == yp && xv == yv && x' == y'
         (Just _               , Nothing                ) -> False
         (Nothing              , Just _                 ) -> False
-
-instance Foldable (OrdPSQ k p) where
-    foldr _ z Void                   = z
-    foldr f z (Winner (E _ _ x) l _) = f x (foldr f z l)
-
-instance Functor (OrdPSQ k p) where
-    fmap f = map (\_ _ v -> f v)
 
 type Size = Int
 
@@ -123,17 +119,12 @@ data LTree k p v
                             !(LTree k p v)
                             !k              -- split key
                             !(LTree k p v)
-    deriving (Show)
+    deriving (Foldable, Functor, Show, Traversable)
 
 instance (NFData k, NFData p, NFData v) => NFData (LTree k p v) where
     rnf Start              = ()
     rnf (LLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
     rnf (RLoser _ e l k r) = rnf e `seq` rnf l `seq` rnf k `seq` rnf r
-
-instance Foldable (LTree k p) where
-    foldr _ z Start                      = z
-    foldr f z (LLoser _ (E _ _ x) l _ r) = f x (foldr f (foldr f z r) l)
-    foldr f z (RLoser _ (E _ _ x) l _ r) = f x (foldr f (foldr f z r) l)
 
 
 --------------------------------------------------------------------------------
