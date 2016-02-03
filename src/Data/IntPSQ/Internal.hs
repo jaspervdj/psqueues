@@ -1,6 +1,9 @@
-{-# LANGUAGE BangPatterns  #-}
-{-# LANGUAGE CPP           #-}
-{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE BangPatterns      #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE UnboxedTuples     #-}
 module Data.IntPSQ.Internal
     ( -- * Type
       Nat
@@ -58,19 +61,20 @@ module Data.IntPSQ.Internal
     , validMask
     ) where
 
-import           Control.DeepSeq (NFData(rnf))
 import           Control.Applicative ((<$>), (<*>))
+import           Control.DeepSeq     (NFData (rnf))
 
-import           Data.BitUtil
 import           Data.Bits
-import           Data.List (foldl')
-import           Data.Maybe (isJust)
-import           Data.Word (Word)
-import           Data.Foldable (Foldable (foldr))
+import           Data.BitUtil
+import           Data.Foldable       (Foldable (foldr))
+import           Data.List           (foldl')
+import           Data.Maybe          (isJust)
+import           Data.Word           (Word)
 
-import qualified Data.List as List
+import qualified Data.List           as List
 
-import           Prelude hiding (lookup, map, filter, foldr, foldl, null)
+import           Prelude             hiding (filter, foldl, foldr, lookup, map,
+                                      null)
 
 -- TODO (SM): get rid of bang patterns
 
@@ -101,7 +105,7 @@ data IntPSQ p v
     = Bin {-# UNPACK #-} !Key !p !v {-# UNPACK #-} !Mask !(IntPSQ p v) !(IntPSQ p v)
     | Tip {-# UNPACK #-} !Key !p !v
     | Nil
-    deriving (Show)
+    deriving (Foldable, Functor, Show, Traversable)
 
 instance (NFData p, NFData v) => NFData (IntPSQ p v) where
     rnf (Bin _k p v _m l r) = rnf p `seq` rnf v `seq` rnf l `seq` rnf r
@@ -115,17 +119,6 @@ instance (Ord p, Eq v) => Eq (IntPSQ p v) where
             xk == yk && xp == yp && xv == yv && x' == y'
         (Just _               , Nothing                ) -> False
         (Nothing              , Just _                 ) -> False
-
-instance Foldable (IntPSQ p) where
-    foldr _ z Nil               = z
-    foldr f z (Tip _ _ v)       = f v z
-    foldr f z (Bin _ _ v _ l r) = f v z''
-      where
-        z' = foldr f z l
-        z'' = foldr f z' r
-
-instance Functor (IntPSQ p) where
-	fmap f = map (\_ _ v -> f v)
 
 
 -- bit twiddling
