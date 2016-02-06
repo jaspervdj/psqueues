@@ -76,6 +76,8 @@ import qualified Data.List           as List
 import           Prelude             hiding (filter, foldl, foldr, lookup, map,
                                       null)
 
+import           Data.Traversable
+
 -- TODO (SM): get rid of bang patterns
 
 {-
