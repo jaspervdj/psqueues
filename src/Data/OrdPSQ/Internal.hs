@@ -72,6 +72,7 @@ import           Data.Foldable   (Foldable (foldr))
 import qualified Data.List       as List
 import           Data.Maybe      (isJust)
 import           Prelude         hiding (foldr, lookup, map, null)
+import           Data.Traversable
 
 --------------------------------------------------------------------------------
 -- Types
