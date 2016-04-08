@@ -7,12 +7,12 @@ type BElem = (Int, Int, ())
 
 data BenchmarkSet = BenchmarkSet
     { bGroupName        :: String
-    , bMinView          :: Pure
-    , bLookup           :: Pure
-    , bInsertEmpty      :: Pure
-    , bInsertNew        :: Pure
-    , bInsertDuplicates :: Pure
-    , bDelete           :: Pure
+    , bMinView          :: Benchmarkable
+    , bLookup           :: Benchmarkable
+    , bInsertEmpty      :: Benchmarkable
+    , bInsertNew        :: Benchmarkable
+    , bInsertDuplicates :: Benchmarkable
+    , bDelete           :: Benchmarkable
     }
 
 runBenchmark :: [BenchmarkSet] -> [Benchmark]
