@@ -85,6 +85,15 @@ Benchmark psqueues-benchmarks
     Type:           exitcode-stdio-1.0
     Hs-source-dirs: src benchmarks
     Main-is:        Main.hs
+
+    Other-modules:
+        BenchmarkTypes
+        Data.FingerTree.PSQueue.Benchmark
+        Data.HashPSQ.Benchmark
+        Data.IntPSQ.Benchmark
+        Data.OrdPSQ.Benchmark
+        Data.PSQueue.Benchmark
+
     Ghc-options:    -Wall
 
     Build-depends:
