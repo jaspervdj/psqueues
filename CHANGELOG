@@ -1,3 +1,6 @@
+- 0.2.2.1
+    * Fix benchmark compilation with stack
+
 - 0.2.2.0
     * Fix import of Traversable on GHC 7.8
 
