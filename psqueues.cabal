@@ -1,5 +1,5 @@
 Name:          psqueues
-Version:       0.2.2.1
+Version:       0.2.2.2
 License:       BSD3
 License-file:  LICENSE
 Maintainer:    Jasper Van der Jeugt <jaspervdj@gmail.com>
@@ -129,7 +129,7 @@ Test-suite psqueues-tests
 
     Build-depends:
           HUnit                      >= 1.2 && < 1.4
-        , QuickCheck                 >= 2.7 && < 2.9
+        , QuickCheck                 >= 2.7 && < 2.10
         , test-framework             >= 0.8 && < 0.9
         , test-framework-hunit       >= 0.3 && < 0.4
         , test-framework-quickcheck2 >= 0.3 && < 0.4
