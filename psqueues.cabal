@@ -1,5 +1,5 @@
 Name:          psqueues
-Version:       0.2.2.2
+Version:       0.2.2.3
 License:       BSD3
 License-file:  LICENSE
 Maintainer:    Jasper Van der Jeugt <jaspervdj@gmail.com>
@@ -128,7 +128,7 @@ Test-suite psqueues-tests
         Data.OrdPSQ.Tests
 
     Build-depends:
-          HUnit                      >= 1.2 && < 1.4
+          HUnit                      >= 1.2 && < 1.6
         , QuickCheck                 >= 2.7 && < 2.10
         , test-framework             >= 0.8 && < 0.9
         , test-framework-hunit       >= 0.3 && < 0.4
