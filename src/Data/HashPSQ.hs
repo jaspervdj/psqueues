@@ -37,6 +37,7 @@ module Data.HashPSQ
     , insertView
     , deleteView
     , minView
+    , atMostView
 
       -- * Traversal
     , map

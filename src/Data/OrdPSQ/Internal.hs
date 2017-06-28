@@ -40,6 +40,7 @@ module Data.OrdPSQ.Internal
     , insertView
     , deleteView
     , minView
+    , atMostView
 
       -- * Traversals
     , map
@@ -349,6 +350,25 @@ secondBest :: (Ord k, Ord p) => LTree k p v -> k -> OrdPSQ k p v
 secondBest Start _                 = Void
 secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
 secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
+
+-- | Return a list of elements ordered by key whose priorities are at most @pt@,
+-- and the rest of the queue stripped of these elements.  The returned list of
+-- elements can be in any order: no guarantees there.
+atMostView :: (Ord k, Ord p) => p -> OrdPSQ k p v -> ([(k, p, v)], OrdPSQ k p v)
+atMostView pt = go []
+  where
+    go acc t@(Winner (E _ p _) _ _)
+        | p > pt                                       = (acc, t)
+    go acc Void                                        = (acc, Void)
+    go acc (Winner (E k p v) Start                 _)  = ((k, p, v) : acc, Void)
+    go acc (Winner e         (RLoser _ e' tl m tr) m') =
+        let (acc',  t')  = go acc  (Winner e  tl m)
+            (acc'', t'') = go acc' (Winner e' tr m') in
+        (acc'', t' `play` t'')
+    go acc (Winner e         (LLoser _ e' tl m tr) m') =
+        let (acc',  t')  = go acc  (Winner e' tl m)
+            (acc'', t'') = go acc' (Winner e  tr m') in
+        (acc'', t' `play` t'')
 
 
 --------------------------------------------------------------------------------

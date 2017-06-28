@@ -39,6 +39,7 @@ module Data.HashPSQ.Internal
     , insertView
     , deleteView
     , minView
+    , atMostView
 
       -- * Traversal
     , map
@@ -58,8 +59,8 @@ import           Data.Foldable        (Foldable (foldr))
 import           Data.Hashable
 import qualified Data.List            as List
 import           Data.Maybe           (isJust)
-import           Prelude              hiding (foldr, lookup, map, null)
 import           Data.Traversable
+import           Prelude              hiding (foldr, lookup, map, null)
 
 import qualified Data.IntPSQ.Internal as IntPSQ
 import qualified Data.OrdPSQ          as OrdPSQ
@@ -340,6 +341,42 @@ minView (HashPSQ ipsq ) =
             (Just (k, p, x), Nothing)
         Just (k', p', x', os') ->
             (Just (k, p, x), Just (h, p', B k' x' os'))
+
+-- | Return a list of elements ordered by key whose priorities are at most @pt@,
+-- and the rest of the queue stripped of these elements.  The returned list of
+-- elements can be in any order: no guarantees there.
+{-# INLINABLE atMostView #-}
+atMostView
+    :: (Hashable k, Ord k, Ord p)
+    => p -> HashPSQ k p v -> ([(k, p, v)], HashPSQ k p v)
+atMostView pt (HashPSQ t0) =
+    (returns, HashPSQ t2)
+  where
+    -- First we use 'IntPSQ.atMostView' to get a collection of buckets that have
+    -- /AT LEAST/ one element with a low priority.  Buckets will usually only
+    -- contain a single element.
+    (buckets, t1) = IntPSQ.atMostView pt t0
+
+    -- We now need to run through the buckets.  This will give us a list of
+    -- elements to return and a bunch of buckets to re-insert.
+    (returns, reinserts) = go [] [] buckets
+      where
+        -- We use two accumulators, for returns and re-inserts.
+        go rets reins []                        = (rets, reins)
+        go rets reins ((_, p, B k v opsq) : bs) =
+            -- Note that 'elems' should be very small, ideally a null list.
+            let (elems, opsq') = OrdPSQ.atMostView pt opsq
+                rets'          = (k, p, v) : elems ++ rets
+                reins'         = case toBucket opsq' of
+                    Nothing     -> reins
+                    Just (p, b) -> ((p, b) : reins)
+            in  go rets' reins' bs
+
+    -- Now we can do the re-insertion pass.
+    t2 = List.foldl'
+        (\t (p, b@(B k _ _)) -> IntPSQ.unsafeInsertNew (hash k) p b t)
+        t1
+        reinserts
 
 
 --------------------------------------------------------------------------------

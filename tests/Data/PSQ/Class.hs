@@ -68,6 +68,8 @@ class PSQ (psq :: * -> * -> *) where
         :: Ord p => Key psq -> psq p v -> Maybe (p, v, psq p v)
     minView
         :: Ord p => psq p v -> Maybe (Key psq, p, v, psq p v)
+    atMostView
+        :: Ord p => p -> psq p v -> ([(Key psq, p, v)], psq p v)
 
     -- Traversals
     map :: Ord p => (Key psq -> p -> v -> w) -> psq p v -> psq p w
@@ -99,6 +101,7 @@ instance PSQ IntPSQ.IntPSQ where
     insertView = IntPSQ.insertView
     deleteView = IntPSQ.deleteView
     minView    = IntPSQ.minView
+    atMostView = IntPSQ.atMostView
     map        = IntPSQ.map
     fold'      = IntPSQ.fold'
     valid      = IntPSQ.valid
@@ -124,6 +127,7 @@ instance forall k. Ord k => PSQ (OrdPSQ.OrdPSQ k) where
     insertView = OrdPSQ.insertView
     deleteView = OrdPSQ.deleteView
     minView    = OrdPSQ.minView
+    atMostView = OrdPSQ.atMostView
     map        = OrdPSQ.map
     fold'      = OrdPSQ.fold'
     valid      = OrdPSQ.valid
@@ -149,6 +153,7 @@ instance forall k. (Hashable k, Ord k) => PSQ (HashPSQ.HashPSQ k) where
     insertView = HashPSQ.insertView
     deleteView = HashPSQ.deleteView
     minView    = HashPSQ.minView
+    atMostView = HashPSQ.atMostView
     map        = HashPSQ.map
     fold'      = HashPSQ.fold'
     valid      = HashPSQ.valid

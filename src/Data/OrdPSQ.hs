@@ -48,6 +48,7 @@ module Data.OrdPSQ
     , insertView
     , deleteView
     , minView
+    , atMostView
 
       -- * Traversals
     , map

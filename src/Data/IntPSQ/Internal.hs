@@ -40,6 +40,7 @@ module Data.IntPSQ.Internal
     , insertView
     , deleteView
     , minView
+    , atMostView
 
       -- * Traversal
     , map
@@ -430,6 +431,26 @@ minView t = case t of
     Nil             -> Nothing
     Tip k p x       -> Just (k, p, x, Nil)
     Bin k p x m l r -> Just (k, p, x, merge m l r)
+
+-- | Return a list of elements ordered by key whose priorities are at most @pt@,
+-- and the rest of the queue stripped of these elements.  The returned list of
+-- elements can be in any order: no guarantees there.
+{-# INLINABLE atMostView #-}
+atMostView :: Ord p => p -> IntPSQ p v -> ([(Int, p, v)], IntPSQ p v)
+atMostView pt t0 = go [] t0
+  where
+    go acc t = case t of
+        Nil             -> (acc, t)
+        Tip k p x
+            | p > pt    -> (acc, t)
+            | otherwise -> ((k, p, x) : acc, Nil)
+
+        Bin k p x m l r
+            | p > pt    -> (acc, t)
+            | otherwise ->
+                let (acc',  l') = go acc  l
+                    (acc'', r') = go acc' r
+                in  ((k, p, x) : acc'', merge m l' r')
 
 
 ------------------------------------------------------------------------------

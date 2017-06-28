@@ -40,6 +40,7 @@ module Data.IntPSQ
     , insertView
     , deleteView
     , minView
+    , atMostView
 
       -- * Traversal
     , map

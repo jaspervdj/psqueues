@@ -73,6 +73,7 @@ tests = Tagged
     , testProperty "fold'"            (untag' prop_fold')
     , testProperty "foldr"            (untag' prop_foldr)
     , testProperty "valid"            (untag' prop_valid)
+    , testProperty "atMostView"       (untag' prop_atMostView)
     ]
   where
     untag' :: Tagged psq test -> test
@@ -439,3 +440,19 @@ prop_valid
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Bool)
 prop_valid = Tagged valid
+
+prop_atMostView
+    :: forall psq. (PSQ psq, Show (Key psq), Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Property)
+prop_atMostView = Tagged $ \t ->
+    forAll arbitraryPriority $ \p ->
+        let (elems, t') = atMostView p t in
+        -- 1. Test that priorities are at most 'p'.
+        and [p' <= p | (_, p', _) <- elems] &&
+        -- 2. Test that the remaining priorities are larger than 'p'.
+        (case findMin t' of
+            Nothing         -> True
+            Just (_, p', _) -> p' > p) &&
+        -- 2. Test that the size of the removed elements and the new queue total
+        -- the original size.
+        length elems + size t' == size t
