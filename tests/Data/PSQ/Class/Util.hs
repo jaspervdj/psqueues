@@ -68,7 +68,7 @@ assertErrorCall :: (String -> Assertion) -> a -> Assertion
 assertErrorCall handler x = handle
     (\e -> case fromException e of
             Just (ErrorCall str) -> handler str
-            Nothing              -> assertFailure $
+            _                    -> assertFailure $
                 "assertErrorCall: expected `error` but got: " ++ show e)
     (x `seq` assertFailure
         "assertErrorCall: evaluated to WHNF and no exception was thrown")

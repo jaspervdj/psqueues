@@ -55,7 +55,7 @@ module Data.HashPSQ.Internal
     ) where
 
 import           Control.DeepSeq      (NFData (..))
-import           Data.Foldable        (Foldable (foldr))
+import           Data.Foldable        (Foldable)
 import           Data.Hashable
 import qualified Data.List            as List
 import           Data.Maybe           (isJust)
@@ -368,8 +368,8 @@ atMostView pt (HashPSQ t0) =
             let (elems, opsq') = OrdPSQ.atMostView pt opsq
                 rets'          = (k, p, v) : elems ++ rets
                 reins'         = case toBucket opsq' of
-                    Nothing     -> reins
-                    Just (p, b) -> ((p, b) : reins)
+                    Nothing      -> reins
+                    Just (p', b) -> ((p', b) : reins)
             in  go rets' reins' bs
 
     -- Now we can do the re-insertion pass.

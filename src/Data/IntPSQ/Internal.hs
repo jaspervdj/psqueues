@@ -64,20 +64,16 @@ module Data.IntPSQ.Internal
 
 import           Control.Applicative ((<$>), (<*>))
 import           Control.DeepSeq     (NFData (rnf))
-
 import           Data.Bits
 import           Data.BitUtil
-import           Data.Foldable       (Foldable (foldr))
+import           Data.Foldable       (Foldable)
 import           Data.List           (foldl')
-import           Data.Maybe          (isJust)
-import           Data.Word           (Word)
-
 import qualified Data.List           as List
-
+import           Data.Maybe          (isJust)
+import           Data.Traversable
+import           Data.Word           (Word)
 import           Prelude             hiding (filter, foldl, foldr, lookup, map,
                                       null)
-
-import           Data.Traversable
 
 -- TODO (SM): get rid of bang patterns
 
@@ -198,9 +194,9 @@ lookup k = go
 -- | /O(1)/ The element with the lowest priority.
 findMin :: Ord p => IntPSQ p v -> Maybe (Int, p, v)
 findMin t = case t of
-    Nil              -> Nothing
-    Tip k p x        -> Just (k, p, x)
-    Bin k p x _ _ _  -> Just (k, p, x)
+    Nil             -> Nothing
+    Tip k p x       -> Just (k, p, x)
+    Bin k p x _ _ _ -> Just (k, p, x)
 
 
 ------------------------------------------------------------------------------
@@ -371,7 +367,7 @@ toList :: IntPSQ p v -> [(Int, p, v)]
 toList =
     go []
   where
-    go acc Nil                = acc
+    go acc Nil                   = acc
     go acc (Tip k' p' x')        = (k', p', x') : acc
     go acc (Bin k' p' x' _m l r) = (k', p', x') : go (go acc r) l
 
@@ -717,6 +713,6 @@ validMask (Bin _ _ _ m left right ) =
         Just xoredKeys ->
             fromIntegral mask == highestBitMask (fromIntegral xoredKeys)
 
-    childKey Nil = Nothing
-    childKey (Tip k _ _) = Just k
+    childKey Nil               = Nothing
+    childKey (Tip k _ _)       = Just k
     childKey (Bin k _ _ _ _ _) = Just k

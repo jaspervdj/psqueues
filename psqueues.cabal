@@ -85,16 +85,22 @@ Benchmark psqueues-benchmarks
     Type:           exitcode-stdio-1.0
     Hs-source-dirs: src benchmarks
     Main-is:        Main.hs
+    Ghc-options:    -Wall
 
     Other-modules:
         BenchmarkTypes
+        Data.BitUtil
         Data.FingerTree.PSQueue.Benchmark
+        Data.HashPSQ
         Data.HashPSQ.Benchmark
+        Data.HashPSQ.Internal
+        Data.IntPSQ
         Data.IntPSQ.Benchmark
+        Data.IntPSQ.Internal
+        Data.OrdPSQ
         Data.OrdPSQ.Benchmark
+        Data.OrdPSQ.Internal
         Data.PSQueue.Benchmark
-
-    Ghc-options:    -Wall
 
     Build-depends:
           containers           >= 0.5
@@ -119,13 +125,20 @@ Test-suite psqueues-tests
     Type:           exitcode-stdio-1.0
 
     Other-modules:
+        Data.BitUtil
+        Data.HashPSQ
+        Data.HashPSQ.Internal
+        Data.HashPSQ.Tests
+        Data.IntPSQ
+        Data.IntPSQ.Internal
+        Data.IntPSQ.Tests
+        Data.OrdPSQ
+        Data.OrdPSQ.Internal
+        Data.OrdPSQ.Tests
         Data.PSQ.Class
         Data.PSQ.Class.Gen
         Data.PSQ.Class.Tests
         Data.PSQ.Class.Util
-        Data.HashPSQ.Tests
-        Data.IntPSQ.Tests
-        Data.OrdPSQ.Tests
 
     Build-depends:
           HUnit                      >= 1.2 && < 1.6

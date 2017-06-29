@@ -2,8 +2,8 @@
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE Safe                #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE Trustworthy         #-}
 module Data.OrdPSQ.Internal
     ( -- * Type
       OrdPSQ (..)
@@ -68,12 +68,12 @@ module Data.OrdPSQ.Internal
     , valid
     ) where
 
-import           Control.DeepSeq (NFData (rnf))
-import           Data.Foldable   (Foldable (foldr))
-import qualified Data.List       as List
-import           Data.Maybe      (isJust)
-import           Prelude         hiding (foldr, lookup, map, null)
+import           Control.DeepSeq  (NFData (rnf))
+import           Data.Foldable    (Foldable (foldr))
+import qualified Data.List        as List
+import           Data.Maybe       (isJust)
 import           Data.Traversable
+import           Prelude          hiding (foldr, lookup, map, null)
 
 --------------------------------------------------------------------------------
 -- Types

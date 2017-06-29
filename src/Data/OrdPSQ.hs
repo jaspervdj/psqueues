@@ -11,9 +11,8 @@
 -- This means it is similar to the
 -- <http://hackage.haskell.org/package/PSQueue-1.1 PSQueue> package but
 -- our benchmarks showed it perform quite a bit faster.
+{-# LANGUAGE Safe                #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE Trustworthy         #-}
-{-# LANGUAGE BangPatterns        #-}
 module Data.OrdPSQ
     ( -- * Type
       OrdPSQ
@@ -58,6 +57,6 @@ module Data.OrdPSQ
     , valid
     ) where
 
-import           Prelude hiding (map, lookup, null, foldr)
+import           Prelude              hiding (foldr, lookup, map, null)
 
 import           Data.OrdPSQ.Internal
