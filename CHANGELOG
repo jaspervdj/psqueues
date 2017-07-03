@@ -1,3 +1,9 @@
+- 0.2.3.0
+    * Add an `atMostView` function to all PSQ flavours
+    * Bump HUnit dependency to 1.6
+    * Bump QuickCheck dependency to 2.10
+    * Clean up warnings on newer and older GHC versions
+
 - 0.2.2.3
     * Bump HUnit dependency to 1.5
 

@@ -1,5 +1,7 @@
 flags: {}
-extra-deps: []
+extra-deps:
+- 'HUnit-1.6.0.0'
+- 'QuickCheck-2.10.0.1'
 resolver: nightly-2017-06-19
 packages:
 - '.'
