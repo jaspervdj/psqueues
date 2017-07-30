@@ -44,6 +44,7 @@ module Data.OrdPSQ.Internal
 
       -- * Traversals
     , map
+    , mapPrioritiesMonotonic
     , fold'
 
       -- * Tournament view
@@ -393,6 +394,25 @@ map f =
     goLTree (LLoser s e l k r) = LLoser s (goElem e) (goLTree l) k (goLTree r)
     goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
 
+-- | /O(n)/ Maps a monotonic function over the priorities in the queue.
+-- | The function @f@ must be monotonic. I.e. if @x < y@, then @f x < f y@.
+-- | /The precondition is not checked./ If @f@ is not monotonic, then the result
+-- | will be invalid.
+{-# INLINABLE mapPrioritiesMonotonic #-}
+mapPrioritiesMonotonic :: forall k p q v. (p -> q) -> OrdPSQ k p v -> OrdPSQ k q v
+mapPrioritiesMonotonic f = goPSQ
+  where
+    goPSQ :: OrdPSQ k p v -> OrdPSQ k q v
+    goPSQ Void = Void
+    goPSQ (Winner e l k) = Winner (goElem e) (goLTree l) k
+
+    goElem :: Elem k p v -> Elem k q v
+    goElem (E k p x) = E k (f p) x
+
+    goLTree :: LTree k p v -> LTree k q v
+    goLTree Start = Start
+    goLTree (LLoser s e l k r) = LLoser s (goElem e) (goLTree l) k (goLTree r)
+    goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
 
 -- | /O(n)/ Strict fold over every key, priority and value in the queue. The order
 -- in which the fold is performed is not specified.

@@ -51,6 +51,7 @@ module Data.OrdPSQ
 
       -- * Traversals
     , map
+    , mapPrioritiesMonotonic
     , fold'
 
       -- * Validity check
