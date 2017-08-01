@@ -44,7 +44,7 @@ module Data.IntPSQ.Internal
 
       -- * Traversal
     , map
-    , mapPrioritiesMonotonic
+    , mapMonotonic
     , fold'
 
       -- * Unsafe manipulation
@@ -465,18 +465,22 @@ map f =
         Tip k p x       -> Tip k p (f k p x)
         Bin k p x m l r -> Bin k p (f k p x) m (go l) (go r)
 
--- | /O(n)/ Maps a monotonic function over the priorities in the queue.
--- | The function @f@ must be monotonic. I.e. if @x < y@, then @f x < f y@.
+-- | /O(n)/ Maps a function over the values and priorities of the queue.
+-- | The function @f@ must be monotonic with respect to the priorities. I.e. if
+-- | @x < y@, then @fst (f k x v) < fst (f k y v)@.
 -- | /The precondition is not checked./ If @f@ is not monotonic, then the result
 -- | will be invalid.
-{-# INLINABLE mapPrioritiesMonotonic #-}
-mapPrioritiesMonotonic :: (p -> q) -> IntPSQ p v -> IntPSQ q v
-mapPrioritiesMonotonic f = go
+{-# INLINABLE mapMonotonic #-}
+mapMonotonic :: (Key -> p -> v -> (q, w)) -> IntPSQ p v -> IntPSQ q w
+mapMonotonic f = go
   where
     go t = case t of
-        Nil -> Nil
-        Tip k p x -> Tip k (f p) x
-        Bin k p x m l r -> Bin k (f p) x m (go l) (go r)
+        Nil             -> Nil
+        Tip k p x       -> let (p', x') = f k p x
+                           in  Tip k p' x'
+
+        Bin k p x m l r -> let (p', x') = f k p x
+                           in  Bin k p' x' m (go l) (go r)
 
 -- | /O(n)/ Strict fold over every key, priority and value in the queue. The order
 -- in which the fold is performed is not specified.

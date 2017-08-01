@@ -44,7 +44,7 @@ module Data.OrdPSQ.Internal
 
       -- * Traversals
     , map
-    , mapPrioritiesMonotonic
+    , mapMonotonic
     , fold'
 
       -- * Tournament view
@@ -394,23 +394,28 @@ map f =
     goLTree (LLoser s e l k r) = LLoser s (goElem e) (goLTree l) k (goLTree r)
     goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
 
--- | /O(n)/ Maps a monotonic function over the priorities in the queue.
--- | The function @f@ must be monotonic. I.e. if @x < y@, then @f x < f y@.
+-- | /O(n)/ Maps a function over the values and priorities of the queue.
+-- | The function @f@ must be monotonic with respect to the priorities. I.e. if
+-- | @x < y@, then @fst (f k x v) < fst (f k y v)@.
 -- | /The precondition is not checked./ If @f@ is not monotonic, then the result
 -- | will be invalid.
-{-# INLINABLE mapPrioritiesMonotonic #-}
-mapPrioritiesMonotonic :: forall k p q v. (p -> q) -> OrdPSQ k p v -> OrdPSQ k q v
-mapPrioritiesMonotonic f = goPSQ
+{-# INLINABLE mapMonotonic #-}
+mapMonotonic :: forall k p q v w
+             .  (k -> p -> v -> (q, w))
+             -> OrdPSQ k p v
+             -> OrdPSQ k q w
+mapMonotonic f = goPSQ
   where
-    goPSQ :: OrdPSQ k p v -> OrdPSQ k q v
-    goPSQ Void = Void
+    goPSQ :: OrdPSQ k p v -> OrdPSQ k q w
+    goPSQ Void           = Void
     goPSQ (Winner e l k) = Winner (goElem e) (goLTree l) k
 
-    goElem :: Elem k p v -> Elem k q v
-    goElem (E k p x) = E k (f p) x
+    goElem :: Elem k p v -> Elem k q w
+    goElem (E k p x) = let (p', x') = f k p x
+                       in E k p' x'
 
-    goLTree :: LTree k p v -> LTree k q v
-    goLTree Start = Start
+    goLTree :: LTree k p v -> LTree k q w
+    goLTree Start              = Start
     goLTree (LLoser s e l k r) = LLoser s (goElem e) (goLTree l) k (goLTree r)
     goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
 

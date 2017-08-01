@@ -69,6 +69,7 @@ tests = Tagged
     , testProperty "insertView"       (untag' prop_insertView)
     , testProperty "deleteView"       (untag' prop_deleteView)
     , testProperty "map"              (untag' prop_map)
+    , testProperty "mapMonotonic"     (untag' prop_mapMonotonic)
     , testProperty "fmap"             (untag' prop_fmap)
     , testProperty "fold'"            (untag' prop_fold')
     , testProperty "foldr"            (untag' prop_foldr)
@@ -397,6 +398,19 @@ prop_map = Tagged $ \t ->
         fromList (List.map (\(k, p, x) -> (k, p, f k p x)) (toList t))
   where
     f k p x = if fromEnum k > p then x else 'a'
+
+prop_mapMonotonic
+    :: forall psq. (PSQ psq, TestKey (Key psq),
+                    Arbitrary (psq Int Char),
+                    Eq (psq Int Char),
+                    Show (psq Int Char))
+    => Tagged psq (psq Int Char -> Bool)
+prop_mapMonotonic = Tagged $ \t ->
+    mapMonotonic f (t :: psq Int Char) ==
+        fromList (List.map (\(k, p, x) -> let (p', x') = f k p x in (k, p', x'))
+                           (toList t))
+  where
+    f k p x = (p + 1, if fromEnum k > p then x else 'a')
 
 prop_fmap
     :: forall psq. (PSQ psq, TestKey (Key psq),
