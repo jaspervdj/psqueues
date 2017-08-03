@@ -52,29 +52,29 @@ tests = Tagged
     , testCase "fromList" (untag' test_fromList)
     , testCase "foldr"    (untag' test_foldr)
 
-    , testProperty "show"             (untag' prop_show)
-    , testProperty "rnf"              (untag' prop_rnf)
-    , testProperty "size"             (untag' prop_size)
-    , testProperty "singleton"        (untag' prop_singleton)
-    , testProperty "memberLookup"     (untag' prop_memberLookup)
-    , testProperty "insertLookup"     (untag' prop_insertLookup)
-    , testProperty "insertDelete"     (untag' prop_insertDelete)
-    , testProperty "insertDeleteView" (untag' prop_insertDeleteView)
-    , testProperty "deleteNonMember"  (untag' prop_deleteNonMember)
-    , testProperty "deleteMin"        (untag' prop_deleteMin)
-    , testProperty "alter"            (untag' prop_alter)
-    , testProperty "alterMin"         (untag' prop_alterMin)
-    , testProperty "toList"           (untag' prop_toList)
-    , testProperty "keys"             (untag' prop_keys)
-    , testProperty "insertView"       (untag' prop_insertView)
-    , testProperty "deleteView"       (untag' prop_deleteView)
-    , testProperty "map"              (untag' prop_map)
-    , testProperty "mapMonotonic"     (untag' prop_mapMonotonic)
-    , testProperty "fmap"             (untag' prop_fmap)
-    , testProperty "fold'"            (untag' prop_fold')
-    , testProperty "foldr"            (untag' prop_foldr)
-    , testProperty "valid"            (untag' prop_valid)
-    , testProperty "atMostView"       (untag' prop_atMostView)
+    , testProperty "show"               (untag' prop_show)
+    , testProperty "rnf"                (untag' prop_rnf)
+    , testProperty "size"               (untag' prop_size)
+    , testProperty "singleton"          (untag' prop_singleton)
+    , testProperty "memberLookup"       (untag' prop_memberLookup)
+    , testProperty "insertLookup"       (untag' prop_insertLookup)
+    , testProperty "insertDelete"       (untag' prop_insertDelete)
+    , testProperty "insertDeleteView"   (untag' prop_insertDeleteView)
+    , testProperty "deleteNonMember"    (untag' prop_deleteNonMember)
+    , testProperty "deleteMin"          (untag' prop_deleteMin)
+    , testProperty "alter"              (untag' prop_alter)
+    , testProperty "alterMin"           (untag' prop_alterMin)
+    , testProperty "toList"             (untag' prop_toList)
+    , testProperty "keys"               (untag' prop_keys)
+    , testProperty "insertView"         (untag' prop_insertView)
+    , testProperty "deleteView"         (untag' prop_deleteView)
+    , testProperty "map"                (untag' prop_map)
+    , testProperty "unsafeMapMonotonic" (untag' prop_unsafeMapMonotonic)
+    , testProperty "fmap"               (untag' prop_fmap)
+    , testProperty "fold'"              (untag' prop_fold')
+    , testProperty "foldr"              (untag' prop_foldr)
+    , testProperty "valid"              (untag' prop_valid)
+    , testProperty "atMostView"         (untag' prop_atMostView)
     ]
   where
     untag' :: Tagged psq test -> test
@@ -399,15 +399,16 @@ prop_map = Tagged $ \t ->
   where
     f k p x = if fromEnum k > p then x else 'a'
 
-prop_mapMonotonic
+prop_unsafeMapMonotonic
     :: forall psq. (PSQ psq, TestKey (Key psq),
                     Arbitrary (psq Int Char),
                     Eq (psq Int Char),
                     Show (psq Int Char))
     => Tagged psq (psq Int Char -> Bool)
-prop_mapMonotonic = Tagged $ \t ->
-    mapMonotonic f (t :: psq Int Char) ==
-        fromList (List.map (\(k, p, x) -> let (p', x') = f k p x in (k, p', x'))
+prop_unsafeMapMonotonic = Tagged $ \t ->
+    let t' = unsafeMapMonotonic f (t :: psq Int Char) :: psq Int Char in
+    valid t' &&
+    t' == fromList (List.map (\(k, p, x) -> let (p', x') = f k p x in (k, p', x'))
                            (toList t))
   where
     f k p x = (p + 1, if fromEnum k > p then x else 'a')

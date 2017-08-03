@@ -44,7 +44,7 @@ module Data.IntPSQ
 
       -- * Traversal
     , map
-    , mapMonotonic
+    , unsafeMapMonotonic
     , fold'
 
       -- * Validity check

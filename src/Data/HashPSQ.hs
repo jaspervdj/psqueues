@@ -41,7 +41,7 @@ module Data.HashPSQ
 
       -- * Traversal
     , map
-    , mapMonotonic
+    , unsafeMapMonotonic
     , fold'
 
       -- * Validity check

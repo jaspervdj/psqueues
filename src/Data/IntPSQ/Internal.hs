@@ -44,7 +44,7 @@ module Data.IntPSQ.Internal
 
       -- * Traversal
     , map
-    , mapMonotonic
+    , unsafeMapMonotonic
     , fold'
 
       -- * Unsafe manipulation
@@ -466,13 +466,13 @@ map f =
         Bin k p x m l r -> Bin k p (f k p x) m (go l) (go r)
 
 -- | /O(n)/ Maps a function over the values and priorities of the queue.
--- | The function @f@ must be monotonic with respect to the priorities. I.e. if
--- | @x < y@, then @fst (f k x v) < fst (f k y v)@.
--- | /The precondition is not checked./ If @f@ is not monotonic, then the result
--- | will be invalid.
-{-# INLINABLE mapMonotonic #-}
-mapMonotonic :: (Key -> p -> v -> (q, w)) -> IntPSQ p v -> IntPSQ q w
-mapMonotonic f = go
+-- The function @f@ must be monotonic with respect to the priorities. I.e. if
+-- @x < y@, then @fst (f k x v) < fst (f k y v)@.
+-- /The precondition is not checked./ If @f@ is not monotonic, then the result
+-- will be invalid.
+{-# INLINABLE unsafeMapMonotonic #-}
+unsafeMapMonotonic :: (Key -> p -> v -> (q, w)) -> IntPSQ p v -> IntPSQ q w
+unsafeMapMonotonic f = go
   where
     go t = case t of
         Nil             -> Nil

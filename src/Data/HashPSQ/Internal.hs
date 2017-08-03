@@ -43,7 +43,7 @@ module Data.HashPSQ.Internal
 
       -- * Traversal
     , map
-    , mapMonotonic
+    , unsafeMapMonotonic
     , fold'
 
       -- * Unsafe operations
@@ -392,20 +392,21 @@ map f (HashPSQ ipsq) = HashPSQ (IntPSQ.map (\_ p v -> mapBucket p v) ipsq)
     mapBucket p (B k v opsq) = B k (f k p v) (OrdPSQ.map f opsq)
 
 -- | /O(n)/ Maps a function over the values and priorities of the queue.
--- | The function @f@ must be monotonic with respect to the priorities. I.e. if
--- | @x < y@, then @fst (f k x v) < fst (f k y v)@.
--- | /The precondition is not checked./ If @f@ is not monotonic, then the result
--- | will be invalid.
-{-# INLINABLE mapMonotonic #-}
-mapMonotonic :: (k -> p -> v -> (q, w))
-             -> HashPSQ k p v
-             -> HashPSQ k q w
-mapMonotonic f (HashPSQ ipsq) =
-  HashPSQ (IntPSQ.mapMonotonic (\_ p v -> mapBucket p v) ipsq)
+-- The function @f@ must be monotonic with respect to the priorities. I.e. if
+-- @x < y@, then @fst (f k x v) < fst (f k y v)@.
+-- /The precondition is not checked./ If @f@ is not monotonic, then the result
+-- will be invalid.
+{-# INLINABLE unsafeMapMonotonic #-}
+unsafeMapMonotonic
+    :: (k -> p -> v -> (q, w))
+    -> HashPSQ k p v
+    -> HashPSQ k q w
+unsafeMapMonotonic f (HashPSQ ipsq) =
+  HashPSQ (IntPSQ.unsafeMapMonotonic (\_ p v -> mapBucket p v) ipsq)
   where
     mapBucket p (B k v opsq) =
         let (p', v') = f k p v
-        in  (p', B k v' (OrdPSQ.mapMonotonic f opsq))
+        in  (p', B k v' (OrdPSQ.unsafeMapMonotonic f opsq))
 
 -- | /O(n)/ Strict fold over every key, priority and value in the queue. The order
 -- in which the fold is performed is not specified.

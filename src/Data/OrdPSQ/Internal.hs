@@ -44,7 +44,7 @@ module Data.OrdPSQ.Internal
 
       -- * Traversals
     , map
-    , mapMonotonic
+    , unsafeMapMonotonic
     , fold'
 
       -- * Tournament view
@@ -395,16 +395,17 @@ map f =
     goLTree (RLoser s e l k r) = RLoser s (goElem e) (goLTree l) k (goLTree r)
 
 -- | /O(n)/ Maps a function over the values and priorities of the queue.
--- | The function @f@ must be monotonic with respect to the priorities. I.e. if
--- | @x < y@, then @fst (f k x v) < fst (f k y v)@.
--- | /The precondition is not checked./ If @f@ is not monotonic, then the result
--- | will be invalid.
-{-# INLINABLE mapMonotonic #-}
-mapMonotonic :: forall k p q v w
-             .  (k -> p -> v -> (q, w))
-             -> OrdPSQ k p v
-             -> OrdPSQ k q w
-mapMonotonic f = goPSQ
+-- The function @f@ must be monotonic with respect to the priorities. I.e. if
+-- @x < y@, then @fst (f k x v) < fst (f k y v)@.
+-- /The precondition is not checked./ If @f@ is not monotonic, then the result
+-- will be invalid.
+{-# INLINABLE unsafeMapMonotonic #-}
+unsafeMapMonotonic
+    :: forall k p q v w.
+       (k -> p -> v -> (q, w))
+    -> OrdPSQ k p v
+    -> OrdPSQ k q w
+unsafeMapMonotonic f = goPSQ
   where
     goPSQ :: OrdPSQ k p v -> OrdPSQ k q w
     goPSQ Void           = Void
