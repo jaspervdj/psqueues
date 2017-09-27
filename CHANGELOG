@@ -1,3 +1,9 @@
+- 0.2.4.0 (2017-09-27)
+    * Add `unsafeMapMonotonic`
+    * Lower build depends version for hashable
+    * Move repo to `jaspervdj/psqueues` to enable travis
+    * Lower build depends version for hashable
+
 - 0.2.3.0
     * Add an `atMostView` function to all PSQ flavours
     * Bump HUnit dependency to 1.6
