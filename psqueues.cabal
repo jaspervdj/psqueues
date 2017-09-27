@@ -1,9 +1,9 @@
 Name:          psqueues
-Version:       0.2.3.0
+Version:       0.2.4.0
 License:       BSD3
 License-file:  LICENSE
 Maintainer:    Jasper Van der Jeugt <jaspervdj@gmail.com>
-Bug-reports:   https://github.com/bttr/psqueues/issues
+Bug-reports:   https://github.com/jaspervdj/psqueues/issues
 Synopsis:      Pure priority search queues
 Category:      Data Structures
 Build-type:    Simple
@@ -57,7 +57,7 @@ Extra-source-files:
 
 Source-repository head
     type:     git
-    location: http://github.com/bttr/psqueues.git
+    location: http://github.com/jaspervdj/psqueues.git
 
 Library
     Ghc-options:    -O2 -Wall
