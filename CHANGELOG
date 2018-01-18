@@ -1,3 +1,6 @@
+- 0.2.5.0 (2018-01-18)
+    * Fix build on GHC 8.4
+
 - 0.2.4.0 (2017-09-27)
     * Add `unsafeMapMonotonic`
     * Lower build depends version for hashable
