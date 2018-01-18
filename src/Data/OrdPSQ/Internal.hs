@@ -305,7 +305,7 @@ toAscList q  = seqToList (toAscLists q)
     toAscLists t = case tourView t of
         Null             -> emptySequ
         Single (E k p v) -> singleSequ (k, p, v)
-        Play tl tr       -> toAscLists tl <> toAscLists tr
+        Play tl tr       -> mappendSequ (toAscLists tl) (toAscLists tr)
 
 
 --------------------------------------------------------------------------------
@@ -693,9 +693,8 @@ emptySequ = Sequ (\as -> as)
 singleSequ :: a -> Sequ a
 singleSequ a = Sequ (\as -> a : as)
 
-(<>) :: Sequ a -> Sequ a -> Sequ a
-Sequ x1 <> Sequ x2 = Sequ (\as -> x1 (x2 as))
-infixr 5 <>
+mappendSequ :: Sequ a -> Sequ a -> Sequ a
+mappendSequ (Sequ x1) (Sequ x2) = Sequ (\as -> x1 (x2 as))
 
 seqToList :: Sequ a -> [a]
 seqToList (Sequ x) = x []
