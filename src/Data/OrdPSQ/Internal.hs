@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveTraversable   #-}
@@ -74,7 +75,11 @@ import           Data.Foldable    (Foldable (foldr))
 import qualified Data.List        as List
 import           Data.Maybe       (isJust)
 import           Data.Traversable
+#if MIN_VERSION_base(4,11,0)
+import           Prelude          hiding (foldr, lookup, map, null, (<>))
+#else
 import           Prelude          hiding (foldr, lookup, map, null)
+#endif
 
 --------------------------------------------------------------------------------
 -- Types
