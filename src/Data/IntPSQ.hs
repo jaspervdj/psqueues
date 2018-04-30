@@ -47,6 +47,14 @@ module Data.IntPSQ
     , unsafeMapMonotonic
     , fold'
 
+      -- * Unsafe operations
+    , unsafeInsertNew
+    , unsafeInsertIncreasePriority
+    , unsafeInsertIncreasePriorityView
+    , unsafeInsertWithIncreasePriority
+    , unsafeInsertWithIncreasePriorityView
+    , unsafeLookupIncreasePriority
+
       -- * Validity check
     , valid
     ) where

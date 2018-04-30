@@ -529,9 +529,6 @@ merge m l r = case l of
 -- Improved insert performance for special cases
 ------------------------------------------------------------------------------
 
--- TODO (SM): Make benchmarks run again, integrate this function with insert
--- and test how benchmarks times change.
-
 -- | Internal function to insert a key with priority larger than the
 -- maximal priority in the heap. This is always the case when using the PSQ
 -- as the basis to implement a LRU cache, which associates a
