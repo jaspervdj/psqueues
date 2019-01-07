@@ -1,5 +1,8 @@
 flags: {}
 extra-deps: []
-resolver: lts-11.5
+resolver: lts-13.0
 packages:
 - '.'
+
+extra-deps:
+- 'QuickCheck-2.12.6.1'

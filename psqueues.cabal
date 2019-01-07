@@ -142,7 +142,7 @@ Test-suite psqueues-tests
 
     Build-depends:
           HUnit                      >= 1.2 && < 1.7
-        , QuickCheck                 >= 2.7 && < 2.12
+        , QuickCheck                 >= 2.7 && < 2.13
         , test-framework             >= 0.8 && < 0.9
         , test-framework-hunit       >= 0.3 && < 0.4
         , test-framework-quickcheck2 >= 0.3 && < 0.4
