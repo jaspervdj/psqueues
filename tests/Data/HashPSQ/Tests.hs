@@ -2,17 +2,16 @@ module Data.HashPSQ.Tests
     ( tests
     ) where
 
-import           Prelude                        hiding (lookup)
+import           Prelude               hiding (lookup)
 
-import           Test.Framework                       (Test)
-import           Test.Framework.Providers.HUnit       (testCase)
-import           Test.Framework.Providers.QuickCheck2 (testProperty)
-import           Test.QuickCheck                      (Property, arbitrary,
-                                                       forAll)
-import           Test.HUnit                           (Assertion, assert)
+import           Test.HUnit            (Assertion, assert)
+import           Test.QuickCheck       (Property, arbitrary, forAll)
+import           Test.Tasty            (TestTree)
+import           Test.Tasty.HUnit      (testCase)
+import           Test.Tasty.QuickCheck (testProperty)
 
 import           Data.HashPSQ.Internal
-import qualified Data.OrdPSQ                    as OrdPSQ
+import qualified Data.OrdPSQ           as OrdPSQ
 import           Data.PSQ.Class.Gen
 import           Data.PSQ.Class.Util
 
@@ -21,7 +20,7 @@ import           Data.PSQ.Class.Util
 -- Index of tests
 --------------------------------------------------------------------------------
 
-tests :: [Test]
+tests :: [TestTree]
 tests =
     [ testCase      "showBucket"    test_showBucket
     , testCase      "toBucket"      test_toBucket

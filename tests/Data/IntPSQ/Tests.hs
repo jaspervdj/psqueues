@@ -1,14 +1,13 @@
 module Data.IntPSQ.Tests
     where
 
-import           Prelude hiding (lookup)
+import           Prelude               hiding (lookup)
 
-import           Test.QuickCheck                      (Property, arbitrary,
-                                                       forAll)
-import           Test.Framework                       (Test)
-import           Test.Framework.Providers.HUnit       (testCase)
-import           Test.Framework.Providers.QuickCheck2 (testProperty)
-import           Test.HUnit                           (Assertion, assert)
+import           Test.HUnit            (Assertion, assert)
+import           Test.QuickCheck       (Property, arbitrary, forAll)
+import           Test.Tasty            (TestTree)
+import           Test.Tasty.HUnit      (testCase)
+import           Test.Tasty.QuickCheck (testProperty)
 
 import           Data.IntPSQ.Internal
 import           Data.PSQ.Class.Gen
@@ -18,7 +17,7 @@ import           Data.PSQ.Class.Util
 -- Index of tests
 --------------------------------------------------------------------------------
 
-tests :: [Test]
+tests :: [TestTree]
 tests =
     [ testCase     "hasBadNils"     test_hasBadNils
     , testProperty "unsafeInsertIncreasePriority"

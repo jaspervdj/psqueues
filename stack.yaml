@@ -4,5 +4,7 @@ resolver: lts-13.0
 packages:
 - '.'
 
+save-hackage-creds: false
 extra-deps:
-- 'QuickCheck-2.12.6.1'
+- 'QuickCheck-2.13.1'
+- 'splitmix-0.0.2'

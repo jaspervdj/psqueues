@@ -1,25 +1,24 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
 module Data.PSQ.Class.Tests
     ( tests
     ) where
 
-import           Prelude             hiding (null, lookup, map, foldr)
-import           Control.Applicative ((<$>))
-import           Control.DeepSeq     (NFData, rnf)
-import           Data.Tagged         (Tagged (..), untag)
-import qualified Data.List           as List
-import           Data.Char           (isPrint, isAlphaNum, ord, toLower)
-import           Data.Foldable       (Foldable, foldr)
+import           Control.Applicative   ((<$>))
+import           Control.DeepSeq       (NFData, rnf)
+import           Data.Char             (isAlphaNum, isPrint, ord, toLower)
+import           Data.Foldable         (Foldable, foldr)
+import qualified Data.List             as List
+import           Data.Tagged           (Tagged (..), untag)
+import           Prelude               hiding (foldr, lookup, map, null)
 
-import           Test.QuickCheck                      (Arbitrary (..), Property,
-                                                       (==>), forAll)
-import           Test.HUnit                           (Assertion, assert, (@?=))
-import           Test.Framework                       (Test)
-import           Test.Framework.Providers.HUnit       (testCase)
-import           Test.Framework.Providers.QuickCheck2 (testProperty)
+import           Test.HUnit            (Assertion, assert, (@?=))
+import           Test.QuickCheck       (Arbitrary (..), Property, forAll, (==>))
+import           Test.Tasty            (TestTree)
+import           Test.Tasty.HUnit      (testCase)
+import           Test.Tasty.QuickCheck (testProperty)
 
 import           Data.PSQ.Class
 import           Data.PSQ.Class.Gen
@@ -38,7 +37,7 @@ tests
                     Functor (psq Int),
                     NFData (psq Int Char),
                     Show (psq Int Char))
-    => Tagged psq [Test]
+    => Tagged psq [TestTree]
 tests = Tagged
     [ testCase "rnf"      (untag' test_rnf)
     , testCase "equality" (untag' test_equality)
@@ -317,8 +316,8 @@ prop_alter = Tagged $ \t ->
             Just _  -> (size t - 1) == size t' && lookup k t' == Nothing
             Nothing -> (size t + 1) == size t' && lookup k t' /= Nothing
   where
-    f Nothing   = ((), Just (100, 'a'))
-    f (Just _)  = ((), Nothing)
+    f Nothing  = ((), Just (100, 'a'))
+    f (Just _) = ((), Nothing)
 
 prop_alterMin
     :: forall psq. (PSQ psq, TestKey (Key psq),
