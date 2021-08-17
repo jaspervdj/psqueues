@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE Safe                #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Data.OrdPSQ.Internal
@@ -75,6 +76,7 @@ import           Data.Foldable    (Foldable (foldr))
 import qualified Data.List        as List
 import           Data.Maybe       (isJust)
 import           Data.Traversable
+import           GHC.Generics     (Generic)
 #if MIN_VERSION_base(4,11,0)
 import           Prelude          hiding (foldr, lookup, map, null, (<>))
 #else
@@ -99,7 +101,7 @@ data OrdPSQ k p v
     | Winner !(Elem k p v)
              !(LTree k p v)
              !k
-    deriving (Foldable, Functor, Show, Traversable)
+    deriving (Foldable, Functor, Show, Traversable, Generic)
 
 instance (NFData k, NFData p, NFData v) => NFData (OrdPSQ k p v) where
     rnf Void           = ()

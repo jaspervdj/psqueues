@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 module Data.HashPSQ.Internal
@@ -61,6 +62,7 @@ import           Data.Hashable
 import qualified Data.List            as List
 import           Data.Maybe           (isJust)
 import           Data.Traversable
+import           GHC.Generics         (Generic)
 import           Prelude              hiding (foldr, lookup, map, null)
 
 import qualified Data.IntPSQ.Internal as IntPSQ
@@ -71,7 +73,7 @@ import qualified Data.OrdPSQ          as OrdPSQ
 ------------------------------------------------------------------------------
 
 data Bucket k p v = B !k !v !(OrdPSQ.OrdPSQ k p v)
-    deriving (Foldable, Functor, Show, Traversable)
+    deriving (Foldable, Functor, Show, Traversable, Generic)
 
 -- | Smart constructor which takes care of placing the minimum element directly
 -- in the 'Bucket'.
@@ -97,7 +99,7 @@ instance (NFData k, NFData p, NFData v) => NFData (Bucket k p v) where
 -- | A priority search queue with keys of type @k@ and priorities of type @p@
 -- and values of type @v@. It is strict in keys, priorities and values.
 newtype HashPSQ k p v = HashPSQ (IntPSQ.IntPSQ p (Bucket k p v))
-    deriving (Foldable, Functor, NFData, Show, Traversable)
+    deriving (Foldable, Functor, NFData, Show, Traversable, Generic)
 
 instance (Eq k, Eq p, Eq v, Hashable k, Ord k, Ord p) =>
             Eq (HashPSQ k p v) where

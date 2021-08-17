@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFoldable    #-}
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE UnboxedTuples     #-}
 module Data.IntPSQ.Internal
     ( -- * Type
@@ -72,6 +73,7 @@ import           Data.List           (foldl')
 import qualified Data.List           as List
 import           Data.Maybe          (isJust)
 import           Data.Traversable
+import           GHC.Generics        (Generic)
 import           Data.Word           (Word)
 import           Prelude             hiding (filter, foldl, foldr, lookup, map,
                                       null)
@@ -105,7 +107,7 @@ data IntPSQ p v
     = Bin {-# UNPACK #-} !Key !p !v {-# UNPACK #-} !Mask !(IntPSQ p v) !(IntPSQ p v)
     | Tip {-# UNPACK #-} !Key !p !v
     | Nil
-    deriving (Foldable, Functor, Show, Traversable)
+    deriving (Foldable, Functor, Show, Traversable, Generic)
 
 instance (NFData p, NFData v) => NFData (IntPSQ p v) where
     rnf (Bin _k p v _m l r) = rnf p `seq` rnf v `seq` rnf l `seq` rnf r
