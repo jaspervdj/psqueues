@@ -1,5 +1,5 @@
 Name:          psqueues
-Version:       0.2.7.2
+Version:       0.2.7.3
 License:       BSD3
 License-file:  LICENSE
 Maintainer:    Jasper Van der Jeugt <jaspervdj@gmail.com>
@@ -7,7 +7,7 @@ Bug-reports:   https://github.com/jaspervdj/psqueues/issues
 Synopsis:      Pure priority search queues
 Category:      Data Structures
 Build-type:    Simple
-Cabal-version: >=1.8
+Cabal-version: >=1.10
 
 Description:
     The psqueues package provides
@@ -60,8 +60,9 @@ Source-repository head
     location: http://github.com/jaspervdj/psqueues.git
 
 Library
-    Ghc-options:    -O2 -Wall
-    Hs-source-dirs: src
+    Default-language: Haskell2010
+    Ghc-options:      -O2 -Wall
+    Hs-source-dirs:   src
 
     Build-depends:
           base     >= 4.2     && < 5
@@ -82,10 +83,11 @@ Library
         Data.OrdPSQ.Internal
 
 Benchmark psqueues-benchmarks
-    Type:           exitcode-stdio-1.0
-    Hs-source-dirs: src benchmarks
-    Main-is:        Main.hs
-    Ghc-options:    -Wall
+    Default-language: Haskell2010
+    Ghc-options:      -Wall
+    Hs-source-dirs:   src benchmarks
+    Main-is:          Main.hs
+    Type:             exitcode-stdio-1.0
 
     Other-modules:
         BenchmarkTypes
@@ -118,11 +120,12 @@ Benchmark psqueues-benchmarks
         , psqueues
 
 Test-suite psqueues-tests
-    Cpp-options:    -DTESTING -DSTRICT
-    Ghc-options:    -Wall
-    Hs-source-dirs: src tests
-    Main-is:        Main.hs
-    Type:           exitcode-stdio-1.0
+    Cpp-options:      -DTESTING -DSTRICT
+    Default-language: Haskell2010
+    Ghc-options:      -Wall
+    Hs-source-dirs:   src tests
+    Main-is:          Main.hs
+    Type:             exitcode-stdio-1.0
 
     Other-modules:
         Data.BitUtil

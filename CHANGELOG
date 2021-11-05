@@ -1,3 +1,9 @@
+# CHANGELOG
+
+- 0.2.7.3 (2021-11-05)
+    * Relax hashable, tasty and QuickCheck upper bounds
+    * Bump Cabal-version to 1.10
+
 - 0.2.7.2 (2019-06-07)
     * Relax hashable upper bound to 1.3
     * Relax QuickCheck upper bound to 2.13
