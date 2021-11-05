@@ -1,10 +1,5 @@
-flags: {}
-extra-deps: []
-resolver: lts-13.0
+resolver: lts-18.14
 packages:
 - '.'
 
 save-hackage-creds: false
-extra-deps:
-- 'QuickCheck-2.13.1'
-- 'splitmix-0.0.2'
