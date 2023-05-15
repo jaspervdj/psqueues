@@ -72,6 +72,7 @@ module Data.OrdPSQ.Internal
 
 import           Control.DeepSeq  (NFData (rnf))
 import           Data.Foldable    (Foldable (foldr))
+import           Data.Function    (on)
 import qualified Data.List        as List
 import           Data.Maybe       (isJust)
 import           Data.Traversable
@@ -106,12 +107,8 @@ instance (NFData k, NFData p, NFData v) => NFData (OrdPSQ k p v) where
     rnf (Winner e t m) = rnf e `seq` rnf m `seq` rnf t
 
 instance (Ord k, Ord p, Eq v) => Eq (OrdPSQ k p v) where
-    x == y = case (minView x, minView y) of
-        (Nothing              , Nothing                ) -> True
-        (Just (xk, xp, xv, x'), (Just (yk, yp, yv, y'))) ->
-            xk == yk && xp == yp && xv == yv && x' == y'
-        (Just _               , Nothing                ) -> False
-        (Nothing              , Just _                 ) -> False
+    (==) = (==) `on` minView
+    {-# INLINABLE (==) #-}
 
 type Size = Int
 
