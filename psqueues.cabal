@@ -93,7 +93,6 @@ Benchmark psqueues-benchmarks
     Other-modules:
         BenchmarkTypes
         Data.BitUtil
-        Data.FingerTree.PSQueue.Benchmark
         Data.HashPSQ
         Data.HashPSQ.Benchmark
         Data.HashPSQ.Internal
@@ -110,7 +109,6 @@ Benchmark psqueues-benchmarks
         , unordered-containers >= 0.2.4
         , criterion            >= 0.8
         , mtl                  >= 2.1
-        , fingertree-psqueue   >= 0.3
         , PSQueue              >= 1.1
         , random               >= 1.0
 
