@@ -302,7 +302,7 @@ keys :: OrdPSQ k p v -> [k]
 keys t = [k | (k, _, _) <- toList t]
 -- TODO (jaspervdj): There must be faster implementations.
 
--- | /O(n)/ Convert to an ascending list.
+-- | /O(n)/ Convert to a list in ascending order by key.
 toAscList :: OrdPSQ k p v -> [(k, p, v)]
 toAscList q  = seqToList (toAscLists q)
   where
@@ -352,6 +352,7 @@ minView :: (Ord k, Ord p) => OrdPSQ k p v -> Maybe (k, p, v, OrdPSQ k p v)
 minView Void                   = Nothing
 minView (Winner (E k p v) t m) = Just (k, p, v, secondBest t m)
 
+{-# INLINABLE secondBest #-}
 secondBest :: (Ord k, Ord p) => LTree k p v -> k -> OrdPSQ k p v
 secondBest Start _                 = Void
 secondBest (LLoser _ e tl m tr) m' = Winner e tl m `play` secondBest tr m'
@@ -360,6 +361,7 @@ secondBest (RLoser _ e tl m tr) m' = secondBest tl m `play` Winner e tr m'
 -- | Return a list of elements ordered by key whose priorities are at most @pt@,
 -- and the rest of the queue stripped of these elements.  The returned list of
 -- elements can be in any order: no guarantees there.
+{-# INLINABLE atMostView #-}
 atMostView :: (Ord k, Ord p) => p -> OrdPSQ k p v -> ([(k, p, v)], OrdPSQ k p v)
 atMostView pt = go []
   where
@@ -448,7 +450,7 @@ fold' f =
 data TourView k p v
     = Null
     | Single {-# UNPACK #-} !(Elem k p v)
-    | Play (OrdPSQ k p v) (OrdPSQ k p v)
+    | Play !(OrdPSQ k p v) !(OrdPSQ k p v)
 
 tourView :: OrdPSQ k p v -> TourView k p v
 tourView Void               = Null
@@ -508,21 +510,26 @@ lloser, rloser :: k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lloser k p v tl m tr = LLoser (1 + size' tl + size' tr) (E k p v) tl m tr
 rloser k p v tl m tr = RLoser (1 + size' tl + size' tr) (E k p v) tl m tr
 
+{-# INLINABLE lbalance #-}
+{-# INLINABLE rbalance #-}
 lbalance, rbalance
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
+lbalance k p v Start m r        = lloser        k p v Start m r
+lbalance k p v l m Start        = lloser        k p v l m Start
 lbalance k p v l m r
-    | size' l + size' r < 2     = lloser        k p v l m r
     | size' r > omega * size' l = lbalanceLeft  k p v l m r
     | size' l > omega * size' r = lbalanceRight k p v l m r
     | otherwise                 = lloser        k p v l m r
 
+rbalance k p v Start m r        = rloser        k p v Start m r
+rbalance k p v l m Start        = rloser        k p v l m Start
 rbalance k p v l m r
-    | size' l + size' r < 2     = rloser        k p v l m r
     | size' r > omega * size' l = rbalanceLeft  k p v l m r
     | size' l > omega * size' r = rbalanceRight k p v l m r
     | otherwise                 = rloser        k p v l m r
 
+{-# INLINABLE lbalanceLeft #-}
 lbalanceLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -530,6 +537,7 @@ lbalanceLeft  k p v l m r
     | size' (left r) < size' (right r) = lsingleLeft  k p v l m r
     | otherwise                        = ldoubleLeft  k p v l m r
 
+{-# INLINABLE lbalanceRight #-}
 lbalanceRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -537,6 +545,7 @@ lbalanceRight k p v l m r
     | size' (left l) > size' (right l) = lsingleRight k p v l m r
     | otherwise                        = ldoubleRight k p v l m r
 
+{-# INLINABLE rbalanceLeft #-}
 rbalanceLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -544,6 +553,7 @@ rbalanceLeft  k p v l m r
     | size' (left r) < size' (right r) = rsingleLeft  k p v l m r
     | otherwise                        = rdoubleLeft  k p v l m r
 
+{-# INLINABLE rbalanceRight #-}
 rbalanceRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -551,6 +561,7 @@ rbalanceRight k p v l m r
     | size' (left l) > size' (right l) = rsingleRight k p v l m r
     | otherwise                        = rdoubleRight k p v l m r
 
+{-# INLINABLE lsingleLeft #-}
 lsingleLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -577,6 +588,7 @@ lsingleRight k1 p1 v1 (RLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
     lloser k1 p1 v1 t1 m1 (lloser k2 p2 v2 t2 m2 t3)
 lsingleRight _ _ _ _ _ _ = moduleError "lsingleRight" "malformed tree"
 
+{-# INLINABLE rsingleRight #-}
 rsingleRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -589,6 +601,7 @@ rsingleRight k1 p1 v1 (RLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3
         rloser k2 p2 v2 t1 m1 (rloser k1 p1 v1 t2 m2 t3)
 rsingleRight _ _ _ _ _ _ = moduleError "rsingleRight" "malformed tree"
 
+{-# INLINABLE ldoubleLeft #-}
 ldoubleLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -598,6 +611,7 @@ ldoubleLeft k1 p1 v1 t1 m1 (RLoser _ (E k2 p2 v2) t2 m2 t3) =
     lsingleLeft k1 p1 v1 t1 m1 (rsingleRight k2 p2 v2 t2 m2 t3)
 ldoubleLeft _ _ _ _ _ _ = moduleError "ldoubleLeft" "malformed tree"
 
+{-# INLINABLE ldoubleRight #-}
 ldoubleRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -607,6 +621,7 @@ ldoubleRight k1 p1 v1 (RLoser _ (E k2 p2 v2) t1 m1 t2) m2 t3 =
     lsingleRight k1 p1 v1 (rsingleLeft k2 p2 v2 t1 m1 t2) m2 t3
 ldoubleRight _ _ _ _ _ _ = moduleError "ldoubleRight" "malformed tree"
 
+{-# INLINABLE rdoubleLeft #-}
 rdoubleLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
@@ -616,6 +631,7 @@ rdoubleLeft k1 p1 v1 t1 m1 (RLoser _ (E k2 p2 v2) t2 m2 t3) =
     rsingleLeft k1 p1 v1 t1 m1 (rsingleRight k2 p2 v2 t2 m2 t3)
 rdoubleLeft _ _ _ _ _ _ = moduleError "rdoubleLeft" "malformed tree"
 
+{-# INLINABLE rdoubleRight #-}
 rdoubleRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
