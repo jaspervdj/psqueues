@@ -10,7 +10,6 @@ import qualified Data.OrdPSQ.Benchmark              as OrdPSQ
 import qualified Data.IntPSQ.Benchmark              as IntPSQ
 import qualified Data.HashPSQ.Benchmark             as HashPSQ
 import qualified Data.PSQueue.Benchmark             as PSQueue
-import qualified Data.FingerTree.PSQueue.Benchmark  as FingerPSQ
 
 benchmarkSize :: Int
 benchmarkSize = 2 ^ (12 :: Int)
@@ -47,7 +46,4 @@ main = defaultMain $ runBenchmark
     , PSQueue.benchmark   "PSQueue increasing"            increasing
     , PSQueue.benchmark   "PSQueue decreasing"            decreasing
     , PSQueue.benchmark   "PSQueue semirandom"            semirandom
-    , FingerPSQ.benchmark "FingerTree PSQueue increasing" increasing
-    , FingerPSQ.benchmark "FingerTree PSQueue decreasing" decreasing
-    , FingerPSQ.benchmark "FingerTree PSQueue semirandom" semirandom
     ]
