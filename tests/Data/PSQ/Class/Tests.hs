@@ -178,9 +178,12 @@ test_fromList
     :: forall psq. (PSQ psq, TestKey (Key psq),
                     Eq (psq Int Char), Show (psq Int Char))
     => Tagged psq Assertion
-test_fromList = Tagged $
+test_fromList = Tagged $ do
     let ls = [(1, 0, 'A'), (2, 0, 'B'), (3, 0, 'C'), (4, 0, 'D')]
-    in (fromList ls :: psq Int Char) @?= fromList (reverse ls)
+      in (fromList ls :: psq Int Char) @?= fromList (reverse ls)
+    let qs = [(4, 0, 'D'), (1, 5, 'Q'), (2, 0, 'B'), (1, 0, 'A'), (3, 0, 'C'), (2, 5, 'Z')]
+        qs' = [(1, 0, 'A'), (2, 5, 'Z'), (3, 0, 'C'), (4, 0, 'D')]
+      in List.sort (toList (fromList qs :: psq Int Char)) @?= qs'
 
 test_foldr
     :: forall psq. (PSQ psq, TestKey (Key psq),

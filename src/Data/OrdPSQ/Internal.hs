@@ -71,7 +71,7 @@ module Data.OrdPSQ.Internal
     ) where
 
 import           Control.DeepSeq  (NFData (rnf))
-import           Data.Foldable    (Foldable (foldr))
+import           Data.Foldable    (Foldable (foldl'))
 import qualified Data.List        as List
 import           Data.Maybe       (isJust)
 import           Data.Traversable
@@ -290,7 +290,7 @@ alterMin f psq0 =
 -- last priority and value for the key is retained.
 {-# INLINABLE fromList #-}
 fromList :: (Ord k, Ord p) => [(k, p, v)] -> OrdPSQ k p v
-fromList = foldr (\(k, p, v) q -> insert k p v q) empty
+fromList = foldl' (\q (k, p, v) -> insert k p v q) empty
 
 -- | /O(n)/ Convert a queue to a list of (key, priority, value) tuples. The
 -- order of the list is not specified.
