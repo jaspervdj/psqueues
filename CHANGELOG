@@ -1,4 +1,7 @@
 # CHANGELOG
+- ????
+    * Fix a bug in `fromList`. It previously used the *first* occurrence
+      of a duplicated key; it now uses the *last* occurrence, as documented.
 
 - 0.2.7.3 (2021-11-05)
     * Relax hashable, tasty and QuickCheck upper bounds
