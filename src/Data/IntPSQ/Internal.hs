@@ -282,8 +282,8 @@ delete k = go
         Bin k' p' x' m l r
           | nomatch k k' m -> t
           | k == k'        -> merge m l r
-          | zero k m       -> binShrinkL k' p' x' m (go l) r
-          | otherwise      -> binShrinkR k' p' x' m l      (go r)
+          | zero k m       -> bin k' p' x' m (go l) r
+          | otherwise      -> bin k' p' x' m l      (go r)
 
 -- | /O(min(n,W))/ Delete the binding with the least priority, and return the
 -- rest of the queue stripped of that binding. In case the queue is empty, the
@@ -336,19 +336,11 @@ alterMin f t = case t of
                            | p' <= p   -> (b, Bin k p' x' m l r)
                            | otherwise -> (b, unsafeInsertNew k p' x' (merge m l r))
 
--- | Smart constructor for a 'Bin' node whose left subtree could have become
--- 'Nil'.
-{-# INLINE binShrinkL #-}
-binShrinkL :: Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
-binShrinkL k p x m Nil r = case r of Nil -> Tip k p x; _ -> Bin k p x m Nil r
-binShrinkL k p x m l   r = Bin k p x m l r
-
--- | Smart constructor for a 'Bin' node whose right subtree could have become
--- 'Nil'.
-{-# INLINE binShrinkR #-}
-binShrinkR :: Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
-binShrinkR k p x m l Nil = case l of Nil -> Tip k p x; _ -> Bin k p x m l Nil
-binShrinkR k p x m l r   = Bin k p x m l r
+-- | Smart constructor for a 'Bin' node.
+{-# INLINE bin #-}
+bin :: Key -> p -> v -> Mask -> IntPSQ p v -> IntPSQ p v -> IntPSQ p v
+bin k p x _ Nil Nil = Tip k p x
+bin k p x m l   r   = Bin k p x m l r
 
 
 ------------------------------------------------------------------------------
@@ -413,11 +405,11 @@ deleteView k t0 =
                        in  t' `seq` (# t', Just (p', x') #)
 
         | zero k m  -> case delFrom l of
-                         (# l', mbPX #) -> let t' = binShrinkL k' p' x' m l' r
+                         (# l', mbPX #) -> let t' = bin k' p' x' m l' r
                                            in  t' `seq` (# t', mbPX #)
 
         | otherwise -> case delFrom r of
-                         (# r', mbPX #) -> let t' = binShrinkR k' p' x' m l  r'
+                         (# r', mbPX #) -> let t' = bin k' p' x' m l  r'
                                            in  t' `seq` (# t', mbPX #)
 
 -- | /O(min(n,W))/ Retrieve the binding with the least priority, and the
