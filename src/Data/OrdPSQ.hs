@@ -54,6 +54,10 @@ module Data.OrdPSQ
     , unsafeMapMonotonic
     , fold'
 
+    , splitMaybe
+    , split
+    , union
+
       -- * Validity check
     , valid
     ) where
