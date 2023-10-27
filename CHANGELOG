@@ -1,7 +1,21 @@
 # CHANGELOG
-- ????
+
+- 0.2.8.0 (2022-10-27)
+    * Add a number of minor optimizations and INLINE pragmas:
+        - The previous `INLINABLE` pragmas were insufficient to fully specialize
+          functions. Add a bunch more. I believe they now do the job they were
+          meant to.
+        - Change the way we check for very short queues in `lbalance` and
+          `rbalance` to avoid redundant size comparisons in the non-short
+          case.
+        - Make the fields of `Play` strict. I doubt this makes any practical
+          difference, since `tourView` is `INLINE`, but in fact the fields are
+          always in WHNF, so we might as well make that explicitly clear.
     * Fix a bug in `fromList`. It previously used the *first* occurrence
       of a duplicated key; it now uses the *last* occurrence, as documented.
+    * Cleanup: refactor `binShrinkL` and `binShrinkR` into `bin`.
+    * Bump deepseq upper bound to 1.6
+    * Bump tasty upper bound to 1.6
 
 - 0.2.7.3 (2021-11-05)
     * Relax hashable, tasty and QuickCheck upper bounds
