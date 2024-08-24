@@ -1,5 +1,0 @@
-resolver: lts-18.14
-packages:
-- '.'
-
-save-hackage-creds: false
