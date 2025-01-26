@@ -515,16 +515,14 @@ rloser k p v tl m tr = RLoser (1 + size' tl + size' tr) (E k p v) tl m tr
 lbalance, rbalance
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
-lbalance k p v Start m r        = lloser        k p v Start m r
-lbalance k p v l m Start        = lloser        k p v l m Start
 lbalance k p v l m r
+    | size' r + size' l < 2     = lloser        k p v l m r
     | size' r > omega * size' l = lbalanceLeft  k p v l m r
     | size' l > omega * size' r = lbalanceRight k p v l m r
     | otherwise                 = lloser        k p v l m r
 
-rbalance k p v Start m r        = rloser        k p v Start m r
-rbalance k p v l m Start        = rloser        k p v l m Start
 rbalance k p v l m r
+    | size' r + size' l < 2     = rloser        k p v l m r
     | size' r > omega * size' l = rbalanceLeft  k p v l m r
     | size' l > omega * size' r = rbalanceRight k p v l m r
     | otherwise                 = rloser        k p v l m r
@@ -653,7 +651,8 @@ valid t =
     not (hasDuplicateKeys t)      &&
     hasMinHeapProperty t          &&
     hasBinarySearchTreeProperty t &&
-    hasCorrectSizeAnnotations t
+    hasCorrectSizeAnnotations t   &&
+    hasBalancedTreeProperty t
 
 hasDuplicateKeys :: Ord k => OrdPSQ k p v -> Bool
 hasDuplicateKeys = any (> 1) . List.map length . List.group . List.sort . keys
@@ -696,6 +695,21 @@ hasCorrectSizeAnnotations (Winner _ t0 _) = go t0
     calculateSize (LLoser _ _ l _ r) = 1 + calculateSize l + calculateSize r
     calculateSize (RLoser _ _ l _ r) = 1 + calculateSize l + calculateSize r
 
+hasBalancedTreeProperty :: OrdPSQ k p v -> Bool
+hasBalancedTreeProperty Void = True
+hasBalancedTreeProperty (Winner _ t _) = go t
+  where
+    go Start = True
+    go (LLoser _ _ l _ r) = withinOmegaFactor l r && go l && go r
+    go (RLoser _ _ l _ r) = withinOmegaFactor l r && go l && go r
+
+    withinOmegaFactor t1 t2 = u < (l + 1) * omega
+      where
+        (l, u)
+            | s1 < s2 = (s1, s2)
+            | otherwise = (s2, s1)
+        s1 = size' t1
+        s2 = size' t2
 
 --------------------------------------------------------------------------------
 -- Utility functions
