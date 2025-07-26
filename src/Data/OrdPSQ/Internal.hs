@@ -73,7 +73,7 @@ module Data.OrdPSQ.Internal
 import           Control.DeepSeq  (NFData (rnf))
 import           Data.Foldable    (Foldable (foldl'))
 import qualified Data.List        as List
-import           Data.Maybe       (isJust)
+import           Data.Maybe       (isJust, fromMaybe)
 import           Data.Traversable
 #if MIN_VERSION_base(4,11,0)
 import           Prelude          hiding (foldr, lookup, map, null, (<>))
@@ -655,7 +655,11 @@ valid t =
     hasMinHeapProperty t          &&
     hasBinarySearchTreeProperty t &&
     hasCorrectSizeAnnotations t   &&
-    hasBalancedTreeProperty t
+    hasBalancedTreeProperty t     &&
+    hasLTreeBST t                 &&
+    hasLTreeKeyCondition t        &&
+    hasLTreeOrigins t             &&
+    hasPennantHeap t
 
 hasDuplicateKeys :: Ord k => OrdPSQ k p v -> Bool
 hasDuplicateKeys = any (> 1) . List.map length . List.group . List.sort . keys
@@ -713,6 +717,45 @@ hasBalancedTreeProperty (Winner _ t _) = go t
             | otherwise = (s2, s1)
         s1 = size' t1
         s2 = size' t2
+
+hasLTreeBST :: Ord k => OrdPSQ k p v -> Bool
+hasLTreeBST Void = True
+hasLTreeBST (Winner (E qk _ _) t qm) = qk <= qm && go (<= qm) t
+  where
+    go _ Start = True
+    go p (LLoser _ (E k _ _) l m r) =
+        p k && go (\x -> p x && x <= m) l && go (\x -> p x && x > m) r
+    go p (RLoser _ (E k _ _) l m r) =
+        p k && go (\x -> p x && x <= m) l && go (\x -> p x && x > m) r
+
+hasLTreeKeyCondition :: Ord k => OrdPSQ k p v -> Bool
+hasLTreeKeyCondition Void = True
+hasLTreeKeyCondition p@(Winner _ t qm) = hasKey qm && go t
+  where
+    hasKey k = isJust (lookup k p)
+
+    go Start = True
+    go (LLoser _ _ l m r) = hasKey m && go l && go r
+    go (RLoser _ _ l m r) = hasKey m && go l && go r
+
+hasLTreeOrigins :: Ord k => OrdPSQ k p v -> Bool
+hasLTreeOrigins Void = True
+hasLTreeOrigins (Winner _ lt _) = go lt
+  where
+    go Start = True
+    go (LLoser _ (E k _ _) l m r) = k <= m && go l && go r
+    go (RLoser _ (E k _ _) l m r) = k > m  && go l && go r
+
+hasPennantHeap :: Ord p => OrdPSQ k p v -> Bool
+hasPennantHeap Void = True
+hasPennantHeap p@(Winner (E _ mp _) _ _) = go mp (tourView p)
+  where
+    go _ Null = True
+    go d (Single (E _ prio _)) = prio >= d
+    go d (Play l r) = fromMaybe False $ do
+        (_, pl, _) <- findMin l
+        (_, pr, _) <- findMin r
+        pure $ pl >= d && pr >= d && go pl (tourView l) && go pr (tourView r)
 
 --------------------------------------------------------------------------------
 -- Utility functions
