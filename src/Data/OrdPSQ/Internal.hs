@@ -483,9 +483,12 @@ beats (p, !k) (p', !k') = p < p' || (p == p' && k < k')
 -- Balancing internals
 --------------------------------------------------------------------------------
 
--- | Balance factor
+-- Balance factors, see http://fox.ucw.cz/papers/bbtree/bbtree.pdf
 omega :: Int
 omega = 4  -- Has to be greater than 3.75 because Hinze's paper said so.
+
+alpha :: Int
+alpha = 2 -- Has to be 2 when omega is 4, by Straka's paper.
 
 size' :: LTree k p v -> Size
 size' Start              = 0
@@ -532,32 +535,32 @@ lbalanceLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lbalanceLeft  k p v l m r
-    | size' (left r) < size' (right r) = lsingleLeft  k p v l m r
-    | otherwise                        = ldoubleLeft  k p v l m r
+    | size' (left r) < alpha * size' (right r) = lsingleLeft  k p v l m r
+    | otherwise                                = ldoubleLeft  k p v l m r
 
 {-# INLINABLE lbalanceRight #-}
 lbalanceRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lbalanceRight k p v l m r
-    | size' (left l) > size' (right l) = lsingleRight k p v l m r
-    | otherwise                        = ldoubleRight k p v l m r
+    | alpha * size' (left l) > size' (right l) = lsingleRight k p v l m r
+    | otherwise                                = ldoubleRight k p v l m r
 
 {-# INLINABLE rbalanceLeft #-}
 rbalanceLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rbalanceLeft  k p v l m r
-    | size' (left r) < size' (right r) = rsingleLeft  k p v l m r
-    | otherwise                        = rdoubleLeft  k p v l m r
+    | size' (left r) < alpha * size' (right r) = rsingleLeft  k p v l m r
+    | otherwise                                = rdoubleLeft  k p v l m r
 
 {-# INLINABLE rbalanceRight #-}
 rbalanceRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rbalanceRight k p v l m r
-    | size' (left l) > size' (right l) = rsingleRight k p v l m r
-    | otherwise                        = rdoubleRight k p v l m r
+    | alpha * size' (left l) > size' (right l) = rsingleRight k p v l m r
+    | otherwise                                = rdoubleRight k p v l m r
 
 {-# INLINABLE lsingleLeft #-}
 lsingleLeft
