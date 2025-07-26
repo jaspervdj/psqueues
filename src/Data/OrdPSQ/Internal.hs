@@ -703,7 +703,7 @@ hasBalancedTreeProperty (Winner _ t _) = go t
     go (LLoser _ _ l _ r) = withinOmegaFactor l r && go l && go r
     go (RLoser _ _ l _ r) = withinOmegaFactor l r && go l && go r
 
-    withinOmegaFactor t1 t2 = u < (l + 1) * omega
+    withinOmegaFactor t1 t2 = l + u < 2 || l * omega >= u
       where
         (l, u)
             | s1 < s2 = (s1, s2)
