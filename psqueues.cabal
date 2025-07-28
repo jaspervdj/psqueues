@@ -111,7 +111,6 @@ Benchmark psqueues-benchmarks
 
         , base
         , deepseq
-        , ghc-prim
         , hashable
         , psqueues
 
@@ -147,9 +146,7 @@ Test-suite psqueues-tests
         , tasty-quickcheck >= 0.8 && < 0.12
 
         , base
-        , array
         , deepseq
-        , ghc-prim
         , hashable
         , psqueues
         , tagged
