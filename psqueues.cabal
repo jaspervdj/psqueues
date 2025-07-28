@@ -102,10 +102,7 @@ Benchmark psqueues-benchmarks
         Data.PSQueue.Benchmark
 
     Build-depends:
-          containers           >= 0.5
-        , unordered-containers >= 0.2.4
-        , criterion            >= 0.8
-        , mtl                  >= 2.1
+          criterion            >= 0.8
         , PSQueue              >= 1.1
         , random               >= 1.0
 
