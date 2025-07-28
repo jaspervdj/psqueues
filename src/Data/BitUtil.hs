@@ -28,8 +28,7 @@ module Data.BitUtil
 import Data.Bits ((.|.), xor)
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts (Word(..), Int(..))
-import GHC.Prim (uncheckedShiftRL#)
+import GHC.Exts (Word(..), Int(..), uncheckedShiftRL#)
 #else
 import Data.Word (shiftL, shiftR)
 #endif
