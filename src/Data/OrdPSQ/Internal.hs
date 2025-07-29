@@ -73,7 +73,7 @@ module Data.OrdPSQ.Internal
 import           Control.DeepSeq  (NFData (rnf))
 import           Data.Foldable    (Foldable (foldl'))
 import qualified Data.List        as List
-import           Data.Maybe       (isJust)
+import           Data.Maybe       (isJust, fromMaybe)
 import           Data.Traversable
 #if MIN_VERSION_base(4,11,0)
 import           Prelude          hiding (foldr, lookup, map, null, (<>))
@@ -483,9 +483,13 @@ beats (p, !k) (p', !k') = p < p' || (p == p' && k < k')
 -- Balancing internals
 --------------------------------------------------------------------------------
 
--- | Balance factor
+-- Balance factors, see Milan Straka - Adams' Trees Revisited
+-- currently available at https://ufal.mff.cuni.cz/~straka/papers/2011-bbtree.pdf
 omega :: Int
 omega = 4  -- Has to be greater than 3.75 because Hinze's paper said so.
+
+alpha :: Int
+alpha = 2 -- Has to be 2 when omega is 4, by Straka's paper.
 
 size' :: LTree k p v -> Size
 size' Start              = 0
@@ -532,32 +536,32 @@ lbalanceLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lbalanceLeft  k p v l m r
-    | size' (left r) < size' (right r) = lsingleLeft  k p v l m r
-    | otherwise                        = ldoubleLeft  k p v l m r
+    | size' (left r) < alpha * size' (right r) = lsingleLeft  k p v l m r
+    | otherwise                                = ldoubleLeft  k p v l m r
 
 {-# INLINABLE lbalanceRight #-}
 lbalanceRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 lbalanceRight k p v l m r
-    | size' (left l) > size' (right l) = lsingleRight k p v l m r
-    | otherwise                        = ldoubleRight k p v l m r
+    | alpha * size' (left l) > size' (right l) = lsingleRight k p v l m r
+    | otherwise                                = ldoubleRight k p v l m r
 
 {-# INLINABLE rbalanceLeft #-}
 rbalanceLeft
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rbalanceLeft  k p v l m r
-    | size' (left r) < size' (right r) = rsingleLeft  k p v l m r
-    | otherwise                        = rdoubleLeft  k p v l m r
+    | size' (left r) < alpha * size' (right r) = rsingleLeft  k p v l m r
+    | otherwise                                = rdoubleLeft  k p v l m r
 
 {-# INLINABLE rbalanceRight #-}
 rbalanceRight
     :: (Ord k, Ord p)
     => k -> p -> v -> LTree k p v -> k -> LTree k p v -> LTree k p v
 rbalanceRight k p v l m r
-    | size' (left l) > size' (right l) = rsingleRight k p v l m r
-    | otherwise                        = rdoubleRight k p v l m r
+    | alpha * size' (left l) > size' (right l) = rsingleRight k p v l m r
+    | otherwise                                = rdoubleRight k p v l m r
 
 {-# INLINABLE lsingleLeft #-}
 lsingleLeft
@@ -652,7 +656,11 @@ valid t =
     hasMinHeapProperty t          &&
     hasBinarySearchTreeProperty t &&
     hasCorrectSizeAnnotations t   &&
-    hasBalancedTreeProperty t
+    hasBalancedTreeProperty t     &&
+    hasLTreeBST t                 &&
+    hasLTreeKeyCondition t        &&
+    hasLTreeOrigins t             &&
+    hasPennantHeap t
 
 hasDuplicateKeys :: Ord k => OrdPSQ k p v -> Bool
 hasDuplicateKeys = any (> 1) . List.map length . List.group . List.sort . keys
@@ -703,13 +711,52 @@ hasBalancedTreeProperty (Winner _ t _) = go t
     go (LLoser _ _ l _ r) = withinOmegaFactor l r && go l && go r
     go (RLoser _ _ l _ r) = withinOmegaFactor l r && go l && go r
 
-    withinOmegaFactor t1 t2 = u < (l + 1) * omega
+    withinOmegaFactor t1 t2 = l + u < 2 || l * omega >= u
       where
         (l, u)
             | s1 < s2 = (s1, s2)
             | otherwise = (s2, s1)
         s1 = size' t1
         s2 = size' t2
+
+hasLTreeBST :: Ord k => OrdPSQ k p v -> Bool
+hasLTreeBST Void = True
+hasLTreeBST (Winner (E qk _ _) t qm) = qk <= qm && go (<= qm) t
+  where
+    go _ Start = True
+    go p (LLoser _ (E k _ _) l m r) =
+        p k && go (\x -> p x && x <= m) l && go (\x -> p x && x > m) r
+    go p (RLoser _ (E k _ _) l m r) =
+        p k && go (\x -> p x && x <= m) l && go (\x -> p x && x > m) r
+
+hasLTreeKeyCondition :: Ord k => OrdPSQ k p v -> Bool
+hasLTreeKeyCondition Void = True
+hasLTreeKeyCondition p@(Winner _ t qm) = hasKey qm && go t
+  where
+    hasKey k = isJust (lookup k p)
+
+    go Start = True
+    go (LLoser _ _ l m r) = hasKey m && go l && go r
+    go (RLoser _ _ l m r) = hasKey m && go l && go r
+
+hasLTreeOrigins :: Ord k => OrdPSQ k p v -> Bool
+hasLTreeOrigins Void = True
+hasLTreeOrigins (Winner _ lt _) = go lt
+  where
+    go Start = True
+    go (LLoser _ (E k _ _) l m r) = k <= m && go l && go r
+    go (RLoser _ (E k _ _) l m r) = k > m  && go l && go r
+
+hasPennantHeap :: Ord p => OrdPSQ k p v -> Bool
+hasPennantHeap Void = True
+hasPennantHeap p@(Winner (E _ mp _) _ _) = go mp (tourView p)
+  where
+    go _ Null = True
+    go d (Single (E _ prio _)) = prio >= d
+    go d (Play l r) = fromMaybe False $ do
+        (_, pl, _) <- findMin l
+        (_, pr, _) <- findMin r
+        pure $ pl >= d && pr >= d && go pl (tourView l) && go pr (tourView r)
 
 --------------------------------------------------------------------------------
 -- Utility functions
