@@ -483,7 +483,8 @@ beats (p, !k) (p', !k') = p < p' || (p == p' && k < k')
 -- Balancing internals
 --------------------------------------------------------------------------------
 
--- Balance factors, see http://fox.ucw.cz/papers/bbtree/bbtree.pdf
+-- Balance factors, see Milan Straka - Adams' Trees Revisited
+-- currently available at https://ufal.mff.cuni.cz/~straka/papers/2011-bbtree.pdf
 omega :: Int
 omega = 4  -- Has to be greater than 3.75 because Hinze's paper said so.
 
