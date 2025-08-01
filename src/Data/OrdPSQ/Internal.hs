@@ -48,6 +48,10 @@ module Data.OrdPSQ.Internal
     , unsafeMapMonotonic
     , fold'
 
+    , splitMaybe
+    , split
+    , union
+
       -- * Tournament view
     , TourView (..)
     , tourView
@@ -202,6 +206,26 @@ insert k p v = go
         Winner (E k' p' v') Start _ -> case compare k k' of
             LT -> singleton k  p  v  `play` singleton k' p' v'
             EQ -> singleton k  p  v
+            GT -> singleton k' p' v' `play` singleton k  p  v
+        Winner e (RLoser _ e' tl m tr) m'
+            | k <= m    -> go (Winner e tl m) `play` (Winner e' tr m')
+            | otherwise -> (Winner e tl m) `play` go (Winner e' tr m')
+        Winner e (LLoser _ e' tl m tr) m'
+            | k <= m    -> go (Winner e' tl m) `play` (Winner e tr m')
+            | otherwise -> (Winner e' tl m) `play` go (Winner e tr m')
+
+-- | /O(log n)/ Insert a new key, priority and value into the queue. If the key is
+-- already present in the queue, the original associated priority and value are
+-- preserved.
+{-# INLINABLE insertGently #-}
+insertGently :: (Ord k, Ord p) => k -> p -> v -> OrdPSQ k p v -> OrdPSQ k p v
+insertGently k p v = go
+  where
+    go t = case t of
+        Void -> singleton k p v
+        Winner (E k' p' v') Start _ -> case compare k k' of
+            LT -> singleton k  p  v  `play` singleton k' p' v'
+            EQ -> singleton k' p' v'
             GT -> singleton k' p' v' `play` singleton k  p  v
         Winner e (RLoser _ e' tl m tr) m'
             | k <= m    -> go (Winner e tl m) `play` (Winner e' tr m')
@@ -478,6 +502,57 @@ beats :: (Ord p, Ord k) => (p, k) -> (p, k) -> Bool
 beats (p, !k) (p', !k') = p < p' || (p == p' && k < k')
 {-# INLINE beats #-}
 
+{-# INLINABLE union #-}
+-- | Left-biased union. When both queues contain a key, it gets its priority
+-- and value from the first argument.
+union :: (Ord p, Ord k) => OrdPSQ k p v -> OrdPSQ k p v -> OrdPSQ k p v
+union q1 q2 = case (tourView q1, tourView q2) of
+  (Null, _) -> q2
+  (_, Null) -> q1
+  (Single (E k p v), _) -> insert k p v q2
+  (_, Single (E k p v)) -> insertGently k p v q1
+  (l `Play` r, _) -> case split (maxKey l) q2 of
+    (z, w) -> union l z `play` union r w
+
+{-# INLINABLE splitMaybe #-}
+splitMaybe :: (Ord p, Ord k) => k -> OrdPSQ k p v -> (OrdPSQ k p v, Maybe (p, v), OrdPSQ k p v)
+splitMaybe needle q = case tourView q of
+  Null -> (Void, Nothing, Void)
+  Single (E k p v) -> case compare needle k of
+    EQ -> (Void, Just (p, v), Void)
+    LT -> (Void, Nothing, singleton k p v)
+    GT -> (singleton k p v, Nothing, Void)
+  sooner `Play` later
+    | needle <= maxKey sooner
+    -> case splitMaybe needle sooner of
+         (ls, mayhaps, rs) ->
+           let !rightly = play rs later
+           in (ls, mayhaps, rightly)
+    | otherwise
+    -> case splitMaybe needle later of
+         (ls, mayhaps, rs) ->
+           let !leftly = play sooner ls
+           in (leftly, mayhaps, rs)
+
+{-# INLINABLE split #-}
+split :: (Ord p, Ord k) => k -> OrdPSQ k p v -> (OrdPSQ k p v, OrdPSQ k p v)
+split needle q = case tourView q of
+  Null -> (Void, Void)
+  Single (E k p v) -> case compare needle k of
+    EQ -> (Void, Void)
+    LT -> (Void, singleton k p v)
+    GT -> (singleton k p v, Void)
+  sooner `Play` later
+    | needle <= maxKey sooner
+    -> case split needle sooner of
+         (ls, rs) ->
+           let !rightly = play rs later
+           in (ls, rightly)
+    | otherwise
+    -> case split needle later of
+         (ls, rs) ->
+           let !leftly = play sooner ls
+           in (leftly, rs)
 
 --------------------------------------------------------------------------------
 -- Balancing internals
