@@ -1,5 +1,18 @@
 # CHANGELOG
 
+- 0.2.8.2 (2025-08-08)
+    * Use Straka's balancing algorithm for OrdPSQ (#64):
+
+      Milan Straka's paper 'Adams’ Trees Revisited' argues that Adams'
+      balancing algorithm previously did not have a correct proof. It
+      provides a proof of a slightly modified balancing algorithm that
+      prefers single rotations in many more cases. The small change
+      specified in that paper fixes the frequent quickcheck failures
+      exposed when the balance test was made more precise.
+
+    * Remove unnecessary dependencies: array, containers, ghc-prim, mtl,
+      unordered-containers
+
 - 0.2.8.1 (2025-01-28)
     * Fix performance issue in OrdPSQ relating to balancing (#61).
     * Relax hashable upper bound to 1.5
