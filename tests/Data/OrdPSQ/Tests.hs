@@ -2,15 +2,17 @@ module Data.OrdPSQ.Tests
     ( tests
     ) where
 
+import           Data.Foldable         (foldl')
 import           Data.List             (isInfixOf)
 import           Test.HUnit            (Assertion, assert)
 import           Test.Tasty            (TestTree)
 import           Test.Tasty.HUnit      (testCase)
-import           Test.Tasty.QuickCheck (testProperty)
+import           Test.Tasty.QuickCheck (testProperty, Property, (.&&.), (===))
 
 import           Data.OrdPSQ.Internal
 import           Data.PSQ.Class.Gen    ()
 import           Data.PSQ.Class.Util
+import           Prelude hiding (lookup)
 
 --------------------------------------------------------------------------------
 -- Index of tests
@@ -23,6 +25,9 @@ tests =
     , testCase     "invalidLTree"  test_invalidLTree
     , testCase     "balanceErrors" test_balanceErrors
     , testProperty "toAscList"     prop_toAscList
+    , testProperty "split"         prop_split
+    , testProperty "splitMaybe"    prop_splitMaybe
+    , testProperty "union"         prop_union
     ]
 
 
@@ -87,3 +92,25 @@ prop_toAscList t = isUniqueSorted [k | (k, _, _) <- toAscList t]
     isUniqueSorted (x : y : zs) = x < y && isUniqueSorted (y : zs)
     isUniqueSorted [_]          = True
     isUniqueSorted []           = True
+
+prop_splitMaybe :: Int -> OrdPSQ Int Int Char -> Property
+prop_splitMaybe needle haystack = case splitMaybe needle haystack of
+  (ls, mm, rs) -> valid ls .&&. valid rs .&&. mm === lookup needle haystack .&&.
+    toAscList haystack ===
+      toAscList ls ++
+      [(needle, p, v) | Just (p, v) <- [mm]] ++
+      toAscList rs
+
+prop_split :: Int -> OrdPSQ Int Int Char -> Property
+prop_split needle haystack = case split needle haystack of
+  (ls, rs) -> valid ls .&&. valid rs .&&.
+    toAscList haystack ===
+      toAscList ls ++
+      [(needle, p, v) | Just (p, v) <- [lookup needle haystack]] ++
+      toAscList rs
+
+prop_union :: OrdPSQ Int Int Char -> OrdPSQ Int Int Char -> Property
+prop_union q1 q2 = valid onion .&&.
+    onion === foldl' (\acc (k, p, v) -> insert k p v acc) q2 (toAscList q1)
+  where
+    onion = union q1 q2
