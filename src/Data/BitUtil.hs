@@ -30,7 +30,7 @@ import Data.Bits ((.|.), xor)
 #if __GLASGOW_HASKELL__
 import GHC.Exts (Word(..), Int(..), uncheckedShiftRL#)
 #else
-import Data.Word (shiftL, shiftR)
+import Data.Bits (shiftR)
 #endif
 
 -- The highestBitMask implementation is based on

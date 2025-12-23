@@ -15,3 +15,4 @@ tags
 cabal.sandbox.config
 dist-newstyle
 cabal.project.local
+dist-mcabal
