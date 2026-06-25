@@ -9,13 +9,13 @@ module Data.PSQ.Class
     ) where
 
 import           Data.Hashable (Hashable)
-
+import           Data.Kind (Type)
 import qualified Data.IntPSQ   as IntPSQ
 import qualified Data.HashPSQ  as HashPSQ
 import qualified Data.OrdPSQ   as OrdPSQ
 
-class PSQ (psq :: * -> * -> *) where
-    type Key psq :: *
+class PSQ (psq :: Type -> Type -> Type) where
+    type Key psq :: Type
 
     -- Query
     null
