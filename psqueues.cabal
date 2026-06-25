@@ -62,7 +62,7 @@ Source-repository head
 
 Library
     Default-language: Haskell2010
-    Ghc-options:      -O2 -Wall
+    Ghc-options:      -O2 -Wall -Wredundant-constraints
     Hs-source-dirs:   src
 
     Build-depends:
@@ -82,7 +82,7 @@ Library
 
 Benchmark psqueues-benchmarks
     Default-language: Haskell2010
-    Ghc-options:      -Wall
+    Ghc-options:      -Wall -Wredundant-constraints
     Hs-source-dirs:   src benchmarks
     Main-is:          Main.hs
     Type:             exitcode-stdio-1.0
@@ -114,7 +114,7 @@ Benchmark psqueues-benchmarks
 Test-suite psqueues-tests
     Cpp-options:      -DTESTING -DSTRICT
     Default-language: Haskell2010
-    Ghc-options:      -Wall
+    Ghc-options:      -Wall -Wredundant-constraints
     Hs-source-dirs:   src tests
     Main-is:          Main.hs
     Type:             exitcode-stdio-1.0
