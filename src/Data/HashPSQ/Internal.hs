@@ -128,13 +128,13 @@ size (HashPSQ ipsq) = IntPSQ.fold'
 
 -- | /O(min(n,W))/ Check if a key is present in the the queue.
 {-# INLINABLE member #-}
-member :: (Hashable k, Ord k, Ord p) => k -> HashPSQ k p v -> Bool
+member :: (Hashable k, Ord k) => k -> HashPSQ k p v -> Bool
 member k = isJust . lookup k
 
 -- | /O(min(n,W))/ The priority and value of a given key, or 'Nothing' if the
 -- key is not bound.
 {-# INLINABLE lookup #-}
-lookup :: (Ord k, Hashable k, Ord p) => k -> HashPSQ k p v -> Maybe (p, v)
+lookup :: (Ord k, Hashable k) => k -> HashPSQ k p v -> Maybe (p, v)
 lookup k (HashPSQ ipsq) = do
     (p0, B k0 v0 os) <- IntPSQ.lookup (hash k) ipsq
     if k0 == k
@@ -142,7 +142,7 @@ lookup k (HashPSQ ipsq) = do
         else OrdPSQ.lookup k os
 
 -- | /O(1)/ The element with the lowest priority.
-findMin :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Maybe (k, p, v)
+findMin :: HashPSQ k p v -> Maybe (k, p, v)
 findMin (HashPSQ ipsq) = case IntPSQ.findMin ipsq of
     Nothing              -> Nothing
     Just (_, p, B k x _) -> Just (k, p, x)
@@ -209,7 +209,7 @@ delete k t = case deleteView k t of
 -- empty queue is returned again.
 {-# INLINE deleteMin #-}
 deleteMin
-    :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> HashPSQ k p v
+    :: (Ord k, Ord p) => HashPSQ k p v -> HashPSQ k p v
 deleteMin t = case minView t of
     Nothing            -> t
     Just (_, _, _, t') -> t'
@@ -274,7 +274,7 @@ fromList = List.foldl' (\psq (k, p, x) -> insert k p x psq) empty
 -- | /O(n)/ Convert a queue to a list of (key, priority, value) tuples. The
 -- order of the list is not specified.
 {-# INLINABLE toList #-}
-toList :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> [(k, p, v)]
+toList :: HashPSQ k p v -> [(k, p, v)]
 toList (HashPSQ ipsq) =
     [ (k', p', x')
     | (_, p, (B k x opsq)) <- IntPSQ.toList ipsq
@@ -283,7 +283,7 @@ toList (HashPSQ ipsq) =
 
 -- | /O(n)/ Obtain the list of present keys in the queue.
 {-# INLINABLE keys #-}
-keys :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> [k]
+keys :: HashPSQ k p v -> [k]
 keys t = [k | (k, _, _) <- toList t]
 
 
@@ -329,7 +329,7 @@ deleteView k (HashPSQ ipsq) = case IntPSQ.alter f (hash k) ipsq of
 -- rest of the queue stripped of that binding.
 {-# INLINABLE minView #-}
 minView
-    :: (Hashable k, Ord k, Ord p)
+    :: (Ord k, Ord p)
     => HashPSQ k p v -> Maybe (k, p, v, HashPSQ k p v)
 minView (HashPSQ ipsq ) =
     case IntPSQ.alterMin f ipsq of
@@ -495,7 +495,7 @@ valid t@(HashPSQ ipsq) =
     not (hasDuplicateKeys t) &&
     and [validBucket k p bucket | (k, p, bucket) <- IntPSQ.toList ipsq]
 
-hasDuplicateKeys :: (Hashable k, Ord k, Ord p) => HashPSQ k p v -> Bool
+hasDuplicateKeys :: (Hashable k, Ord k) => HashPSQ k p v -> Bool
 hasDuplicateKeys = any (> 1) . List.map length . List.group . List.sort . keys
 
 validBucket :: (Hashable k, Ord k, Ord p) => Int -> p -> Bucket k p v -> Bool

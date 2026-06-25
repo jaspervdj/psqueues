@@ -193,7 +193,7 @@ lookup k = go
           | otherwise      -> go r
 
 -- | /O(1)/ The element with the lowest priority.
-findMin :: Ord p => IntPSQ p v -> Maybe (Int, p, v)
+findMin :: IntPSQ p v -> Maybe (Int, p, v)
 findMin t = case t of
     Nil             -> Nothing
     Tip k p x       -> Just (k, p, x)
@@ -209,7 +209,7 @@ empty :: IntPSQ p v
 empty = Nil
 
 -- | /O(1)/ Build a queue with one element.
-singleton :: Ord p => Int -> p -> v -> IntPSQ p v
+singleton :: Int -> p -> v -> IntPSQ p v
 singleton = Tip
 
 
